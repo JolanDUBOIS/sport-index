@@ -1,6 +1,9 @@
 from .football.client import FootballClient
 from .f1.client import F1Client
 
+
+SportClient = FootballClient | F1Client
+
 class Client:
     """ Factory for creating sport-specific clients. """
 
