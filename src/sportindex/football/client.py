@@ -2,10 +2,10 @@ import re
 
 from .onefootball import OneFootballProvider
 from sportindex.utils import get_nested
-from sportindex.core import BaseClient
+from sportindex.core import SportClient
 
 
-class FootballClient(BaseClient):
+class FootballClient(SportClient):
     """ Client for accessing football data. """
 
     _PROVIDERS = {
@@ -21,7 +21,7 @@ class FootballClient(BaseClient):
                 raise ValueError(f"Unknown Football provider: {provider}. Valid options are: {list(self._PROVIDERS.keys())}")
             self.provider = provider_class(**kwargs)
 
-    # --- Implemented methods from BaseClient --- #
+    # --- Implemented methods from SportClient --- #
 
     def get_standings(self, competition_id: str) -> dict:
         """ Get standings for a specific competition. """

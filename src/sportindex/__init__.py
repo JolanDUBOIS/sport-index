@@ -8,6 +8,7 @@ try:
 except PackageNotFoundError:
     __version__ = "unknown"
 
-from .client import Client, SportClient
+from .client import Client
+from .core import SportClient
 
 __all__ = ["__version__", "Client", "SportClient"]

@@ -1,9 +1,9 @@
 from .espn import ESPNProvider
 from sportindex.utils import get_nested
-from sportindex.core import BaseClient
+from sportindex.core import SportClient
 
 
-class F1Client(BaseClient):
+class F1Client(SportClient):
     """ Client for accessing F1 data. """
 
     _PROVIDERS = {

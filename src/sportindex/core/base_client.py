@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class BaseClient(ABC):
+class SportClient(ABC):
     """
     Abstract base class for all sports clients.
     Defines a minimal common interface for generic multi-sport usage.
