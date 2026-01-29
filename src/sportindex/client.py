@@ -1,6 +1,6 @@
 from .core import SportClient
-from .football.client import FootballClient
-from .f1.client import F1Client
+from .football import FootballClient
+from .f1 import F1Client
 
 
 class Client:

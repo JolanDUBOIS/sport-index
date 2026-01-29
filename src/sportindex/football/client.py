@@ -6,7 +6,81 @@ from sportindex.core import SportClient
 
 
 class FootballClient(SportClient):
-    """ Client for accessing football data. """
+    """
+    Client for accessing football data from supported providers.
+
+    This client provides access to competitions, standings, matches, teams, 
+    players, and detailed information for football leagues. Certain methods 
+    allow filtering by date, competition, or team.
+
+    Parameters
+    ----------
+    provider : str, optional
+        The data provider to use. Default is 'onefootball'. Must be one of:
+        'onefootball'.
+    **kwargs
+        Additional keyword arguments passed to the provider's constructor.
+
+    Methods
+    -------
+    get_standings(competition_id: str) -> dict
+        Return standings for a specific competition.
+
+    get_events(on: str = "date", **kwargs) -> dict
+        Return matches or events based on the 'on' parameter. Supported
+        values for 'on':
+        - 'date' → requires 'date' keyword argument
+        - 'competition' → requires 'competition_id'
+        - 'team' → requires 'team_id'
+        - 'team_results' → requires 'team_id'
+
+    get_entities(entity_type: str, **kwargs) -> dict
+        Return entities based on 'entity_type'. Supported values:
+        - 'competitions'
+        - 'teams'
+        - 'players' (requires 'team_id')
+
+    get_details(detail_type: str, entity_id: str) -> dict
+        Return detailed information based on 'detail_type'. Supported values:
+        - 'match'
+        - 'player'
+
+    get_competitions() -> dict
+        Return all competitions available from the provider.
+
+    get_competition_standings(competition_id: str) -> dict
+        Return detailed standings for a specific competition.
+
+    get_competition_fixtures(competition_id: str) -> dict
+        Return upcoming fixtures for a specific competition.
+
+    get_competition_results(competition_id: str) -> dict
+        Return past results for a specific competition.
+
+    get_teams() -> dict
+        Return all teams available from the provider.
+
+    get_team_fixtures(team_id: str) -> dict
+        Return upcoming fixtures for a specific team.
+
+    get_team_results(team_id: str) -> dict
+        Return past results for a specific team.
+
+    get_team_players(team_id: str) -> dict
+        Return players for a specific team.
+
+    get_matches(date: str) -> dict
+        Return matches for a specific date.
+
+    get_match_details(match_id: str) -> dict
+        Return detailed information for a specific match.
+
+    get_player_details(player_id: str) -> dict
+        Return detailed information for a specific player.
+
+    get_player_stats(player_id: str, season_id: int) -> dict
+        Return player statistics for a given season. Not yet implemented.
+    """
 
     _PROVIDERS = {
         "onefootball": OneFootballProvider,

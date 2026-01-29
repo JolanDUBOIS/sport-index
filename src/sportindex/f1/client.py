@@ -4,7 +4,38 @@ from sportindex.core import SportClient
 
 
 class F1Client(SportClient):
-    """ Client for accessing F1 data. """
+    """
+    Client for accessing F1 data from supported providers.
+
+    This client provides access to standings and events for Formula 1 seasons.
+    Certain methods from the base interface (get_entities, get_details) are
+    not implemented, as they are not applicable to F1 in this client.
+
+    Parameters
+    ----------
+    provider : str, optional
+        The data provider to use. Default is 'espn'. Must be one of:
+        'espn'.
+    **kwargs
+        Additional keyword arguments passed to the provider's constructor.
+
+    Methods
+    -------
+    get_standings(season: int) -> dict
+        Return F1 standings for the specified season. The result is a
+        dictionary with keys 'drivers' and 'constructors', each containing
+        lists of entries with details and points.
+
+    get_events(start_date: str, end_date: str) -> dict
+        Return F1 events within the specified date range. The result contains
+        a list of events, each with its sessions, circuit, season, and identifiers.
+
+    get_entities()
+        Not implemented for F1Client.
+
+    get_details(entity_id: str)
+        Not implemented for F1Client.
+    """
 
     _PROVIDERS = {
         "espn": ESPNProvider,
