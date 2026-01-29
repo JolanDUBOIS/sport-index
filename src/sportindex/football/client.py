@@ -8,8 +8,8 @@ from ..utils import get_nested
 class FootballClient:
     """ Client for accessing football data. """
 
-    def __init__(self, provider: OneFootballProvider = None):
-        self.provider = provider or OneFootballProvider()
+    def __init__(self, provider: OneFootballProvider = None, **kwargs):
+        self.provider = provider or OneFootballProvider(**kwargs)
 
     def get_competitions(self) -> dict:
         """ Get all competitions. """
@@ -360,4 +360,7 @@ class FootballClient:
                 "score": get_nested(match, "awayTeam.score"),
                 "aggregated_score": get_nested(match, "awayTeam.aggregatedScore"),
             },
+            "competition": {
+                "name": match.get("competitionName")
+            }
         }

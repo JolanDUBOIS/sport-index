@@ -6,8 +6,8 @@ from ..utils import get_nested
 class F1Client:
     """ Client for accessing F1 data. """
 
-    def __init__(self, provider: F1Provider = None):
-        self.provider = provider or F1Provider()
+    def __init__(self, provider: F1Provider = None, **kwargs):
+        self.provider = provider or F1Provider(**kwargs)
 
     def get_standings(self, season: int) -> dict:
         """ Get F1 standings for a specific season. """

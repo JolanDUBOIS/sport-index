@@ -31,9 +31,9 @@ from sportindex.football import FootballClient
 client = FootballClient()
 
 # Get all matches for a specific team
-matches = client.get_team_fixtures(team_id="team_id")
+matches = client.get_team_fixtures(team_id="psg-263")
 for match in matches["matches"]:
-    print(match["datetime"], match["home_team"]["name"], match["away_team"]["name"])
+    print(f'{match["datetime"]}: {match["home_team"]["name"]} vs {match["away_team"]["name"]}')
 ```
 
 ## Version
