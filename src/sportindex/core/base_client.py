@@ -8,6 +8,11 @@ class SportClient(Protocol):
     Defines the minimal common interface for multi-sport usage.
     Concrete clients (FootballClient, F1Client, etc.) must implement all methods.
 
+    Attributes
+    ----------
+    sport : str
+        The sport this client represents (e.g., 'football', 'f1').
+
     Methods
     -------
     get_standings(*args, **kwargs)
@@ -22,6 +27,8 @@ class SportClient(Protocol):
     get_details(*args, **kwargs)
         Return detailed information about a specific entity
     """
+
+    sport: str
 
     def get_standings(self, *args, **kwargs):
         """ Return current standings (league, season, etc.) """

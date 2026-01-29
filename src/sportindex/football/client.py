@@ -13,8 +13,10 @@ class FootballClient(SportClient):
     players, and detailed information for football leagues. Certain methods 
     allow filtering by date, competition, or team.
 
-    Parameters
+    Attributes
     ----------
+    sport : str
+        The sport this client represents. Always "football".
     provider : str, optional
         The data provider to use. Default is 'onefootball'. Must be one of:
         'onefootball'.
@@ -81,6 +83,8 @@ class FootballClient(SportClient):
     get_player_stats(player_id: str, season_id: int) -> dict
         Return player statistics for a given season. Not yet implemented.
     """
+
+    sport: str = "football"
 
     _PROVIDERS = {
         "onefootball": OneFootballProvider,

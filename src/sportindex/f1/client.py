@@ -11,8 +11,10 @@ class F1Client(SportClient):
     Certain methods from the base interface (get_entities, get_details) are
     not implemented, as they are not applicable to F1 in this client.
 
-    Parameters
+    Attributes
     ----------
+    sport : str
+        The sport this client represents. Always "f1".
     provider : str, optional
         The data provider to use. Default is 'espn'. Must be one of:
         'espn'.
@@ -36,6 +38,8 @@ class F1Client(SportClient):
     get_details(entity_id: str)
         Not implemented for F1Client.
     """
+
+    sport: str = "f1"
 
     _PROVIDERS = {
         "espn": ESPNProvider,
