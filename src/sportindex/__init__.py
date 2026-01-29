@@ -8,4 +8,6 @@ try:
 except PackageNotFoundError:
     __version__ = "unknown"
 
-__all__ = ["__version__"]
+from .client import Client
+
+__all__ = ["__version__", "Client"]

@@ -1,10 +1,10 @@
 from datetime import date
 
 from .endpoints import ENDPOINTS
-from ..core import BaseProvider
+from sportindex.core import BaseProvider
 
 
-class F1Provider(BaseProvider):
+class ESPNProvider(BaseProvider):
     """ TODO """
 
     def __init__(self, **kwargs):

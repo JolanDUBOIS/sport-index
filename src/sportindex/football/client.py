@@ -1,15 +1,90 @@
 import re
 
-from . import logger
-from .provider import OneFootballProvider
-from ..utils import get_nested
+from .onefootball import OneFootballProvider
+from sportindex.utils import get_nested
+from sportindex.core import BaseClient
 
 
-class FootballClient:
+class FootballClient(BaseClient):
     """ Client for accessing football data. """
 
-    def __init__(self, provider: OneFootballProvider = None, **kwargs):
-        self.provider = provider or OneFootballProvider(**kwargs)
+    _PROVIDERS = {
+        "onefootball": OneFootballProvider,
+    }
+
+    def __init__(self, provider: str = None, **kwargs):
+        if provider is None:
+            self.provider = OneFootballProvider(**kwargs)
+        else:
+            provider_class = self._PROVIDERS.get(provider.lower())
+            if provider_class is None:
+                raise ValueError(f"Unknown Football provider: {provider}. Valid options are: {list(self._PROVIDERS.keys())}")
+            self.provider = provider_class(**kwargs)
+
+    # --- Implemented methods from BaseClient --- #
+
+    def get_standings(self, competition_id: str) -> dict:
+        """ Get standings for a specific competition. """
+        return self.get_competition_standings(competition_id)
+
+    def get_events(self, on: str = "date", **kwargs) -> dict:
+        """
+        Get matches, games, or events based on the 'on' parameter.
+        Supported 'on' values: date, competition, team, team_results.
+        """
+        if on == "date":
+            date = kwargs.get("date")
+            if not date:
+                raise ValueError("Date parameter is required when 'on' is set to 'date'.")
+            return self.get_matches(date)
+        elif on == "competition":
+            competition_id = kwargs.get("competition_id")
+            if not competition_id:
+                raise ValueError("competition_id parameter is required when 'on' is set to 'competition'.")
+            return self.get_competition_fixtures(competition_id)
+        elif on == "team":
+            team_id = kwargs.get("team_id")
+            if not team_id:
+                raise ValueError("team_id parameter is required when 'on' is set to 'team'.")
+            return self.get_team_fixtures(team_id)
+        elif on == "team_results":
+            team_id = kwargs.get("team_id")
+            if not team_id:
+                raise ValueError("team_id parameter is required when 'on' is set to 'team_results'.")
+            return self.get_team_results(team_id)
+        else:
+            raise ValueError(f"Unsupported 'on' parameter value: {on}")
+
+    def get_entities(self, entity_type: str, **kwargs) -> dict:
+        """
+        Get entities based on the 'entity_type' parameter.
+        Supported 'entity_type' values: competitions, teams, players.
+        """
+        if entity_type == "competitions":
+            return self.get_competitions()
+        elif entity_type == "teams":
+            return self.get_teams()
+        elif entity_type == "players":
+            team_id = kwargs.get("team_id")
+            if not team_id:
+                raise ValueError("team_id parameter is required when 'entity_type' is set to 'players'.")
+            return self.get_team_players(team_id)
+        else:
+            raise ValueError(f"Unsupported 'entity_type' parameter value: {entity_type}")
+
+    def get_details(self, detail_type: str, entity_id: str) -> dict:
+        """
+        Get details based on the 'detail_type' parameter.
+        Supported 'detail_type' values: match, player.
+        """
+        if detail_type == "match":
+            return self.get_match_details(entity_id)
+        elif detail_type == "player":
+            return self.get_player_details(entity_id)
+        else:
+            raise ValueError(f"Unsupported 'detail_type' parameter value: {detail_type}")
+
+    # --- Competitions --- #
 
     def get_competitions(self) -> dict:
         """ Get all competitions. """
@@ -21,7 +96,6 @@ class FootballClient:
             containers = get_nested(comps, "pageProps.containers", [])
             for container in containers:
                 content_list = get_nested(container, "type.fullWidth.component.contentType.directoryExpandedList", {})
-                logger.debug(f"Content list keys: {list(content_list.keys())}")
                 if links := content_list.get("links"):
                     competitions.extend(links)
                     continue
@@ -44,7 +118,6 @@ class FootballClient:
         containers = get_nested(raw, "standings.pageProps.containers", [])
         for container in containers:
             content_type = get_nested(container, "type.fullWidth.component.contentType", {})
-            logger.debug(f"Content type keys: {list(content_type.keys())}")
 
             if entity_title := content_type.get("entityTitle"):
                 competition.update({
@@ -94,7 +167,6 @@ class FootballClient:
             containers = get_nested(teams_data, "pageProps.containers", [])
             for container in containers:
                 content_list = get_nested(container, "type.fullWidth.component.contentType.directoryExpandedList", {})
-                logger.debug(f"Content list keys: {list(content_list.keys())}")
                 if links := content_list.get("links"):
                     teams.extend(links)
                     continue
@@ -127,7 +199,6 @@ class FootballClient:
         containers = get_nested(raw, "players.pageProps.containers", [])
         for container in containers:
             content_type = get_nested(container, "type.fullWidth.component.contentType", {})
-            logger.debug(f"Content type keys: {list(content_type.keys())}")
 
             if entity_title := content_type.get("entityTitle"):
                 entity.update({
@@ -152,7 +223,6 @@ class FootballClient:
                         "position": player.get("subtitle"),
                         "img_path": player.get("logo", {}).get("path")
                     })
-                    logger.debug(f"Parsed player: {players[-1]}")
 
         return {"entity": entity, "players": players}
 
@@ -165,7 +235,6 @@ class FootballClient:
         containers = get_nested(raw, "matches.pageProps.containers", [])
         for container in containers:
             content_type = get_nested(container, "type.fullWidth.component.contentType", {})
-            logger.debug(f"Content type keys: {list(content_type.keys())}")
 
             if matches_container := content_type.get("matchCardsList"):
                 match_cards = matches_container.get("matchCards", [])
@@ -194,7 +263,6 @@ class FootballClient:
         containers = get_nested(raw, "match_details.pageProps.containers", [])
         for container in containers:
             content_type = get_nested(container, "type.fullWidth.component.contentType", {})
-            logger.debug(f"Content type keys: {list(content_type.keys())}")
             if match_details := content_type.get("matchScore"):
                 match.update({
                     "id": match_id,
@@ -270,7 +338,6 @@ class FootballClient:
         containers = get_nested(raw, "player_details.pageProps.containers", [])
         for container in containers:
             content_type = get_nested(container, "type.fullWidth.component.contentType", {})
-            logger.debug(f"Content type keys: {list(content_type.keys())}")
 
             if transfer_head := content_type.get("transferHeader"):
                 player["name"] = get_nested(transfer_head, "transferPlayerHeader.playerName")
@@ -318,7 +385,6 @@ class FootballClient:
         containers = get_nested(raw, "pageProps.containers", [])
         for container in containers:
             content_type = get_nested(container, "type.fullWidth.component.contentType", {})
-            logger.debug(f"Content type keys: {list(content_type.keys())}")
 
             if entity_title := content_type.get("entityTitle"):
                 entity.update({

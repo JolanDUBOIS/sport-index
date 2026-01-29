@@ -1,13 +1,23 @@
-from . import logger
-from .provider import F1Provider
-from ..utils import get_nested
+from .espn import ESPNProvider
+from sportindex.utils import get_nested
+from sportindex.core import BaseClient
 
 
-class F1Client:
+class F1Client(BaseClient):
     """ Client for accessing F1 data. """
 
-    def __init__(self, provider: F1Provider = None, **kwargs):
-        self.provider = provider or F1Provider(**kwargs)
+    _PROVIDERS = {
+        "espn": ESPNProvider,
+    }
+
+    def __init__(self, provider: str = None, **kwargs):
+        if provider is None:
+            self.provider = ESPNProvider(**kwargs)
+        else:
+            provider_class = self._PROVIDERS.get(provider.lower())
+            if provider_class is None:
+                raise ValueError(f"Unknown F1 provider: {provider}. Valid options are: {list(self._PROVIDERS.keys())}")
+            self.provider = provider_class(**kwargs)
 
     def get_standings(self, season: int) -> dict:
         """ Get F1 standings for a specific season. """
@@ -78,8 +88,8 @@ class F1Client:
 
         return standings
 
-    def get_scoreboard(self, start_date: str, end_date: str) -> dict:
-        """ Get F1 scoreboard for a date range. """
+    def get_events(self, start_date: str, end_date: str) -> dict:
+        """ Get F1 events for a date range. """
         raw = self.provider.get_scoreboard(start_date, end_date)
         events = []
 
@@ -111,3 +121,9 @@ class F1Client:
             events.append(event)
         
         return {"events": events}
+
+    def get_entities(self):
+        raise NotImplementedError("get_entities method is not available for F1Client.")
+
+    def get_details(self, entity_id: str):
+        raise NotImplementedError("get_details method is not available for F1Client.")

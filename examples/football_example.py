@@ -1,9 +1,9 @@
-from sportindex.football import FootballClient
+from sportindex import Client
 
 
 if __name__ == "__main__":
     # Initialize client
-    client = FootballClient()
+    client = Client("football", provider="onefootball")
 
     # Get all matches for a specific team (e.g., Paris Saint-Germain)
     matches = client.get_team_fixtures(team_id="psg-263")
@@ -18,4 +18,3 @@ if __name__ == "__main__":
         if event["name"] in ["Goal", "Penalty"]:
             team = "Bayer Leverkusen" if event["team"] == "home" else "Paris Saint-Germain"
             print(f'{event["name"]} scored by {event["extras"]["scorer"]["name"]} at {event["minute"]} minute for {team}')
-

@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 
 from . import logger
 from .endpoints import ENDPOINTS
-from ..core import BaseProvider, FetchError
+from sportindex.core import BaseProvider, FetchError
 
 
 class OneFootballProvider(BaseProvider):
