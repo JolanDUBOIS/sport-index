@@ -87,6 +87,7 @@ class OneFootballProvider(BaseProvider):
     def get_all_teams(self) -> dict:
         """ Fetch all teams listed on OneFootball. """
         logger.info("Fetching all teams from OneFootball...")
+        logger.info("This may take a while as teams are fetched letter by letter, page by page...")
         teams = {}
 
         for letter in string.ascii_lowercase:
@@ -101,9 +102,16 @@ class OneFootballProvider(BaseProvider):
     def _get_all_teams_letter(self, letter: str) -> dict:
         """ Fetch teams for a specific starting letter. """
         logger.info(f"Fetching teams starting with letter '{letter.capitalize()}'...")
-        url = self._format("all-teams", letter=letter)
-
-        return self.fetch_url(url)
+        teams = {}
+        page = 1
+        while True:
+            try:
+                url = self._format("all-teams", letter=letter, page=page)
+                teams[page] = self.fetch_url(url)
+                page += 1
+            except FetchError:
+                break
+        return teams
 
     def get_team_fixtures(self, team_id: str) -> dict:
         """ Fetch fixtures for a specific team. """

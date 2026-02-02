@@ -8,7 +8,7 @@ ENDPOINTS = {
     "competition-standings": f"{ENDPOINT_BASE}/competition/{{competition_id}}/table.json?competition-id={{competition_id}}&entity-page=table",
     "competition-fixtures": f"{ENDPOINT_BASE}/competition/{{competition_id}}/fixtures.json?competition-id={{competition_id}}&entity-page=fixtures",
     "competition-results": f"{ENDPOINT_BASE}/competition/{{competition_id}}/results.json?competition-id={{competition_id}}&entity-page=results",
-    "all-teams": f"{ENDPOINT_BASE}/all-teams/{{letter}}.json?directory-entity=all-teams&entity-page={{letter}}",
+    "all-teams": f"{ENDPOINT_BASE}/all-teams/{{letter}}.json?page={{page}}&directory-entity=all-teams&entity-page={{letter}}",
     "team-fixtures": f"{ENDPOINT_BASE}/team/{{team_id}}/fixtures.json?team-id={{team_id}}&entity-page=fixtures",
     "team-results": f"{ENDPOINT_BASE}/team/{{team_id}}/results.json?team-id={{team_id}}&entity-page=results",
     "team-players": f"{ENDPOINT_BASE}/team/{{team_id}}/squad.json?team-id={{team_id}}&entity-page=squad",
