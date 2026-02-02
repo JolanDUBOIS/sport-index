@@ -1,3 +1,9 @@
+"""
+F1 client.
+
+See docs/f1/DATA_CONTRACT.md for output structures and guarantees.
+"""
+
 from .espn import ESPNProvider
 from sportindex.utils import get_nested
 from sportindex.core import SportClient

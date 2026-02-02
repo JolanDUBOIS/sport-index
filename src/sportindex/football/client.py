@@ -1,3 +1,9 @@
+"""
+Football client.
+
+See docs/football/DATA_CONTRACT.md for output structures and guarantees.
+"""
+
 import re
 
 from .onefootball import OneFootballProvider
@@ -241,13 +247,14 @@ class FootballClient(SportClient):
 
         teams = []
 
-        for teams_data in raw["teams"].values():
-            containers = get_nested(teams_data, "pageProps.containers", [])
-            for container in containers:
-                content_list = get_nested(container, "type.fullWidth.component.contentType.directoryExpandedList", {})
-                if links := content_list.get("links"):
-                    teams.extend(links)
-                    continue
+        for letter_teams in raw["teams"].values(): # Iterate over letters
+            for teams_data in letter_teams.values(): # Iterate over pages
+                containers = get_nested(teams_data, "pageProps.containers", [])
+                for container in containers:
+                    content_list = get_nested(container, "type.fullWidth.component.contentType.directoryExpandedList", {})
+                    if links := content_list.get("links"):
+                        teams.extend(links)
+                        continue
         
         for team in teams:
             team["id"] = team.get("urlPath", "").rsplit("/", 1)[-1] if team.get("urlPath", "") else None
@@ -308,66 +315,19 @@ class FootballClient(SportClient):
         """ Get matches for a specific date. """
         raw = self.provider.get_matches_by_date(date)
 
-        matches = []
-
-        containers = get_nested(raw, "matches.pageProps.containers", [])
-        for container in containers:
-            content_type = get_nested(container, "type.fullWidth.component.contentType", {})
-
-            if matches_container := content_type.get("matchCardsList"):
-                match_cards = matches_container.get("matchCards", [])
-                extras = {
-                    "title": get_nested(matches_container, "sectionHeader.title"),
-                    "subtitle": get_nested(matches_container, "sectionHeader.subtitle"),
-                    "competition": {
-                        "name": get_nested(matches_container, "sectionHeader.entityLink.name"),
-                        "id": get_nested(matches_container, "sectionHeader.entityLink.urlPath", "").rsplit("/", 1)[-1] if get_nested(matches_container, "sectionHeader.entityLink.urlPath") else None,
-                        "img_path": get_nested(matches_container, "sectionHeader.entityLogo.path"),
-                    }
-                }
-                for raw_match in match_cards:
-                    match = self._parse_match(raw_match)
-                    match["extras"] = extras
-                    matches.append(match)
-        
+        matches = self._parse_matches(raw.get("matches", [])).get("matches", [])
         return {"date": date, "matches": matches}
 
     def get_match_details(self, match_id: str) -> dict:
         """ Get details for a specific match. """
         raw = self.provider.get_match_details(match_id)
 
-        match = {"extras": {}}
-
+        match = self._parse_match({}) # Initialize empty match structure
         containers = get_nested(raw, "match_details.pageProps.containers", [])
         for container in containers:
             content_type = get_nested(container, "type.fullWidth.component.contentType", {})
             if match_details := content_type.get("matchScore"):
-                match.update({
-                    "id": match_id,
-                    "datetime": get_nested(match_details, "kickoff.utcTimestamp"),
-                    "time_period": match_details.get("timePeriod"),
-                    "home_team": {
-                        "id": get_nested(match_details, "homeTeam.link").rsplit("/", 1)[-1] if get_nested(match_details, "homeTeam.link") else None,
-                        "name": get_nested(match_details, "homeTeam.name"),
-                        "img_path": get_nested(match_details, "homeTeam.imageObject.path"),
-                        "score": get_nested(match_details, "homeTeam.score"),
-                        "aggregated_score": get_nested(match_details, "homeTeam.aggregatedScore"),
-                        "penalties": get_nested(match_details, "homeTeam.penalties"),
-                    },
-                    "away_team": {
-                        "id": get_nested(match_details, "awayTeam.link").rsplit("/", 1)[-1] if get_nested(match_details, "awayTeam.link") else None,
-                        "name": get_nested(match_details, "awayTeam.name"),
-                        "img_path": get_nested(match_details, "awayTeam.imageObject.path"),
-                        "score": get_nested(match_details, "awayTeam.score"),
-                        "aggregated_score": get_nested(match_details, "awayTeam.aggregatedScore"),
-                        "penalties": get_nested(match_details, "awayTeam.penalties"),
-                    },
-                    "competition": {
-                        "id": get_nested(match_details, "competition.link.urlPath").rsplit("/", 1)[-1] if get_nested(match_details, "competition.link.urlPath") else None,
-                        "name": get_nested(match_details, "competition.name"),
-                        "img_path": get_nested(match_details, "competition.icon.path"),
-                    }
-                })
+                match = self._parse_match(match_details)
             
             if match_events := content_type.get("matchEvents"):
                 events = []
@@ -381,7 +341,7 @@ class FootballClient(SportClient):
                         "team": "home" if event.get("teamSide") == 0 else "away",
                         "extras": extras
                     })
-                match["extras"]["events"] = events
+                match["details"]["events"] = events
             
             # TODO - Lineups
 
@@ -395,16 +355,17 @@ class FootballClient(SportClient):
                         for entry in entries:
                             entry_title = entry.get("title")
                             if entry_title == "Stadium":
-                                match["extras"]["stadium"] = {
+                                match["details"]["stadium"] = {
                                     "name": entry.get("subtitle"),
                                     "img_path": get_nested(entry, "icon.path")
                                 }
                             elif entry_title == "TV guide":
-                                match["extras"].setdefault("tv_guide", []).append({
+                                match["details"].setdefault("tv_guide", []).append({
                                     "name": entry.get("subtitle"),
                                     "img_path": get_nested(entry, "icon.path")
                                 })
 
+        match["id"] = match_id # Match details do not include ID, so we set it here
         return match
 
     def get_player_details(self, player_id: str) -> dict:
@@ -455,56 +416,74 @@ class FootballClient(SportClient):
 
     # --- Helpers --- #
 
-    def _parse_matches(self, raw: dict, entity_id: str) -> dict:
+    def _parse_matches(self, raw: dict, entity_id: str | None = None) -> dict:
         """ Parse matches (fixtures or results). """
         matches = []
-        entity = {"id": entity_id}
+        entity = {}
         
         containers = get_nested(raw, "pageProps.containers", [])
         for container in containers:
             content_type = get_nested(container, "type.fullWidth.component.contentType", {})
 
             if entity_title := content_type.get("entityTitle"):
-                entity.update({
+                entity = {
+                    "id": entity_id,
                     "name": entity_title.get("title"),
                     "img_path": entity_title.get("imageObject", {}).get("path")
-                })
+                }
             if fixtures_container := content_type.get("matchCardsListsAppender"):
                 match_cards_list = fixtures_container.get("lists", [])
                 for match_card in match_cards_list:
                     matches_list = match_card.get("matchCards", [])
-                    extras = {
-                        "title": get_nested(match_card, "sectionHeader.title"),
-                        "subtitle": get_nested(match_card, "sectionHeader.subtitle")
-                    }
                     for raw_match in matches_list:
                         match = self._parse_match(raw_match)
-                        match["extras"] = extras
+                        match["competition"]["name"] = match.get("competitionName") or get_nested(match, "competition.name")
+                        match["contextual"]["stage_label"] = get_nested(match_card, "sectionHeader.subtitle")
                         matches.append(match)
-        
+            elif fixtures_container := content_type.get("matchCardsList"):
+                matches_list = fixtures_container.get("matchCards", [])
+                for match_card in matches_list:
+                    match = self._parse_match(match_card)
+                    match["competition"] = {
+                        "id": get_nested(fixtures_container, "sectionHeader.entityLink.urlPath").rsplit("/", 1)[-1] if get_nested(fixtures_container, "sectionHeader.entityLink.urlPath") else None,
+                        "name": get_nested(fixtures_container, "sectionHeader.title"),
+                        "img_path": get_nested(fixtures_container, "sectionHeader.entityLogo.path"),
+                    }
+                    match["contextual"]["stage_label"] = get_nested(fixtures_container, "sectionHeader.subtitle")
+                    matches.append(match)
+
         return {"entity": entity, "matches": matches}
 
     @staticmethod
     def _parse_match(match: dict) -> dict:
-        """ Parse a single match entry. """
         match_id = match.get("link").rsplit("/", 1)[-1] if match.get("link") else None
         return {
-            "id": match_id,
-            "datetime": match.get("kickoff"),
+            "id": match_id or match.get("matchId"),
+            "datetime": get_nested(match, "kickoff.utcTimestamp") or match.get("kickoff"),
             "time_period": match.get("timePeriod"),
             "home_team": {
+                "id": get_nested(match, "homeTeam.link").rsplit("/", 1)[-1] if get_nested(match, "homeTeam.link") else None,
                 "name": get_nested(match, "homeTeam.name"),
                 "img_path": get_nested(match, "homeTeam.imageObject.path"),
                 "score": get_nested(match, "homeTeam.score"),
                 "aggregated_score": get_nested(match, "homeTeam.aggregatedScore"),
+                "penalties": get_nested(match, "homeTeam.penalties"),
             },
             "away_team": {
+                "id": get_nested(match, "awayTeam.link").rsplit("/", 1)[-1] if get_nested(match, "awayTeam.link") else None,
                 "name": get_nested(match, "awayTeam.name"),
                 "img_path": get_nested(match, "awayTeam.imageObject.path"),
                 "score": get_nested(match, "awayTeam.score"),
                 "aggregated_score": get_nested(match, "awayTeam.aggregatedScore"),
+                "penalties": get_nested(match, "awayTeam.penalties"),
             },
             "competition": {
-                "name": match.get("competitionName")
-            }
+                "id": get_nested(match, "competition.link.urlPath").rsplit("/", 1)[-1] if get_nested(match, "competition.link.urlPath") else None,
+                "name": None,  # Filled by list-level context when available
+                "img_path": get_nested(match, "competition.icon.path"),
+            },
+            "contextual": {
+                "stage_label": None,
+            },
+            "details": {},
         }
