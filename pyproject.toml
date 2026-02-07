@@ -22,3 +22,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 collect-samples = "scripts.collect_samples:main"
+
+[dependency-groups]
+dev = [
+    "ipykernel (>=7.1.0,<8.0.0)"
+]

@@ -18,15 +18,15 @@ try:
 except PackageNotFoundError:
     __version__ = "unknown"
 
-from .client import Client
-from .core import SportClient
-from .f1 import F1Client
-from .football import FootballClient
+# from .client_old import Client
+# from .core import SportClient
+# from .f1 import F1Client
+# from .football import FootballClient
 
 __all__ = [
-    "__version__",
-    "SportClient",
-    "Client",
-    "FootballClient",
-    "F1Client",
+    # "__version__",
+    # "SportClient",
+    # "Client",
+    # "FootballClient",
+    # "F1Client",
 ]

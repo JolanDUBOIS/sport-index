@@ -10,10 +10,10 @@ from .exceptions import RateLimitError, FetchError
 
 class Fetcher:
     """ HTTP transport with bot-mitigation, retries, and backoff. """
-    def __init__(self, **kwargs):
+    def __init__(self):
         self._scraper = cloudscraper.create_scraper()
 
-    def fetch_url(self, url: str, max_retries: int = 3, retry_delay: int = 5, initial_delay: int = 5) -> Response:
+    def fetch_url(self, url: str, *, params: dict = None, max_retries: int = 3, retry_delay: int = 5, initial_delay: int = 5) -> Response:
         """ TODO """
         last_status = None
         time.sleep(initial_delay + random.uniform(0, 1))
@@ -22,7 +22,7 @@ class Fetcher:
             next_delay = self._get_delay(retry_delay, retry)
 
             try:
-                response = self._scraper.get(url)
+                response = self._scraper.get(url, params=params)
                 last_status = response.status_code
 
                 if response.status_code == 200:

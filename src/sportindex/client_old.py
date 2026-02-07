@@ -1,5 +1,5 @@
 from .core import SportClient
-from .football import FootballClient
+# from .football import FootballClient
 from .f1 import F1Client
 
 
@@ -7,7 +7,7 @@ class Client:
     """ Factory for creating sport-specific clients. """
 
     _SPORT_CLIENTS = {
-        "football": FootballClient,
+        # "football": FootballClient,
         "f1": F1Client,
     }
 
