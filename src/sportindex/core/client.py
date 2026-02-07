@@ -6,6 +6,7 @@ from .transformers import (
     transform_category,
     transform_competition,
     transform_event,
+    transform_lineups,
     transform_manager,
     transform_player,
     transform_referee,
@@ -175,6 +176,18 @@ class Client:
         except (RateLimitError, FetchError):
             logger.exception("Failed to fetch event from Sofascore.")
             return {"event": None, "query": query}
+
+
+    def get_lineups(self, event_id: str) -> dict:
+        """ Fetch lineups for a specific event. """
+        query = {"event_id": event_id}
+        try:
+            lineups_raw = self.provider.get_lineups(event_id=event_id)
+            lineups = transform_lineups(lineups_raw)
+            return {"lineups": lineups, "query": query}
+        except (RateLimitError, FetchError):
+            logger.exception("Failed to fetch lineups from Sofascore.")
+            return {"lineups": None, "query": query}
 
 
     def get_fixtures(

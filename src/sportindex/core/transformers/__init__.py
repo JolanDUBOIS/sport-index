@@ -4,6 +4,7 @@ logger = logging.getLogger(__name__)
 from .category import transform_category
 from .competition import transform_competition, transform_season
 from .event import transform_event
+from .lineups import transform_lineups
 from .manager import transform_manager
 from .player import transform_player
 from .ranking import transform_rankings
