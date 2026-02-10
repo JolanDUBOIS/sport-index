@@ -1,8 +1,8 @@
 """
 sport-index: Unified Python clients for sports data.
 
-Provides a factory (`Client`) to create sport-specific clients, an interface
-(`SportClient`) for typing, and concrete clients (`FootballClient`, `F1Client`).
+Provides a Client class to access various sports data through a consistent interface.
+Supports multiple sports and data types, with models for structured access to results, standings, and more.
 
 Note: This library accesses unofficial APIs and may rely on scraping.
 Use responsibly and comply with provider terms of service.
@@ -18,15 +18,44 @@ try:
 except PackageNotFoundError:
     __version__ = "unknown"
 
-# from .client_old import Client
-# from .core import SportClient
-# from .f1 import F1Client
-# from .football import FootballClient
+from .core import Client
+from .core.models import (
+    Category,
+    Event,
+    Incident,
+    Lineup,
+    Manager,
+    Player,
+    Referee,
+    RacingStandings,
+    Rankings,
+    RoundStage,
+    Season,
+    SeasonStage,
+    Team,
+    TeamStandings,
+    UniqueTournament,
+    Venue
+)
 
 __all__ = [
-    # "__version__",
-    # "SportClient",
-    # "Client",
-    # "FootballClient",
-    # "F1Client",
+    "__version__",
+    "Client",
+    # Public models
+    "Category",
+    "Event",
+    "Incident",
+    "Lineup",
+    "Manager",
+    "Player",
+    "Referee",
+    "RacingStandings",
+    "Rankings",
+    "RoundStage",
+    "Season",
+    "SeasonStage",
+    "Team",
+    "TeamStandings",
+    "UniqueTournament",
+    "Venue",
 ]

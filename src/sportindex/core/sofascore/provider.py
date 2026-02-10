@@ -1,8 +1,10 @@
+from datetime import datetime
+
 from requests import Response
 
 from . import logger
 from .endpoints import ENDPOINTS
-from sportindex.core import Fetcher
+from .. import Fetcher
 
 
 class SofascoreProvider():
@@ -20,42 +22,42 @@ class SofascoreProvider():
         url = self._format("all-categories", sport=sport)
         return self.fetch_url(url)
 
-    def get_category_competitions(self, category_id: str) -> dict:
-        """ Fetch competitions for a specific category. """
-        logger.info(f"Fetching competitions for category ID: {category_id} from Sofascore...")
-        url = self._format("category-competitions", category_id=category_id)
+    def get_category_unique_tournaments(self, category_id: str) -> dict:
+        """ Fetch unique tournaments for a specific category. """
+        logger.info(f"Fetching unique tournaments for category ID: {category_id} from Sofascore...")
+        url = self._format("category-unique-tournaments", category_id=category_id)
         return self.fetch_url(url)
 
-    # ---- Competitions ---- #
+    # ---- Unique Tournaments ---- #
 
-    def get_competition(self, competition_id: str) -> dict:
-        """ Fetch competition details for a specific competition ID. """
-        logger.info(f"Fetching details for competition ID: {competition_id} from Sofascore...")
-        url = self._format("competition", competition_id=competition_id)
+    def get_unique_tournament(self, unique_tournament_id: str) -> dict:
+        """ Fetch unique tournament details for a specific unique tournament ID. """
+        logger.info(f"Fetching details for unique tournament ID: {unique_tournament_id} from Sofascore...")
+        url = self._format("unique-tournament", unique_tournament_id=unique_tournament_id)
         return self.fetch_url(url)
 
-    def get_competition_seasons(self, competition_id: str) -> dict:
-        """ Fetch seasons for a specific competition. """
-        logger.info(f"Fetching seasons for competition ID: {competition_id} from Sofascore...")
-        url = self._format("competition-seasons", competition_id=competition_id)
+    def get_unique_tournament_seasons(self, unique_tournament_id: str) -> dict:
+        """ Fetch seasons for a specific unique tournament. """
+        logger.info(f"Fetching seasons for unique tournament ID: {unique_tournament_id} from Sofascore...")
+        url = self._format("unique-tournament-seasons", unique_tournament_id=unique_tournament_id)
         return self.fetch_url(url)
 
-    def get_competition_standings(self, competition_id: str, season_id: str, view: str = "total") -> dict:
-        """ Fetch standings for a specific competition and season. """
-        logger.info(f"Fetching standings for competition ID: {competition_id}, season ID: {season_id} from Sofascore...")
-        url = self._format("competition-standings", competition_id=competition_id, season_id=season_id, view=view)
+    def get_unique_tournament_standings(self, unique_tournament_id: str, season_id: str, view: str = "total") -> dict:
+        """ Fetch standings for a specific unique tournament and season. """
+        logger.info(f"Fetching standings for unique tournament ID: {unique_tournament_id}, season ID: {season_id} from Sofascore...")
+        url = self._format("unique-tournament-standings", unique_tournament_id=unique_tournament_id, season_id=season_id, view=view)
         return self.fetch_url(url)
 
-    def get_competition_fixtures(self, competition_id: str, season_id: str, page: int = 0) -> dict:
-        """ Fetch upcoming fixtures for a specific competition and season. """
-        logger.info(f"Fetching fixtures for competition ID: {competition_id}, season ID: {season_id} from Sofascore...")
-        url = self._format("competition-fixtures", competition_id=competition_id, season_id=season_id, page=page)
+    def get_unique_tournament_fixtures(self, unique_tournament_id: str, season_id: str, page: int = 0) -> dict:
+        """ Fetch upcoming fixtures for a specific unique tournament and season. """
+        logger.info(f"Fetching fixtures for unique tournament ID: {unique_tournament_id}, season ID: {season_id} from Sofascore...")
+        url = self._format("unique-tournament-fixtures", unique_tournament_id=unique_tournament_id, season_id=season_id, page=page)
         return self.fetch_url(url)
 
-    def get_competition_results(self, competition_id: str, season_id: str, page: int = 0) -> dict:
-        """ Fetch recent results for a specific competition and season. """
-        logger.info(f"Fetching results for competition ID: {competition_id}, season ID: {season_id} from Sofascore...")
-        url = self._format("competition-results", competition_id=competition_id, season_id=season_id, page=page)
+    def get_unique_tournament_results(self, unique_tournament_id: str, season_id: str, page: int = 0) -> dict:
+        """ Fetch recent results for a specific unique tournament and season. """
+        logger.info(f"Fetching results for unique tournament ID: {unique_tournament_id}, season ID: {season_id} from Sofascore...")
+        url = self._format("unique-tournament-results", unique_tournament_id=unique_tournament_id, season_id=season_id, page=page)
         return self.fetch_url(url)
 
     # ---- Teams ---- #
@@ -181,13 +183,48 @@ class SofascoreProvider():
     def get_lineups(self, event_id: str) -> dict:
         """ Fetch lineups for a specific event. """
         logger.info(f"Fetching lineups for event ID: {event_id} from Sofascore...")
-        url = self._format("lineups", event_id=event_id)
+        url = self._format("event-lineups", event_id=event_id)
+        return self.fetch_url(url)
+
+    def get_incidents(self, event_id: str) -> dict:
+        """ Fetch incidents for a specific event. """
+        logger.info(f"Fetching incidents for event ID: {event_id} from Sofascore...")
+        url = self._format("event-incidents", event_id=event_id)
+        return self.fetch_url(url)
+
+    def get_statistics(self, event_id: str) -> dict:
+        """ Fetch statistics for a specific event. """
+        logger.info(f"Fetching statistics for event ID: {event_id} from Sofascore...")
+        url = self._format("event-statistics", event_id=event_id)
+        return self.fetch_url(url)
+
+    def get_graph(self, event_id: str) -> dict:
+        """ Fetch momentum graph for a specific event. """
+        logger.info(f"Fetching momentum graph for event ID: {event_id} from Sofascore...")
+        url = self._format("event-graph", event_id=event_id)
+        return self.fetch_url(url)
+
+    def get_channels(self, event_id: str) -> dict:
+        """ Fetch channels for a specific event. """
+        logger.info(f"Fetching channels for event ID: {event_id} from Sofascore...")
+        url = self._format("event-channels", event_id=event_id)
         return self.fetch_url(url)
 
     def get_h2h_history(self, event_custom_id: str) -> dict:
         """ Fetch head-to-head history for a specific event. """
         logger.info(f"Fetching head-to-head history for event custom ID: {event_custom_id} from Sofascore...")
-        url = self._format("h2h-history", event_custom_id=event_custom_id)
+        url = self._format("event-h2h-history", event_custom_id=event_custom_id)
+        return self.fetch_url(url)
+
+    def get_scheduled_events(self, sport: str, date: str) -> dict:
+        """ Fetch scheduled events for a specific sport and date (format YYYY-MM-DD). """
+        logger.info(f"Fetching scheduled events for sport: {sport}, date: {date} from Sofascore...")
+        try:
+            datetime.strptime(date, "%Y-%m-%d")
+        except ValueError:
+            logger.error(f"Invalid date format: {date}. Expected format is YYYY-MM-DD.")
+            raise ValueError(f"Invalid date format: {date}. Expected format is YYYY-MM-DD.")
+        url = self._format("scheduled-events", sport=sport, date=date)
         return self.fetch_url(url)
 
     # ---- Rankings ---- #
@@ -198,12 +235,64 @@ class SofascoreProvider():
         url = self._format("ranking", ranking_id=ranking_id)
         return self.fetch_url(url)
 
+    # --- Motorsport ---- #
+
+    def get_unique_stage_seasons(self, unique_stage_id: str) -> dict:
+        """ Fetch seasons for a specific stage. """
+        logger.info(f"Fetching seasons for stage ID: {unique_stage_id} from Sofascore...")
+        url = self._format("unique-stage-seasons", unique_stage_id=unique_stage_id)
+        return self.fetch_url(url)
+
+    def get_stage(self, stage_id: str) -> dict:
+        """ Fetch stage details for a specific stage ID. """
+        logger.info(f"Fetching details for stage ID: {stage_id} from Sofascore...")
+        url = self._format("stage", stage_id=stage_id)
+        return self.fetch_url(url)
+
+    def get_stage_substages(self, stage_id: str) -> dict:
+        """ Fetch substages for a specific stage. """
+        logger.info(f"Fetching substages for stage ID: {stage_id} from Sofascore...")
+        url = self._format("substages", stage_id=stage_id)
+        return self.fetch_url(url)
+
+    def get_stage_details(self, stage_id: str) -> dict:
+        """ Fetch extended details for a specific stage, including subsubstages (~sessions). """
+        logger.info(f"Fetching extended details for stage ID: {stage_id} from Sofascore...")
+        url = self._format("stage-details", stage_id=stage_id)
+        return self.fetch_url(url)
+
+    def get_stage_standings_competitors(self, stage_id: str) -> dict:
+        """ Fetch competitor standings for a specific stage. """
+        logger.info(f"Fetching competitor standings for stage ID: {stage_id} from Sofascore...")
+        url = self._format("standings-competitors", stage_id=stage_id)
+        return self.fetch_url(url)
+
+    def get_stage_standings_teams(self, stage_id: str) -> dict:
+        """ Fetch team standings for a specific stage. """
+        logger.info(f"Fetching team standings for stage ID: {stage_id} from Sofascore...")
+        url = self._format("standings-teams", stage_id=stage_id)
+        return self.fetch_url(url)
+
+    # ---- TV Channels ---- #
+
+    def get_country_channels(self, country_code: str) -> dict:
+        """ Fetch TV channels for a specific country code. """
+        logger.info(f"Fetching TV channels for country code: {country_code} from Sofascore...")
+        url = self._format("country-channels", country_code=country_code)
+        return self.fetch_url(url)
+
+    def get_channel_schedule(self, channel_id: str) -> dict:
+        """ Fetch schedule for a specific TV channel. """
+        logger.info(f"Fetching schedule for channel ID: {channel_id} from Sofascore...")
+        url = self._format("channel-schedule", channel_id=channel_id)
+        return self.fetch_url(url)
+
     # ---- Search ---- #
 
-    def search_competitions(self, query: str, page: int = 0) -> dict:
-        """ Search for competitions by name. """
-        logger.debug(f"Searching for competitions with query: '{query}' on Sofascore...")
-        url = self._format("search-competitions")
+    def search_unique_tournaments(self, query: str, page: int = 0) -> dict:
+        """ Search for unique tournaments by name. """
+        logger.debug(f"Searching for unique tournaments with query: '{query}' on Sofascore...")
+        url = self._format("search-unique-tournaments")
         params = {"q": query, "page": page}
         return self.fetch_url(url, params=params, fetch_delay=0)
 
