@@ -1,3 +1,27 @@
+
+"""
+SofascoreClient: High-level API client for Sofascore sports data
+--------------------------------------------------------------
+
+This module provides the `SofascoreClient` class, a high-level interface for interacting with the Sofascore sports data API. It enables querying sports, categories, tournaments, teams, players, events, standings, rankings, and more, with convenient methods for static data, discovery, entity, event, ranking, and search queries.
+
+Features:
+- Fetch sports, categories, tournaments, teams, players, managers, referees, venues, and events
+- Retrieve fixtures, results, standings, and rankings
+- Search for entities by name or keyword
+- Handles API communication, error handling, and data model conversion
+- Supports rate limiting via configurable fetch delay
+
+Usage Example:
+--------------
+    from sportindex.core.client import SofascoreClient
+    client = SofascoreClient(fetch_delay=1.0)
+    sports = client.get_sports()
+    football_categories = client.get_categories('football')
+
+See the SofascoreClient class and method docstrings for detailed usage.
+"""
+
 import copy
 from typing import Literal
 
@@ -30,6 +54,11 @@ from .provider import SofascoreProvider
 class SofascoreClient:
     """
     Client for interacting with the Sofascore sports data API.
+
+    Parameters
+    ----------
+    fetch_delay : float, optional
+        Minimum delay (in seconds) between two URL requests. This helps avoid bot detection and respects Sofascore's rate limits.
 
     This client provides a high-level interface for querying sports data from Sofascore, including static data, discovery, entity, event, ranking, and search queries. It handles API communication, error handling, and data model conversion.
 
@@ -145,8 +174,19 @@ class SofascoreClient:
 
     """
 
-    def __init__(self, **kwargs):
-        self.provider = SofascoreProvider(**kwargs)
+    def __init__(self, fetch_delay: float = 0.0, **kwargs):
+        """
+        Initialize the SofascoreClient.
+
+        Parameters
+        ----------
+        fetch_delay : float, optional
+            Minimum delay (in seconds) between two URL requests. Default is 0.0.
+        **kwargs
+            Additional keyword arguments passed to the provider.
+        """
+        self.fetch_delay = fetch_delay
+        self.provider = SofascoreProvider(fetch_delay=fetch_delay, **kwargs)
 
     # ==================================================================
     # ======================= Static Data Queries ====================== 
