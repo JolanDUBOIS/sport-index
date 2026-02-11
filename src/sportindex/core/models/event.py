@@ -59,7 +59,7 @@ class EventDetails(BaseModel):
             win_type=raw.get("winType"),
             final_round=raw.get("finalRound"),
         )
-# TODO - Separate this detail class into sub classes for different types of sports... As it is, it is not scalable
+# NOTE - Separate this detail class into sub classes for different types of sports...
 
 
 @dataclass(frozen=True)

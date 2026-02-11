@@ -30,7 +30,6 @@ class Periods(BaseModel):
             _raw["awayScore"] = {}
 
         if "defaultPeriodCount" not in _raw:
-            logger.debug(f"Raw event data: {_raw}")
             logger.error(f"Event {_raw.get('id')} does not have defaultPeriodCount.")
             raise ValueError(f"Event {_raw.get('id')} does not have defaultPeriodCount.")
 

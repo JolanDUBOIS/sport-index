@@ -51,7 +51,7 @@ class GoalIncident(Incident):
     assist: Optional[Player] = None
     score: Optional[Score] = None
     kind: Optional[str] = None # e.g. "penalty", "ownGoal", "regular" for football, "try", "twoPoints", "threePoints"... for rugby, etc.
-    # TODO - Add passing network info
+    # NOTE - Add passing network info
 
     @classmethod
     def _from_api(cls, raw: dict) -> GoalIncident:
@@ -75,7 +75,7 @@ class PenaltyIncident(Incident): # If missed, because if scored, it's a goal inc
     extra_time: Optional[int] = None
     description: Optional[str] = None
     kind: Optional[str] = None # e.g. "missed" (idk what other options there might be...)
-    # TODO - Add passing network info
+    # NOTE - Add passing network info
 
     @classmethod
     def _from_api(cls, raw: dict) -> PenaltyIncident:

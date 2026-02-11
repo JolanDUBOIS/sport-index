@@ -1,6 +1,6 @@
 import time
 import random
-from requests import Response
+from requests import Response, RequestException
 
 import cloudscraper
 
@@ -9,12 +9,21 @@ from .exceptions import RateLimitError, FetchError
 
 
 class Fetcher:
-    """ HTTP transport with bot-mitigation, retries, and backoff. """
+    """
+    Internal HTTP client with retries, backoff, and bot-mitigation.
+
+    Uses cloudscraper to handle requests, rate limits, server errors, and transient network issues.
+    All methods are for internal use; not part of the public API.
+    """
+
     def __init__(self):
         self._scraper = cloudscraper.create_scraper()
 
-    def fetch_url(self, url: str, *, params: dict = None, max_retries: int = 3, retry_delay: int = 5, initial_delay: int = 5) -> Response:
-        """ TODO """
+    def fetch_url(
+        self, url: str, *, params: dict = None, max_retries: int = 3,
+        retry_delay: int = 5, initial_delay: int = 5
+    ) -> Response:
+        """ Fetch a URL with retries, backoff, and bot-mitigation. """
         last_status = None
         time.sleep(initial_delay + random.uniform(0, 1))
 
@@ -37,13 +46,9 @@ class Fetcher:
                     logger.error(f"Failed to fetch data for {url}. Status code: {response.status_code}")
                     raise FetchError(f"HTTP {response.status_code} for URL: {url}")
 
-            except (cloudscraper.exceptions.CloudflareChallengeError, ConnectionError) as e:
+            except (cloudscraper.exceptions.CloudflareChallengeError, ConnectionError, RequestException) as e:
                 logger.warning(f"Network error: {e}. Retrying in {next_delay:.1f}s...")
                 last_status = None
-
-            except Exception:
-                logger.exception(f"Failed to fetch data from URL: {url}.")
-                raise
 
             time.sleep(next_delay)
 
@@ -55,7 +60,7 @@ class Fetcher:
 
     @staticmethod
     def _get_delay(retry_delay: int, retry: int, max_delay: int = 30) -> float:
-        """ Calculate delay with exponential backoff and jitter. """
+        """ Return retry delay with exponential backoff and small random jitter. """
         exp_backoff = retry_delay * (2 ** retry)
         jitter = random.uniform(0, 1)
         return min(exp_backoff + jitter, max_delay)
