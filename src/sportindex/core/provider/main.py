@@ -10,7 +10,7 @@ from .. import Fetcher
 class SofascoreProvider():
     """ Raw data provider for Sofascore internal endpoints. """
 
-    def __init__(self, fetch_delay: float = 0.5, **kwargs):
+    def __init__(self, fetch_delay: float = 0.5):
         self.fetcher = Fetcher()
         self.fetch_delay = fetch_delay
 

@@ -24,48 +24,197 @@ from .models import (
     UniqueTournament,
     Venue,
 )
-from .sofascore import SofascoreProvider
+from .provider import SofascoreProvider
 
 
-class Client:
-    """ TODO """
+class SofascoreClient:
+    """
+    Client for interacting with the Sofascore sports data API.
 
-    def __init__(self, sport: str, **kwargs):
-        self.sport = sport
-        self.provider = SofascoreProvider(sport=sport, **kwargs)
+    This client provides a high-level interface for querying sports data from Sofascore, including static data, discovery, entity, event, ranking, and search queries. It handles API communication, error handling, and data model conversion.
 
+    Methods
+    -------
+    Static Data Queries
+    -------------------
+    get_sports() -> list[Sport]
+        Returns a list of all sports available in the Sofascore database.
+
+    get_available_rankings_ids() -> dict[str, str]
+        Returns a mapping of available ranking IDs to their slug.
+
+    Discovery Oriented Queries
+    -------------------------
+    get_categories(sport: str) -> list[Category]
+        Fetch all categories for a given sport.
+
+    get_unique_tournaments(category_id: str) -> list[UniqueTournament]
+        Fetch all unique tournaments for a given category.
+
+    get_seasons(
+        unique_tournament_id: str | None = None,
+        team_id: str | None = None,
+        unique_stage_id: str | None = None,
+    ) -> list[Season]
+        Fetch seasons for a given unique tournament, team, or unique stage.
+
+    Entity Oriented Queries
+    ----------------------
+    get_unique_tournament(unique_tournament_id: str) -> UniqueTournament | None
+        Fetch information about a specific unique tournament.
+
+    get_season_stage(season_stage_id: str) -> SeasonStage | None
+        Fetch information about a specific season stage.
+
+    get_team(team_id: str) -> Team | None
+        Fetch information about a specific team.
+
+    get_player(player_id: str) -> Player | None
+        Fetch information about a specific player.
+
+    get_manager(manager_id: str) -> Manager | None
+        Fetch information about a specific manager.
+
+    get_referee(referee_id: str) -> Referee | None
+        Fetch information about a specific referee.
+
+    get_venue(venue_id: str) -> Venue | None
+        Fetch information about a specific venue.
+
+    Event Oriented Queries
+    ---------------------
+    get_event(event_slug: str, event_id: str, event_custom_id: str) -> Event | None
+        Fetch information about a specific event.
+
+    get_lineups(event_id: str) -> Lineup | None
+        Fetch lineups for a specific event.
+
+    get_incidents(event_id: str) -> list[Incident]
+        Fetch incidents for a specific event.
+
+    get_events(sport: str, date: str) -> list[Event]
+        Fetch all events scheduled for a specific date (YYYY-MM-DD).
+
+    get_fixtures(
+        unique_tournament_id: str | None = None,
+        season_id: str | None = None,
+        team_id: str | None = None,
+        venue_id: str | None = None,
+        page: int = 0,
+    ) -> list[Event]
+        Fetch fixtures for a given tournament, team, or venue.
+
+    get_results(
+        unique_tournament_id: str | None = None,
+        season_id: str | None = None,
+        team_id: str | None = None,
+        venue_id: str | None = None,
+        player_id: str | None = None,
+        manager_id: str | None = None,
+        referee_id: str | None = None,
+        page: int = 0,
+    ) -> list[Event]
+        Fetch results for a given tournament, team, player, manager, referee, or venue.
+
+    get_substages(stage_id: str) -> list[RoundStage]
+        Fetch substages for a specific stage.
+
+    Ranking Oriented Queries
+    -----------------------
+    get_tournament_standings(
+        unique_tournament_id: str | None = None,
+        season_id: str | None = None,
+        **kwargs
+    ) -> list[TeamStandings]
+        Fetch standings for a given unique tournament.
+
+    get_stage_standings(target: Literal["constructors", "drivers"], season_stage_id: str) -> RacingStandings | None
+        Fetch standings for a given season stage (racing season), for constructors or drivers.
+
+    get_rankings(ranking_id: str) -> Rankings | None
+        Fetch a specific ranking by ID.
+
+    Search Queries
+    --------------
+    search(
+        target: Literal["unique-tournaments", "teams", "players", "managers", "referees", "venues", "events"],
+        query: str,
+        page: int = 0,
+    ) -> list[UniqueTournament | Team | Player | Manager | Referee | Venue | Event]
+        Search for entities matching the query string.
+
+    """
+
+    def __init__(self, **kwargs):
+        self.provider = SofascoreProvider(**kwargs)
 
     # ==================================================================
     # ======================= Static Data Queries ====================== 
     # ==================================================================
 
-    def get_sports(self) -> list[Sport]:
-        """ Returns a list of all sports available in the Sofascore database. This is not fetched from the API but hardcoded based on observed data. """
+    @staticmethod
+    def get_sports() -> list[Sport]:
+        """
+        Returns a list of all sports available in the Sofascore database.
+
+        Returns
+        -------
+        list[Sport]
+            List of Sport objects available in the Sofascore database.
+        """
         return copy.deepcopy(SPORTS)
 
+    @staticmethod
+    def get_available_rankings_ids() -> dict[str, str]:
+        """
+        Returns a mapping of available ranking IDs to their slug.
 
-    def get_available_rankings_ids(self) -> dict[str, str]:
-        """ Returns a mapping of available ranking IDs to their slug. This is not fetched from the API but hardcoded based on observed data. """
+        Returns
+        -------
+        dict[str, str]
+            Mapping of ranking IDs to their slug.
+        """
         return copy.deepcopy(RANKING_IDS)
-
 
     # ==================================================================
     # =================== Discovery Oriented Queries ===================
     # ==================================================================
 
+    def get_categories(self, sport: str) -> list[Category]:
+        """
+        Fetch all categories for a given sport.
 
-    def get_categories(self) -> list[Category]:
-        """ Fetch all categories for the sport. """
+        Parameters
+        ----------
+        sport : str
+            The slug of the sport to fetch categories for (e.g., "football", "tennis").
+
+        Returns
+        -------
+        list[Category]
+            A list of Category objects representing the categories for the specified sport.
+        """
         try:
-            categories_raw = self.provider.get_categories()
+            categories_raw = self.provider.get_categories(sport=sport)
             return [Category.from_api(cat) for cat in categories_raw.get("categories", [])]
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch categories from Sofascore.")
+            logger.error("Failed to fetch categories from Sofascore.")
             return []
 
-
     def get_unique_tournaments(self, category_id: str) -> list[UniqueTournament]:
-        """ Fetch all unique tournaments for a given category. """
+        """
+        Fetch all unique tournaments for a given category.
+
+        Parameters
+        ----------
+        category_id : str
+            The ID of the category.
+
+        Returns
+        -------
+        list[UniqueTournament]
+            List of UniqueTournament objects for the category.
+        """
         try:
             unique_tournaments_raw = self.provider.get_category_unique_tournaments(category_id=category_id)
             groups = unique_tournaments_raw.get("groups", [])
@@ -74,7 +223,7 @@ class Client:
             unique_tournaments = [UniqueTournament.from_api(tournament) for tournament in groups[0].get("uniqueTournaments", [])]
             return unique_tournaments
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch unique tournaments from Sofascore.")
+            logger.error("Failed to fetch unique tournaments from Sofascore.")
             return []
 
     def get_seasons(
@@ -84,7 +233,23 @@ class Client:
         team_id: str | None = None,
         unique_stage_id: str | None = None,
     ) -> list[Season]:
-        """ Fetch seasons for a given unique tournament or team. """
+        """
+        Fetch seasons for a given unique tournament, team, or unique stage.
+
+        Parameters
+        ----------
+        unique_tournament_id : str, optional
+            The ID of the unique tournament.
+        team_id : str, optional
+            The ID of the team.
+        unique_stage_id : str, optional
+            The ID of the unique stage.
+
+        Returns
+        -------
+        list[Season]
+            List of Season objects for the specified entity.
+        """
         try:
             if unique_tournament_id is not None:
                 if not unique_tournament_id:
@@ -102,123 +267,252 @@ class Client:
                 raise ValueError("Invalid target for fetching seasons. Must be 'unique-tournament' or 'team'.")
             return [Season.from_api(season) for season in seasons_raw.get("seasons", [])]
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch seasons from Sofascore.")
+            logger.error("Failed to fetch seasons from Sofascore.")
             return []
-
 
     # ==================================================================
     # ===================== Entity Oriented Queries ====================
     # ==================================================================
 
     def get_unique_tournament(self, unique_tournament_id: str) -> UniqueTournament | None:
-        """ Fetch information about a specific unique tournament. """
+        """
+        Fetch information about a specific unique tournament.
+
+        Parameters
+        ----------
+        unique_tournament_id : str
+            The ID of the unique tournament.
+
+        Returns
+        -------
+        UniqueTournament or None
+            UniqueTournament object if found, else None.
+        """
         try:
             unique_tournament_raw = self.provider.get_unique_tournament(unique_tournament_id=unique_tournament_id)
             return UniqueTournament.from_api(unique_tournament_raw)
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch unique tournament from Sofascore.")
+            logger.error("Failed to fetch unique tournament from Sofascore.")
             return None
 
-
     def get_season_stage(self, season_stage_id: str) -> SeasonStage | None:
-        """ Fetch information about a specific season stage (racing season). """
+        """
+        Fetch information about a specific season stage (racing season).
+
+        Parameters
+        ----------
+        season_stage_id : str
+            The ID of the season stage.
+
+        Returns
+        -------
+        SeasonStage or None
+            SeasonStage object if found, else None.
+        """
         try:
             stage_raw = self.provider.get_stage_details(season_stage_id=season_stage_id)
             return SeasonStage.from_api(stage_raw)
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch season stage from Sofascore.")
+            logger.error("Failed to fetch season stage from Sofascore.")
             return None
 
-
     def get_team(self, team_id: str) -> Team | None:
-        """ Fetch information about a specific team. """
+        """
+        Fetch information about a specific team.
+
+        Parameters
+        ----------
+        team_id : str
+            The ID of the team.
+
+        Returns
+        -------
+        Team or None
+            Team object if found, else None.
+        """
         try:
             team_raw = self.provider.get_team(team_id=team_id)
             return Team.from_api(team_raw)
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch team from Sofascore.")
+            logger.error("Failed to fetch team from Sofascore.")
             return None
 
     def get_player(self, player_id: str) -> Player | None:
-        """ Fetch information about a specific player. """
+        """
+        Fetch information about a specific player.
+
+        Parameters
+        ----------
+        player_id : str
+            The ID of the player.
+
+        Returns
+        -------
+        Player or None
+            Player object if found, else None.
+        """
         try:
             player_raw = self.provider.get_player(player_id=player_id)
             return Player.from_api(player_raw)
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch player from Sofascore.")
+            logger.error("Failed to fetch player from Sofascore.")
             return None
 
-
     def get_manager(self, manager_id: str) -> Manager | None:
-        """ Fetch information about a specific manager. """
+        """
+        Fetch information about a specific manager.
+
+        Parameters
+        ----------
+        manager_id : str
+            The ID of the manager.
+
+        Returns
+        -------
+        Manager or None
+            Manager object if found, else None.
+        """
         try:
             manager_raw = self.provider.get_manager(manager_id=manager_id)
             return Manager.from_api(manager_raw)
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch manager from Sofascore.")
+            logger.error("Failed to fetch manager from Sofascore.")
             return None
 
-
     def get_referee(self, referee_id: str) -> Referee | None:
-        """ Fetch information about a specific referee. """
+        """
+        Fetch information about a specific referee.
+
+        Parameters
+        ----------
+        referee_id : str
+            The ID of the referee.
+
+        Returns
+        -------
+        Referee or None
+            Referee object if found, else None.
+        """
         try:
             referee_raw = self.provider.get_referee(referee_id=referee_id)
             return Referee.from_api(referee_raw)
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch referee from Sofascore.")
+            logger.error("Failed to fetch referee from Sofascore.")
             return None
 
-
     def get_venue(self, venue_id: str) -> Venue | None:
-        """ Fetch information about a specific venue. """
+        """
+        Fetch information about a specific venue.
+
+        Parameters
+        ----------
+        venue_id : str
+            The ID of the venue.
+
+        Returns
+        -------
+        Venue or None
+            Venue object if found, else None.
+        """
         try:
             venue_raw = self.provider.get_venue(venue_id=venue_id)
             return Venue.from_api(venue_raw)
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch venue from Sofascore.")
+            logger.error("Failed to fetch venue from Sofascore.")
             return None
-
 
     # ==================================================================
     # ===================== Event Oriented Queries =====================
     # ==================================================================
 
     def get_event(self, event_slug: str, event_id: str, event_custom_id: str) -> Event | None:
-        """ Fetch information about a specific event. """
+        """
+        Fetch information about a specific event.
+
+        Parameters
+        ----------
+        event_slug : str
+            The slug of the event.
+        event_id : str
+            The ID of the event.
+        event_custom_id : str
+            The custom ID of the event.
+
+        Returns
+        -------
+        Event or None
+            Event object if found, else None.
+        """
         try:
             event_raw = self.provider.get_event(event_slug=event_slug, event_id=event_id, event_custom_id=event_custom_id)
             return Event.from_api(event_raw)
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch event from Sofascore.")
+            logger.error("Failed to fetch event from Sofascore.")
             return None
 
     def get_lineups(self, event_id: str) -> Lineup | None:
-        """ Fetch lineups for a specific event. """
+        """
+        Fetch lineups for a specific event.
+
+        Parameters
+        ----------
+        event_id : str
+            The ID of the event.
+
+        Returns
+        -------
+        Lineup or None
+            Lineup object if found, else None.
+        """
         try:
             lineups_raw = self.provider.get_lineups(event_id=event_id)
             return Lineup.from_api(lineups_raw)
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch lineups from Sofascore.")
+            logger.error("Failed to fetch lineups from Sofascore.")
             return None
 
-
     def get_incidents(self, event_id: str) -> list[Incident]:
-        """ Fetch incidents for a specific event. """
+        """
+        Fetch incidents for a specific event.
+
+        Parameters
+        ----------
+        event_id : str
+            The ID of the event.
+
+        Returns
+        -------
+        list[Incident]
+            List of Incident objects for the event.
+        """
         try:
             incidents_raw = self.provider.get_incidents(event_id=event_id)
             return [Incident.from_api(incident) for incident in incidents_raw.get("incidents", [])]
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch incidents from Sofascore.")
+            logger.error("Failed to fetch incidents from Sofascore.")
             return []
 
+    def get_events(self, sport: str, date: str) -> list[Event]:
+        """
+        Fetch all events scheduled for a specific date.
 
-    def get_events(self, date: str) -> list[Event]:
-        """ Fetch all events scheduled for a specific date (format YYYY-MM-DD). """
+        Parameters
+        ----------
+        sport : str
+            The slug of the sport.
+        date : str
+            The date in format YYYY-MM-DD.
+
+        Returns
+        -------
+        list[Event]
+            List of Event objects scheduled for the date.
+        """
         try:
-            events_raw = self.provider.get_scheduled_events(sport=self.sport, date=date)
+            events_raw = self.provider.get_scheduled_events(sport=sport, date=date)
             return [Event.from_api(event) for event in events_raw.get("events", [])]
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch scheduled events from Sofascore.")
+            logger.error("Failed to fetch scheduled events from Sofascore.")
             return []
 
     def get_fixtures(
@@ -230,7 +524,27 @@ class Client:
             venue_id: str | None = None,
             page: int = 0,
         ) -> list[Event]:
-        """ Fetch fixtures for a given target (tournament, team, or venue). """
+        """
+        Fetch fixtures for a given tournament, team, or venue.
+
+        Parameters
+        ----------
+        unique_tournament_id : str, optional
+            The ID of the unique tournament.
+        season_id : str, optional
+            The ID of the season.
+        team_id : str, optional
+            The ID of the team.
+        venue_id : str, optional
+            The ID of the venue.
+        page : int, default 0
+            The page number for paginated results.
+
+        Returns
+        -------
+        list[Event]
+            List of Event objects representing fixtures.
+        """
         try:
             if unique_tournament_id is not None or season_id is not None:
                 if not unique_tournament_id or not season_id:
@@ -248,9 +562,8 @@ class Client:
                 raise ValueError("Invalid target for fetching fixtures. Must be 'unique-tournament', 'team', or 'venue'.")
             return [Event.from_api(event) for event in fixtures_raw.get("events", [])]
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch fixtures from Sofascore.")
+            logger.error("Failed to fetch fixtures from Sofascore.")
             return []
-
 
     def get_results(
             self, 
@@ -264,7 +577,33 @@ class Client:
             referee_id: str | None = None,
             page: int = 0,
         ) -> list[Event]:
-        """ Fetch results for a given target (tournament, team, player, manager, referee, or venue). """
+        """
+        Fetch results for a given tournament, team, player, manager, referee, or venue.
+
+        Parameters
+        ----------
+        unique_tournament_id : str, optional
+            The ID of the unique tournament.
+        season_id : str, optional
+            The ID of the season.
+        team_id : str, optional
+            The ID of the team.
+        venue_id : str, optional
+            The ID of the venue.
+        player_id : str, optional
+            The ID of the player.
+        manager_id : str, optional
+            The ID of the manager.
+        referee_id : str, optional
+            The ID of the referee.
+        page : int, default 0
+            The page number for paginated results.
+
+        Returns
+        -------
+        list[Event]
+            List of Event objects representing results.
+        """
         try:
             if unique_tournament_id is not None or season_id is not None:
                 if not unique_tournament_id or not season_id:
@@ -294,26 +633,52 @@ class Client:
                 raise ValueError("Invalid target for fetching results. Must be 'unique-tournament', 'team', 'player', 'manager', or 'venue'.")
             return [Event.from_api(event) for event in results_raw.get("events", [])]
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch results from Sofascore.")
+            logger.error("Failed to fetch results from Sofascore.")
             return []
 
-
     def get_substages(self, stage_id: str) -> list[RoundStage]:
-        """ Fetch substages for a specific stage. """
+        """
+        Fetch substages for a specific stage.
+
+        Parameters
+        ----------
+        stage_id : str
+            The ID of the stage.
+
+        Returns
+        -------
+        list[RoundStage]
+            List of RoundStage objects for the stage.
+        """
         try:
             substages_raw = self.provider.get_stage_substages(stage_id=stage_id)
             return [RoundStage.from_api(sub) for sub in substages_raw.get("stages", [])]
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch substages from Sofascore.")
+            logger.error("Failed to fetch substages from Sofascore.")
             return []
-
 
     # ==================================================================
     # ==================== Ranking Oriented Queries ====================
     # ==================================================================
 
     def get_tournament_standings(self, unique_tournament_id: str | None = None, season_id: str | None = None, **kwargs) -> list[TeamStandings]:
-        """ Fetch standings for a given unique tournament. """
+        """
+        Fetch standings for a given unique tournament.
+
+        Parameters
+        ----------
+        unique_tournament_id : str, optional
+            The ID of the unique tournament.
+        season_id : str, optional
+            The ID of the season.
+        **kwargs
+            Additional keyword arguments for the provider.
+
+        Returns
+        -------
+        list[TeamStandings]
+            List of TeamStandings objects for the tournament.
+        """
         try:
             if not unique_tournament_id or not season_id:
                 raise ValueError("Both unique_tournament_id and season_id are required for unique tournament standings.")
@@ -325,34 +690,57 @@ class Client:
             return [TeamStandings.from_api(std_raw) for std_raw in standings_raw]
 
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch standings from Sofascore.")
+            logger.error("Failed to fetch standings from Sofascore.")
             return []
 
-    
     def get_stage_standings(self, target: Literal["constructors", "drivers"], season_stage_id: str) -> RacingStandings | None:
-        """ Fetch standings for a given season stage (racing season). Target specifies whether to fetch constructor or driver standings. """
+        """
+        Fetch standings for a given season stage (racing season).
+
+        Parameters
+        ----------
+        target : {'constructors', 'drivers'}
+            Whether to fetch constructor or driver standings.
+        season_stage_id : str
+            The ID of the season stage.
+
+        Returns
+        -------
+        RacingStandings or None
+            RacingStandings object if found, else None.
+        """
         try:
             if target == "constructors":
-                standings_raw = self.provider.get_stage_standings_competitors(stage_id=season_stage_id)
+                standings_raw = self.provider.get_stage_standings_competitors(stage_id=season_stage_id) # Note: Sofascore uses "competitors" for constructor standings in racing stages
             elif target == "drivers":
-                standings_raw = self.provider.get_stage_standings_teams(stage_id=season_stage_id)
+                standings_raw = self.provider.get_stage_standings_teams(stage_id=season_stage_id) # Note: Sofascore uses "teams" for driver standings in racing stages (yes, it's confusing, but that's how their API is structured)
             else:
                 raise ValueError("Invalid target for fetching standings. Must be 'unique-tournament', 'stage-constructors', or 'stage-drivers'.")
             return RacingStandings.from_api(standings_raw)
         except (RateLimitError, FetchError):
-            logger.exception(f"Failed to fetch standings for target {target}.")
+            logger.error(f"Failed to fetch standings for target {target}.")
             return None
 
-
     def get_rankings(self, ranking_id: str) -> Rankings | None:
-        """ Fetch a specific ranking by ID. """
+        """
+        Fetch a specific ranking by ID.
+
+        Parameters
+        ----------
+        ranking_id : str
+            The ID of the ranking.
+
+        Returns
+        -------
+        Rankings or None
+            Rankings object if found, else None.
+        """
         try:
             rankings_raw = self.provider.get_ranking(ranking_id=ranking_id)
             return Rankings.from_api(rankings_raw)
         except (RateLimitError, FetchError):
-            logger.exception("Failed to fetch rankings from Sofascore.")
+            logger.error("Failed to fetch rankings from Sofascore.")
             return None
-
 
     # ==================================================================
     # ========================= Search Queries =========================
@@ -364,7 +752,23 @@ class Client:
         query: str,
         page: int = 0,
     ) -> list[UniqueTournament | Team | Player | Manager | Referee | Venue | Event]:
-        """ Search for entities matching the query string. """
+        """
+        Search for entities matching the query string.
+
+        Parameters
+        ----------
+        target : {'unique-tournaments', 'teams', 'players', 'managers', 'referees', 'venues', 'events'}
+            The type of entity to search for.
+        query : str
+            The search query string.
+        page : int, default 0
+            The page number for paginated results.
+
+        Returns
+        -------
+        list[UniqueTournament | Team | Player | Manager | Referee | Venue | Event]
+            List of matching entities.
+        """
         search_mapping = {
             "unique-tournaments": self.provider.search_unique_tournaments,
             "teams": self.provider.search_teams,
@@ -391,5 +795,5 @@ class Client:
             entity_cls = entity_mapping[target]
             return [entity_cls.from_api(item) for item in search_raw.get("results", [])]
         except (RateLimitError, FetchError):
-            logger.exception("Failed to perform search on Sofascore.")
+            logger.error("Failed to perform search on Sofascore.")
             return []

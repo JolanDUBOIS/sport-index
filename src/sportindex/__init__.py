@@ -18,7 +18,7 @@ try:
 except PackageNotFoundError:
     __version__ = "unknown"
 
-from .core import Client
+from .core import SofascoreClient
 from .core.models import (
     Category,
     Event,
@@ -40,7 +40,7 @@ from .core.models import (
 
 __all__ = [
     "__version__",
-    "Client",
+    "SofascoreClient",
     # Public models
     "Category",
     "Event",
