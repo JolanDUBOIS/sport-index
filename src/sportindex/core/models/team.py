@@ -1,12 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from .category import Category
 from .core import BaseModel, Country, Sport
-from .manager import Manager
 from .utils import timestamp_to_iso
-from .venue import Venue
+if TYPE_CHECKING:
+    from .manager import Manager
+    from .venue import Venue
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,8 @@ class Team(BaseModel):
 
     @classmethod
     def _from_api(cls, raw: dict) -> Team:
+        from .manager import Manager # Avoid circular imports
+        from .venue import Venue # Avoid circular imports
         return Team(
             id=raw.get("id"),
             slug=raw.get("slug"),

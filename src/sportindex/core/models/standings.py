@@ -30,12 +30,12 @@ class BaseStandingsEntry(BaseModel):
 
 @dataclass(frozen=True)
 class RacingStandingsEntry(BaseStandingsEntry):
-    victories: int
-    races_started: int
-    races_with_points: int
-    pole_positions: int
-    podiums: int
-    fastest_laps: int
+    victories: Optional[int] = None
+    races_started: Optional[int] = None
+    races_with_points: Optional[int] = None
+    pole_positions: Optional[int] = None
+    podiums: Optional[int] = None
+    fastest_laps: Optional[int] = None
 
     @classmethod
     def _from_api(cls, raw: dict) -> RacingStandingsEntry:
@@ -52,13 +52,13 @@ class RacingStandingsEntry(BaseStandingsEntry):
 
 @dataclass(frozen=True)
 class TeamStandingsEntry(BaseStandingsEntry):
-    matches: int
-    wins: int
-    draws: int
-    losses: int
-    scores_for: int
-    scores_against: int
-    score_difference: str
+    matches: Optional[int] = None
+    wins: Optional[int] = None
+    draws: Optional[int] = None
+    losses: Optional[int] = None
+    scores_for: Optional[int] = None
+    scores_against: Optional[int] = None
+    score_difference: Optional[str] = None
 
     @classmethod
     def _from_api(cls, raw: dict) -> TeamStandingsEntry:
