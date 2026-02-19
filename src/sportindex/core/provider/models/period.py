@@ -3,10 +3,11 @@ from dataclasses import dataclass
 from typing import Optional, Literal
 
 from . import logger
-from .core import BaseModel, Score
+from .common import Score
+from .core import BaseModel
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Period:
     key: str # Used in Scores
     type: Literal["normal", "overtime", "tiebreak", "penalties"] # Specific addition of this package, not present in API, more will be added if discovered
@@ -16,7 +17,7 @@ class Period:
     default_time: Optional[int] = None # In case of period with subperiods (e.g. football overtime), this is the default time for one subperiod
     extra_time: Optional[tuple[int, ...]] = None
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Periods(BaseModel):
     default_count: int
     periods: list[Period]
@@ -30,8 +31,8 @@ class Periods(BaseModel):
             _raw["awayScore"] = {}
 
         if "defaultPeriodCount" not in _raw:
-            logger.error(f"Event {_raw.get('id')} does not have defaultPeriodCount.")
-            raise ValueError(f"Event {_raw.get('id')} does not have defaultPeriodCount.")
+            logger.warning(f"Event {_raw.get('id')} does not have defaultPeriodCount.")
+            return None
 
         default_count = _raw.get("defaultPeriodCount")
         default_period_time = _raw.get("defaultPeriodLength")

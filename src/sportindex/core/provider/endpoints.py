@@ -8,6 +8,7 @@ ENDPOINTS = {
     # ------------------------------------------------------------------
     "all-categories": f"{BASE_API_URL}/sport/{{sport}}/categories",
     "category-unique-tournaments": f"{BASE_API_URL}/category/{{category_id}}/unique-tournaments",
+    "category-unique-stages": f"{BASE_API_URL}/category/{{category_id}}/unique-stages",
 
     # ------------------------------------------------------------------
     # Unique Tournaments
@@ -16,7 +17,9 @@ ENDPOINTS = {
     "unique-tournament-standings": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/standings/{{view}}",
     "unique-tournament-fixtures": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/events/next/{{page}}",
     "unique-tournament-results": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/events/last/{{page}}",
+    "unique-tournament-events-round": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/events/round/{{round}}",
     "unique-tournament-seasons": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/seasons",
+
     # ------------------------------------------------------------------
     # Teams / Players / Managers / Referees
     # ------------------------------------------------------------------
@@ -25,7 +28,7 @@ ENDPOINTS = {
     "team-results": f"{BASE_API_URL}/team/{{team_id}}/events/last/{{page}}",
     "team-players": f"{BASE_API_URL}/team/{{team_id}}/players",
     "team-seasons": f"{BASE_API_URL}/team/{{team_id}}/team-statistics/seasons",
-    "team-year-stats": f"{BASE_API_URL}/team/{{team_id}}/year-statistics/{{year}}",
+    "team-season-stats": f"{BASE_API_URL}/team/{{team_id}}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/statistics/overall",
 
     "player": f"{BASE_API_URL}/player/{{player_id}}",
     "player-results": f"{BASE_API_URL}/player/{{player_id}}/events/last/{{page}}",
@@ -78,11 +81,12 @@ ENDPOINTS = {
     "country-channels": f"{BASE_API_URL}/tv/country/{{country_code}}/channels",
     "channel-schedule": f"{BASE_API_URL}/tv/channel/{{channel_id}}/schedule",
     "country-popular-channels": f"{BASE_API_URL}/tv/country/{{country_code}}/popular-channels", # Not added to provider, doesn't seem useful
-    "channel-event-votes": f"{BASE_API_URL}/tv/channel/{{channel_id}}/event/{{event_id}}/votes", # Not added to provider, doesn't seem useful
+    "channel-event-votes": f"{BASE_API_URL}/tv/channel/{{channel_id}}/event/{{event_id}}/votes", # Not added to provider, could be useful (can validate if an event is on the channel or not)
 
     # ------------------------------------------------------------------
     # Search (cross-sport)
     # ------------------------------------------------------------------
+    "search-all": f"{BASE_API_URL}/search/all",
     "search-unique-tournaments": f"{BASE_API_URL}/search/unique-tournaments",
     "search-teams": f"{BASE_API_URL}/search/teams",
     "search-events": f"{BASE_API_URL}/search/events",
@@ -91,3 +95,7 @@ ENDPOINTS = {
     "search-referees": f"{BASE_API_URL}/search/referees",
     "search-venues": f"{BASE_API_URL}/search/venues",
 }
+
+# https://www.sofascore.com/api/v1/tournament/{{tournament_id}}
+# https://www.sofascore.com/api/v1/tournament/{{tournament_id}}/events/last/{{page}} but not next... 
+# https://www.sofascore.com/api/v1/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/info

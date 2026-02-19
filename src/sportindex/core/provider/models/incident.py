@@ -3,12 +3,13 @@ from dataclasses import dataclass
 from typing import Optional, Literal
 
 from . import logger
-from .core import BaseModel, Score
+from .common import Score
+from .core import BaseModel
 from .manager import Manager
 from .player import Player
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Incident(BaseModel):
     @staticmethod
     def _get_side(raw: dict) -> Optional[Literal["home", "away"]]:
@@ -41,7 +42,7 @@ class Incident(BaseModel):
             return None
         return incident_cls.from_api(raw)
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class GoalIncident(Incident):
     id: str
     time: int
@@ -66,7 +67,7 @@ class GoalIncident(Incident):
             kind=raw.get("incidentClass"),
         )
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PenaltyIncident(Incident): # If missed, because if scored, it's a goal incident
     id: str
     time: int
@@ -89,7 +90,7 @@ class PenaltyIncident(Incident): # If missed, because if scored, it's a goal inc
             kind=raw.get("incidentClass"),
         )
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PenaltyShootoutIncident(Incident):
     id: str
     shooter: Player
@@ -107,7 +108,7 @@ class PenaltyShootoutIncident(Incident):
             kind=raw.get("incidentClass"),
         )
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class CardIncident(Incident):
     id: str
     time: int # If time -5, it means the card was given on the bench...
@@ -131,7 +132,7 @@ class CardIncident(Incident):
             kind=raw.get("incidentClass"),
         )
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PeriodIncident(Incident):
     time: Optional[int] = None # If 999, replace by None
     score: Optional[Score] = None
@@ -145,7 +146,7 @@ class PeriodIncident(Incident):
             kind=raw.get("text"),
         )
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class ExtraTimeIncident(Incident):
     time: int
     added_time: int # Voluntarily use added_time instead of extra_time to avoid confusion with the time of the other incidents
@@ -157,7 +158,7 @@ class ExtraTimeIncident(Incident):
             added_time=raw.get("length"),
         )
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class VarDecisionIncident(Incident):
     id: str
     time: int
@@ -179,7 +180,7 @@ class VarDecisionIncident(Incident):
             confirmed=raw.get("confirmed"),
         )
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SubstitutionIncident(Incident):
     id: str
     time: int

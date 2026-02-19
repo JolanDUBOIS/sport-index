@@ -2,21 +2,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from .category import Category
-from .core import BaseModel, Country, Sport
+from .core import BaseModel, Country, Sport, Category
 from .event import Event
 from .team import Team
 from .tournament import UniqueTournament
 from .utils import timestamp_to_iso, get_nested
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class RankingEntry(BaseModel):
     id: str
     position: int
     team: Team
     points: float
-    country: Country
+    country: Optional[Country] = None
     previous_position: Optional[int] = None
     previous_points: Optional[float] = None
     last_event: Optional[Event] = None
@@ -36,7 +35,7 @@ class RankingEntry(BaseModel):
             updated_at=timestamp_to_iso(raw.get("updatedTimestamp")),
         )
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Rankings(BaseModel):
     id: str
     slug: str

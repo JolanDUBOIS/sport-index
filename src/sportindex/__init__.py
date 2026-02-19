@@ -18,44 +18,44 @@ try:
 except PackageNotFoundError:
     __version__ = "unknown"
 
-from .core import SofascoreClient
-from .core.models import (
-    Category,
-    Event,
-    Incident,
-    Lineup,
-    Manager,
-    Player,
-    Referee,
-    RacingStandings,
-    Rankings,
-    RoundStage,
-    Season,
-    SeasonStage,
-    Team,
-    TeamStandings,
-    UniqueTournament,
-    Venue
-)
+# from .core import SofascoreClient
+# from .core.models import (
+#     Category,
+#     Event,
+#     Incident,
+#     Lineup,
+#     Manager,
+#     Player,
+#     Referee,
+#     RacingStandings,
+#     Rankings,
+#     RoundStage,
+#     Season,
+#     SeasonStage,
+#     Team,
+#     TeamStandings,
+#     UniqueTournament,
+#     Venue
+# )
 
 __all__ = [
     "__version__",
-    "SofascoreClient",
-    # Public models
-    "Category",
-    "Event",
-    "Incident",
-    "Lineup",
-    "Manager",
-    "Player",
-    "Referee",
-    "RacingStandings",
-    "Rankings",
-    "RoundStage",
-    "Season",
-    "SeasonStage",
-    "Team",
-    "TeamStandings",
-    "UniqueTournament",
-    "Venue",
+    # "SofascoreClient",
+    # # Public models
+    # "Category",
+    # "Event",
+    # "Incident",
+    # "Lineup",
+    # "Manager",
+    # "Player",
+    # "Referee",
+    # "RacingStandings",
+    # "Rankings",
+    # "RoundStage",
+    # "Season",
+    # "SeasonStage",
+    # "Team",
+    # "TeamStandings",
+    # "UniqueTournament",
+    # "Venue",
 ]

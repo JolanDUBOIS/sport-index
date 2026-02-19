@@ -5,7 +5,7 @@ from typing import Optional
 from .core import BaseModel, Sport, Country
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Cards(BaseModel):
     yellow: int
     red: int
@@ -19,7 +19,7 @@ class Cards(BaseModel):
             yellow_red=raw.get("yellowRedCards"),
         )
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Referee(BaseModel):
     id: str
     slug: str

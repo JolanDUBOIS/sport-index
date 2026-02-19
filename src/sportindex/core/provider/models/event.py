@@ -2,7 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Literal
 
-from .core import BaseModel, Score, Status
+from .common import Status, Score
+from .core import BaseModel
 from .period import Periods
 from .referee import Referee
 from .team import Team
@@ -11,7 +12,7 @@ from .utils import timestamp_to_iso
 from .venue import Venue
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Round(BaseModel):
     number: int
     name: Optional[str]
@@ -26,10 +27,8 @@ class Round(BaseModel):
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class EventDetails(BaseModel):
-    outcome: Optional[Literal["home", "away", "draw"]] = None
-
     # Racket sports specific details
     first_to_serve: Optional[int] = None
     
@@ -42,16 +41,7 @@ class EventDetails(BaseModel):
 
     @classmethod
     def _from_api(cls, raw: dict) -> EventDetails:
-        if raw.get("winnerCode") == 1:
-            outcome = "home"
-        elif raw.get("winnerCode") == 2:
-            outcome = "away"
-        elif raw.get("winnerCode") == 3:
-            outcome = "draw"
-        else:
-            outcome = None
         return EventDetails(
-            outcome=outcome,
             first_to_serve=raw.get("firstToServe"),
             type=raw.get("fightType"),
             order=raw.get("order"),
@@ -60,45 +50,51 @@ class EventDetails(BaseModel):
             final_round=raw.get("finalRound"),
         )
 # NOTE - Separate this detail class into sub classes for different types of sports...
+# Those are EXTRAS (cf tournaments...)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Event(BaseModel):
     id: str
     custom_id: str
     slug: str
-    name: str
     start: str
     status: Status
+    round: Round
     season: Season
     tournament: Tournament
-    gender: Optional[str]
     participants: dict[str, Team]
     periods: Periods
+    gender: Optional[str] = None
     referee: Optional[Referee] = None
     score: Optional[Score] = None
     venue: Optional[Venue] = None
     attendance: Optional[int] = None
-    round: Optional[Round] = None
+    outcome: Optional[Literal["home", "away", "draw"]] = None
     details: Optional[EventDetails] = None
 
     @classmethod
     def _from_api(cls, raw: dict) -> Event:
+        outcome_mapping = {
+            1: "home",
+            2: "away",
+            3: "draw"
+        }
         return Event(
             id=raw.get("id"),
             custom_id=raw.get("customId"),
             slug=raw.get("slug"),
-            name=raw.get("name"),
             start=timestamp_to_iso(raw.get("startTimestamp")),
             status=Status.from_api(raw.get("status")),
+            round=Round.from_api(raw.get("roundInfo")),
             season=Season.from_api(raw.get("season")),
             tournament=Tournament.from_api(raw.get("tournament")),
-            gender=raw.get("gender"),
             participants={
                 "home": Team.from_api(raw.get("homeTeam")),
                 "away": Team.from_api(raw.get("awayTeam")),
             },
             periods=Periods.from_api(raw),
+            gender=raw.get("gender"),
             referee=Referee.from_api(raw.get("referee")),
             score=Score(
                 home=raw.get("homeScore", {}).get("display"),
@@ -106,6 +102,18 @@ class Event(BaseModel):
             ) if "homeScore" in raw and "awayScore" in raw else None,
             venue=Venue.from_api(raw.get("venue")),
             attendance=raw.get("attendance"),
-            round=Round.from_api(raw.get("roundInfo")),
-            details=...,
+            outcome=outcome_mapping.get(raw.get("winnerCode")),
+            details=EventDetails.from_api(raw),
+        )
+
+@dataclass(frozen=True, kw_only=True)
+class Events(BaseModel):
+    events: list[Event]
+    has_next_page: Optional[bool] = None
+
+    @classmethod
+    def _from_api(cls, raw: dict) -> Events:
+        return Events(
+            events=[Event.from_api(event) for event in raw.get("events", [])],
+            has_next_page=raw.get("hasNextPage"),
         )

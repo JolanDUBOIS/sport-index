@@ -2,12 +2,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from .core import BaseModel, Sport, Country, Performance
+from .common import Performance
+from .core import BaseModel, Sport, Country
 from .team import Team
 from .utils import timestamp_to_iso
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Manager(BaseModel):
     id: str
     slug: str

@@ -6,7 +6,7 @@ from .core import BaseModel
 from .player import Player
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Lineup(BaseModel):
     players: List[Player]
     missing_players: Optional[List[Player]] = None
@@ -20,7 +20,7 @@ class Lineup(BaseModel):
             formation=raw.get("formation"),
         )
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Lineups(BaseModel):
     home: Lineup
     away: Lineup

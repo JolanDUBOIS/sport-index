@@ -4,8 +4,8 @@ from requests import Response, RequestException
 
 import cloudscraper
 
-from . import logger
-from .exceptions import RateLimitError, FetchError
+from .. import logger
+from ..exceptions import RateLimitError, NotFoundError, FetchError
 
 
 class Fetcher:
@@ -42,6 +42,9 @@ class Fetcher:
                     logger.warning(f"Access forbidden (403) for {url}, attempt {retry+1}/{max_retries}. Retrying in {next_delay:.1f}s...")
                 elif response.status_code >= 500:
                     logger.warning(f"Server error (HTTP {response.status_code}) for {url}, attempt {retry+1}/{max_retries}. Retrying in {next_delay:.1f}s...")
+                elif response.status_code == 404:
+                    logger.warning(f"Resource not found (404) for {url}. Not retrying.")
+                    raise NotFoundError(f"Resource not found (404) for URL: {url}")
                 else:
                     logger.error(f"Failed to fetch data for {url}. Status code: {response.status_code}")
                     raise FetchError(f"HTTP {response.status_code} for URL: {url}")

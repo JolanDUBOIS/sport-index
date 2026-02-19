@@ -1,13 +1,14 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
-from .core import BaseModel, Amount
+from .common import Amount
+from .core import BaseModel
 from .player import Player
 from .team import Team
 from .utils import timestamp_to_iso
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Transfer(BaseModel):
     id: str
     date: str

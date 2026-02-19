@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Literal
 
 
@@ -9,7 +9,26 @@ def timestamp_to_iso(
     if ts is None:
         return None
 
-    dt = datetime.fromtimestamp(ts)
+    dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+
+    if kind == "date":
+        return dt.date().isoformat()
+
+    return dt.isoformat(timespec="seconds")
+
+def iso_to_iso(
+    value: Optional[str],
+    kind: Literal["date", "datetime"] = "datetime",
+) -> Optional[str]:
+    if value is None:
+        return None
+
+    dt = datetime.fromisoformat(value)
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
 
     if kind == "date":
         return dt.date().isoformat()
