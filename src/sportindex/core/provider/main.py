@@ -3,6 +3,7 @@ from datetime import datetime
 from . import logger
 from .fetcher import Fetcher
 from .endpoints import ENDPOINTS
+from .exceptions import NotFoundError
 from .models import (
     Category,
     Channel,
@@ -28,7 +29,6 @@ from .models import (
     UniqueTournamentSeasons,
     Venue
 )
-from ..exceptions import NotFoundError
 
 
 class SofascoreProvider():

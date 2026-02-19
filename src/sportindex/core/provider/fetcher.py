@@ -4,8 +4,8 @@ from requests import Response, RequestException
 
 import cloudscraper
 
-from .. import logger
-from ..exceptions import RateLimitError, NotFoundError, FetchError
+from . import logger
+from .exceptions import RateLimitError, NotFoundError, FetchError
 
 
 class Fetcher:
