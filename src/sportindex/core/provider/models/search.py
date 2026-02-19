@@ -3,10 +3,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from .core import BaseModel
-from .manager import Manager
-from .player import Player
-from .referee import Referee
-from .team import Team
+from .participants import Manager, Player, Referee, Team
 from .tournament import UniqueTournament
 from .venue import Venue
 

@@ -4,7 +4,7 @@ from typing import Optional
 
 from .common import Status
 from .core import BaseModel, Country, Category
-from .team import Team
+from .participants import Team
 from .utils import timestamp_to_iso
 
 

@@ -3,8 +3,7 @@ from dataclasses import dataclass
 
 from .common import Amount
 from .core import BaseModel
-from .player import Player
-from .team import Team
+from .participants import Player, Team
 from .utils import timestamp_to_iso
 
 
@@ -22,8 +21,8 @@ class Transfer(BaseModel):
         return Transfer(
             id=raw.get("id"),
             date=timestamp_to_iso(raw.get("transferDateTimestamp")),
-            player=Player.from_api(raw.get("player", {})),
-            frm=Team.from_api(raw.get("transferFrom", {})),
-            to=Team.from_api(raw.get("transferTo", {})),
-            fee=Amount.from_api(raw.get("transferFeeRaw", {})),
+            player=Player.from_api(raw.get("player")),
+            frm=Team.from_api(raw.get("transferFrom")),
+            to=Team.from_api(raw.get("transferTo")),
+            fee=Amount.from_api(raw.get("transferFeeRaw")),
         )

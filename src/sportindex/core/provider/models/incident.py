@@ -5,8 +5,7 @@ from typing import Optional, Literal
 from . import logger
 from .common import Score
 from .core import BaseModel
-from .manager import Manager
-from .player import Player
+from .participants import Manager, Player
 
 
 @dataclass(frozen=True, kw_only=True)

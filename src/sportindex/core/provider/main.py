@@ -45,7 +45,7 @@ class SofascoreProvider():
         logger.debug("Fetching all categories from Sofascore...")
         url = self._format("all-categories", sport=sport)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return [Category.from_api(cat) for cat in raw_data.get("categories", [])]
 
@@ -54,7 +54,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching unique tournaments for category ID: {category_id} from Sofascore...")
         url = self._format("category-unique-tournaments", category_id=category_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return [
             UniqueTournament.from_api(ut)
@@ -67,7 +67,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching unique stages for category ID: {category_id} from Sofascore...")
         url = self._format("category-unique-stages", category_id=category_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return [UniqueStage.from_api(us) for us in raw_data.get("uniqueStages", [])]
 
@@ -78,7 +78,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching details for unique tournament ID: {unique_tournament_id} from Sofascore...")
         url = self._format("unique-tournament", unique_tournament_id=unique_tournament_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return UniqueTournament.from_api(raw_data.get("uniqueTournament", {}))
 
@@ -87,7 +87,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching seasons for unique tournament ID: {unique_tournament_id} from Sofascore...")
         url = self._format("unique-tournament-seasons", unique_tournament_id=unique_tournament_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return [Season.from_api(season) for season in raw_data.get("seasons", [])]
 
@@ -96,7 +96,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching standings for unique tournament ID: {unique_tournament_id}, season ID: {season_id} from Sofascore...")
         url = self._format("unique-tournament-standings", unique_tournament_id=unique_tournament_id, season_id=season_id, view=view)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return [TeamStandings.from_api(std) for std in raw_data.get("standings", [])]
 
@@ -105,7 +105,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching fixtures for unique tournament ID: {unique_tournament_id}, season ID: {season_id} from Sofascore...")
         url = self._format("unique-tournament-fixtures", unique_tournament_id=unique_tournament_id, season_id=season_id, page=page)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
 
@@ -114,7 +114,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching results for unique tournament ID: {unique_tournament_id}, season ID: {season_id} from Sofascore...")
         url = self._format("unique-tournament-results", unique_tournament_id=unique_tournament_id, season_id=season_id, page=page)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
 
@@ -125,7 +125,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching details for team ID: {team_id} from Sofascore...")
         url = self._format("team", team_id=team_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Team.from_api(raw_data.get("team", {}))
 
@@ -134,7 +134,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching seasons for team ID: {team_id} from Sofascore...")
         url = self._format("team-seasons", team_id=team_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return [UniqueTournamentSeasons.from_api(uts) for uts in raw_data.get("uniqueTournamentSeasons", [])]
 
@@ -143,7 +143,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching fixtures for team ID: {team_id} from Sofascore...")
         url = self._format("team-fixtures", team_id=team_id, page=page)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
 
@@ -152,7 +152,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching results for team ID: {team_id} from Sofascore...")
         url = self._format("team-results", team_id=team_id, page=page)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
 
@@ -161,7 +161,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching players for team ID: {team_id} from Sofascore...")
         url = self._format("team-players", team_id=team_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return TeamPlayers.from_api(raw_data)
 
@@ -179,7 +179,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching details for player ID: {player_id} from Sofascore...")
         url = self._format("player", player_id=player_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Player.from_api(raw_data.get("player", {}))
 
@@ -188,7 +188,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching results for player ID: {player_id} from Sofascore...")
         url = self._format("player-results", player_id=player_id, page=page)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
 
@@ -197,7 +197,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching seasons for player ID: {player_id} from Sofascore...")
         url = self._format("player-seasons", player_id=player_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return [UniqueTournamentSeasons.from_api(uts) for uts in raw_data.get("uniqueTournamentSeasons", [])]
 
@@ -208,7 +208,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching details for manager ID: {manager_id} from Sofascore...")
         url = self._format("manager", manager_id=manager_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Manager.from_api(raw_data.get("manager", {}))
 
@@ -217,7 +217,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching results for manager ID: {manager_id} from Sofascore...")
         url = self._format("manager-results", manager_id=manager_id, page=page)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
 
@@ -226,7 +226,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching seasons for manager ID: {manager_id} from Sofascore...")
         url = self._format("manager-seasons", manager_id=manager_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return [UniqueTournamentSeasons.from_api(uts) for uts in raw_data.get("uniqueTournamentSeasons", [])]
 
@@ -237,7 +237,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching details for referee ID: {referee_id} from Sofascore...")
         url = self._format("referee", referee_id=referee_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Referee.from_api(raw_data.get("referee", {}))
 
@@ -246,7 +246,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching results for referee ID: {referee_id} from Sofascore...")
         url = self._format("referee-results", referee_id=referee_id, page=page)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
 
@@ -257,7 +257,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching details for venue ID: {venue_id} from Sofascore...")
         url = self._format("venue", venue_id=venue_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Venue.from_api(raw_data.get("venue", {}))
 
@@ -266,7 +266,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching fixtures for venue ID: {venue_id} from Sofascore...")
         url = self._format("venue-fixtures", venue_id=venue_id, page=page)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
 
@@ -275,7 +275,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching results for venue ID: {venue_id} from Sofascore...")
         url = self._format("venue-results", venue_id=venue_id, page=page)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
 
@@ -286,7 +286,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching details for event ID: {event_id} from Sofascore...")
         url = self._format("event", event_id=event_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Event.from_api(raw_data.get("event", {}))
 
@@ -295,7 +295,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching lineups for event ID: {event_id} from Sofascore...")
         url = self._format("event-lineups", event_id=event_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Lineups.from_api(raw_data.get("lineups", {}))
 
@@ -304,7 +304,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching incidents for event ID: {event_id} from Sofascore...")
         url = self._format("event-incidents", event_id=event_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return [Incident.from_api(incident) for incident in raw_data.get("incidents", [])]
 
@@ -327,16 +327,16 @@ class SofascoreProvider():
         logger.debug(f"Fetching channels for event ID: {event_id} from Sofascore...")
         url = self._format("event-channels", event_id=event_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
-        return CountryChannels._from_api(raw_data)
+        return CountryChannels.from_api(raw_data)
 
     def get_h2h_history(self, event_custom_id: str, raw: bool = False) -> Events | dict:
         """ Fetch head-to-head history for a specific event. """
         logger.debug(f"Fetching head-to-head history for event custom ID: {event_custom_id} from Sofascore...")
         url = self._format("event-h2h-history", event_custom_id=event_custom_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
 
@@ -350,7 +350,7 @@ class SofascoreProvider():
             raise ValueError(f"Invalid date format: {date}. Expected format is YYYY-MM-DD.")
         url = self._format("scheduled-events", sport=sport, date=date)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
 
@@ -361,7 +361,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching ranking ID: {ranking_id} from Sofascore...")
         url = self._format("ranking", ranking_id=ranking_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Rankings.from_api(raw_data)
 
@@ -372,16 +372,16 @@ class SofascoreProvider():
         logger.debug(f"Fetching seasons for stage ID: {unique_stage_id} from Sofascore...")
         url = self._format("unique-stage-seasons", unique_stage_id=unique_stage_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
-        return [Stage._from_api(stage) for stage in raw_data.get("seasons", [])]
+        return [Stage.from_api(stage) for stage in raw_data.get("seasons", [])]
 
     def get_stage(self, stage_id: str, raw: bool = False) -> Stage | dict: # NOTE - Irrelevant as get_stage_details returns the same details & more
         """ Fetch stage details for a specific stage ID. """
         logger.debug(f"Fetching details for stage ID: {stage_id} from Sofascore...")
         url = self._format("stage", stage_id=stage_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Stage.from_api(raw_data.get("stage", {}))
 
@@ -390,7 +390,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching substages for stage ID: {stage_id} from Sofascore...")
         url = self._format("substages", stage_id=stage_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return [Stage.from_api(stage) for stage in raw_data.get("stages", [])]
 
@@ -399,7 +399,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching extended details for stage ID: {stage_id} from Sofascore...")
         url = self._format("stage-details", stage_id=stage_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return Stage.from_api(raw_data.get("stage", {}))
 
@@ -408,7 +408,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching competitor standings for stage ID: {stage_id} from Sofascore...")
         url = self._format("standings-competitors", stage_id=stage_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return RacingStandings.from_api({"kind": "competitors", "standings": raw_data.get("standings", [])})
 
@@ -417,7 +417,7 @@ class SofascoreProvider():
         logger.debug(f"Fetching team standings for stage ID: {stage_id} from Sofascore...")
         url = self._format("standings-teams", stage_id=stage_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
         return RacingStandings.from_api({"kind": "teams", "standings": raw_data.get("standings", [])})
 
@@ -428,100 +428,62 @@ class SofascoreProvider():
         logger.debug(f"Fetching TV channels for country code: {country_code} from Sofascore...")
         url = self._format("country-channels", country_code=country_code)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
-        return [Channel._from_api(channel) for channel in raw_data.get("channels", [])]
+        return [Channel.from_api(channel) for channel in raw_data.get("channels", [])]
 
     def get_channel_schedule(self, channel_id: str, raw: bool = False) -> ChannelSchedule | dict:
         """ Fetch schedule for a specific TV channel. """
         logger.debug(f"Fetching schedule for channel ID: {channel_id} from Sofascore...")
         url = self._format("channel-schedule", channel_id=channel_id)
         raw_data = self.fetch_url(url)
-        if raw:
+        if raw or not raw_data:
             return raw_data
-        return ChannelSchedule._from_api(raw_data)
+        return ChannelSchedule.from_api(raw_data)
 
     # ---- Search ---- #
 
     def search_all(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
         """ Search for all entities by name. """
-        logger.debug(f"Searching for all entities with query: '{query}' on Sofascore...")
-        url = self._format("search-all")
-        params = {"q": query, "page": page}
-        raw_data = self.fetch_url(url, params=params, fetch_delay=0)
-        if raw:
-            return raw_data
-        return [SearchResult._from_api(result) for result in raw_data.get("results", [])]
+        return self._search("search-all", query, page, raw)
 
     def search_unique_tournaments(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
         """ Search for unique tournaments by name. """
-        logger.debug(f"Searching for unique tournaments with query: '{query}' on Sofascore...")
-        url = self._format("search-unique-tournaments")
-        params = {"q": query, "page": page}
-        raw_data = self.fetch_url(url, params=params, fetch_delay=0)
-        if raw:
-            return raw_data
-        return [SearchResult._from_api(result) for result in raw_data.get("results", [])]
+        return self._search("search-unique-tournaments", query, page, raw)
 
     def search_teams(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
         """ Search for teams by name. """
-        logger.debug(f"Searching for teams with query: '{query}' on Sofascore...")
-        url = self._format("search-teams")
-        params = {"q": query, "page": page}
-        raw_data = self.fetch_url(url, params=params, fetch_delay=0)
-        if raw:
-            return raw_data
-        return [SearchResult._from_api(result) for result in raw_data.get("results", [])]
+        return self._search("search-teams", query, page, raw)
 
     def search_events(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
         """ Search for events by name. """
-        logger.debug(f"Searching for events with query: '{query}' on Sofascore...")
-        url = self._format("search-events")
-        params = {"q": query, "page": page}
-        raw_data = self.fetch_url(url, params=params, fetch_delay=0)
-        if raw:
-            return raw_data
-        return [SearchResult._from_api(result) for result in raw_data.get("results", [])]
+        return self._search("search-events", query, page, raw)
 
     def search_players(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
         """ Search for players by name. """
-        logger.debug(f"Searching for players with query: '{query}' on Sofascore...")
-        url = self._format("search-players")
-        params = {"q": query, "page": page}
-        raw_data = self.fetch_url(url, params=params, fetch_delay=0)
-        if raw:
-            return raw_data
-        return [SearchResult._from_api(result) for result in raw_data.get("results", [])]
+        return self._search("search-players", query, page, raw)
 
     def search_managers(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
         """ Search for managers by name. """
-        logger.debug(f"Searching for managers with query: '{query}' on Sofascore...")
-        url = self._format("search-managers")
-        params = {"q": query, "page": page}
-        raw_data = self.fetch_url(url, params=params, fetch_delay=0)
-        if raw:
-            return raw_data
-        return [SearchResult._from_api(result) for result in raw_data.get("results", [])]
+        return self._search("search-managers", query, page, raw)
 
     def search_referees(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
         """ Search for referees by name. """
-        logger.debug(f"Searching for referees with query: '{query}' on Sofascore...")
-        url = self._format("search-referees")
-        params = {"q": query, "page": page}
-        raw_data = self.fetch_url(url, params=params, fetch_delay=0)
-        if raw:
-            return raw_data
-        return [SearchResult._from_api(result) for result in raw_data.get("results", [])]
+        return self._search("search-referees", query, page, raw)
 
     def search_venues(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
         """ Search for venues by name. """
-        logger.debug(f"Searching for venues with query: '{query}' on Sofascore...")
-        url = self._format("search-venues")
+        return self._search("search-venues", query, page, raw)
+
+    def _search(self, endpoint_name: str, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
+        """ Generic search helper method. """
+        logger.debug(f"Searching {endpoint_name} with query: '{query}' on Sofascore...")
+        url = self._format(endpoint_name)
         params = {"q": query, "page": page}
         raw_data = self.fetch_url(url, params=params, fetch_delay=0)
-        if raw:
+        if raw or not raw_data:
             return raw_data
-        return [SearchResult._from_api(result) for result in raw_data.get("results", [])]
+        return [SearchResult.from_api(result) for result in raw_data.get("results", [])]
 
     # ---- Helpers ---- #
 
@@ -532,9 +494,9 @@ class SofascoreProvider():
             raise ValueError(f"Endpoint '{endpoint_name}' is not defined.")
         return ENDPOINTS[endpoint_name].format(**kwargs)
 
-    def fetch_url(self, url: str, *, params: dict = None, fetch_delay: float = None) -> dict:
+    def fetch_url(self, url: str, *, params: dict = None, fetch_delay: float = None) -> dict | None:
         try:
             response = self.fetcher.fetch_url(url, params=params, initial_delay=fetch_delay or self.fetch_delay)
         except NotFoundError:
-            return {}
+            return None
         return response.json()

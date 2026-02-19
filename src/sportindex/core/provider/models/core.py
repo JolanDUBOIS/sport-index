@@ -17,7 +17,7 @@ class BaseModel:
 
     @classmethod
     def from_api(cls: Type[T], raw: Optional[Dict[str, Any]]) -> Optional[T]:
-        if raw is None:
+        if not raw:
             return None
 
         instance = cls._from_api(raw)

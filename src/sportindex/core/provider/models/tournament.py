@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from .core import BaseModel, Country, Category
-from .team import Team
+from .participants import Team
 from .utils import timestamp_to_iso
 
 
@@ -95,5 +95,5 @@ class UniqueTournamentSeasons(BaseModel):
     def _from_api(cls, raw: dict) -> UniqueTournamentSeasons:
         return UniqueTournamentSeasons(
             unique_tournament=UniqueTournament.from_api(raw.get("uniqueTournament")),
-            seasons=[Season._from_api(season) for season in raw.get("seasons", [])],
+            seasons=[Season.from_api(season) for season in raw.get("seasons", [])],
         )
