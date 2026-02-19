@@ -21,6 +21,11 @@ ENDPOINTS = {
     "unique-tournament-seasons": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/seasons",
 
     # ------------------------------------------------------------------
+    # Unique Tournaments
+    # ------------------------------------------------------------------
+    "tournament": f"{BASE_API_URL}/tournament/{{tournament_id}}",
+
+    # ------------------------------------------------------------------
     # Teams / Players / Managers / Referees
     # ------------------------------------------------------------------
     "team": f"{BASE_API_URL}/team/{{team_id}}",
@@ -96,6 +101,4 @@ ENDPOINTS = {
     "search-venues": f"{BASE_API_URL}/search/venues",
 }
 
-# https://www.sofascore.com/api/v1/tournament/{{tournament_id}}
-# https://www.sofascore.com/api/v1/tournament/{{tournament_id}}/events/last/{{page}} but not next... 
 # https://www.sofascore.com/api/v1/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/info

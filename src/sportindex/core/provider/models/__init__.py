@@ -9,5 +9,5 @@ from .leaderboard import Rankings, TeamStandings, RacingStandings
 from .participants import Manager, Player, Referee, TeamPlayers, Team
 from .search import SearchResult
 from .stage import UniqueStage, Stage
-from .tournament import UniqueTournament, Season, UniqueTournamentSeasons
+from .tournament import UniqueTournament, Season, UniqueTournamentSeasons, Tournament
 from .venue import Venue

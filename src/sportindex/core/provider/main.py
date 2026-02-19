@@ -24,6 +24,7 @@ from .models import (
     Team,
     TeamPlayers,
     TeamStandings,
+    Tournament,
     UniqueStage,
     UniqueTournament,
     UniqueTournamentSeasons,
@@ -117,6 +118,17 @@ class SofascoreProvider():
         if raw or not raw_data:
             return raw_data
         return Events.from_api(raw_data)
+
+    # ---- Tournaments ---- #
+
+    def get_tournament(self, tournament_id: str, raw: bool = False) -> Tournament | dict:
+        """ Fetch tournament details for a specific tournament ID. """
+        logger.debug(f"Fetching details for tournament ID: {tournament_id} from Sofascore...")
+        url = self._format("tournament", tournament_id=tournament_id)
+        raw_data = self.fetch_url(url)
+        if raw or not raw_data:
+            return raw_data
+        return Tournament.from_api(raw_data.get("tournament", {}))
 
     # ---- Teams ---- #
 
