@@ -5,7 +5,7 @@ from .channel import CountryChannels, Channel, ChannelSchedule
 from .core import BaseModel, Sport, Category
 from .event import Events, Event, Lineups
 from .incident import Incident
-from .leaderboard import Rankings, TeamStandings, RacingStandings
+from .leaderboard import Rankings, TeamStandings, RacingStandings, TeamSeasonStats
 from .participants import Manager, Player, Referee, TeamPlayers, Team
 from .search import SearchResult
 from .stage import UniqueStage, Stage

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, Literal
+from typing import Any, Optional, Literal
 
 from .core import BaseModel, Country, Sport, Category
 from .event import Event
@@ -185,4 +185,24 @@ class Rankings(BaseModel):
             unique_tournament=UniqueTournament.from_api(get_nested(raw, "rankingType.uniqueTournament")),
             rankings=[RankingEntry.from_api(entry) for entry in raw.get("rankingRows", [])],
             updated_at=timestamp_to_iso(get_nested(raw, "rankingType.lastUpdatedTimestamp")),
+        )
+
+
+# === Team Season Statistics ===
+
+_TEAM_SEASON_STATS_META_KEYS = {"id", "statisticsType"}
+
+@dataclass(frozen=True, kw_only=True)
+class TeamSeasonStats(BaseModel):
+    id: str
+    sport: str
+    stats: dict[str, Any]
+
+    @classmethod
+    def _from_api(cls, raw: dict) -> TeamSeasonStats:
+        inner = raw.get("statistics", raw)
+        return TeamSeasonStats(
+            id=inner.get("id"),
+            sport=inner.get("statisticsType", {}).get("sportSlug"),
+            stats={k: v for k, v in inner.items() if k not in _TEAM_SEASON_STATS_META_KEYS},
         )

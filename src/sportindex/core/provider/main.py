@@ -18,6 +18,7 @@ from .models import (
     RacingStandings,
     Rankings,
     Referee,
+    TeamSeasonStats,
     SearchResult,
     Season,
     Stage,
@@ -177,12 +178,14 @@ class SofascoreProvider():
             return raw_data
         return TeamPlayers.from_api(raw_data)
 
-    def get_team_season_stats(self, team_id: str, unique_tournament_id: str, season_id: str) -> dict:
+    def get_team_season_stats(self, team_id: str, unique_tournament_id: str, season_id: str, raw: bool = False) -> TeamSeasonStats | dict:
         """ Fetch season statistics for a specific team. """
         logger.debug(f"Fetching season stats for team ID: {team_id}, unique tournament ID: {unique_tournament_id}, season ID: {season_id} from Sofascore...")
         url = self._format("team-season-stats", team_id=team_id, unique_tournament_id=unique_tournament_id, season_id=season_id)
-        return self.fetch_url(url)
-        # TODO - Implement TeamSeasonStats model and return that instead of raw dict (careful, depending on type of tournament and sport, the stats returned can be very different - e.g. football vs basketball vs tennis)
+        raw_data = self.fetch_url(url)
+        if raw or not raw_data:
+            return raw_data
+        return TeamSeasonStats.from_api(raw_data)
 
     # ---- Players ---- #
 
