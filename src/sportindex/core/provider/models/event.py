@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, Literal, List
+from typing import Any, Optional, Literal, List
 
 from . import logger
 from .common import Status, Score
@@ -256,4 +256,97 @@ class Periods(BaseModel):
         return Periods(
             default_count=default_count,
             periods=periods
+        )
+
+
+# === Event Statistics ===
+
+@dataclass(frozen=True, kw_only=True)
+class StatisticsItem(BaseModel):
+    key: str
+    name: str
+    home: str
+    away: str
+    winner: Literal["home", "away", "tied"]
+    polarity: Literal["positive", "negative"]
+
+    @classmethod
+    def _from_api(cls, raw: dict) -> StatisticsItem:
+        winner_mapping = {
+            1: "home",
+            2: "away",
+            3: "tied",
+        }
+        return StatisticsItem(
+            key=raw.get("key"),
+            name=raw.get("name"),
+            home=raw.get("home"),
+            away=raw.get("away"),
+            winner=winner_mapping.get(raw.get("compareCode"), "tied"),
+            polarity=raw.get("statisticsType", "positive"),
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class StatisticsGroup(BaseModel):
+    name: str
+    items: list[StatisticsItem]
+
+    @classmethod
+    def _from_api(cls, raw: dict) -> StatisticsGroup:
+        return StatisticsGroup(
+            name=raw.get("groupName"),
+            items=[StatisticsItem.from_api(item) for item in raw.get("statisticsItems", [])],
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class PeriodStatistics(BaseModel):
+    period: str
+    groups: list[StatisticsGroup]
+
+    @classmethod
+    def _from_api(cls, raw: dict) -> PeriodStatistics:
+        return PeriodStatistics(
+            period=raw.get("period"),
+            groups=[StatisticsGroup.from_api(group) for group in raw.get("groups", [])],
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class EventStatistics(BaseModel):
+    periods: list[PeriodStatistics]
+
+    @classmethod
+    def _from_api(cls, raw: dict) -> EventStatistics:
+        return EventStatistics(
+            periods=[PeriodStatistics.from_api(period) for period in raw.get("statistics", [])],
+        )
+
+
+# === Momentum Graph ===
+
+@dataclass(frozen=True, kw_only=True)
+class MomentumPoint:
+    minute: float
+    value: int  # positive = home, negative = away, range ~[-100, 100]
+
+
+@dataclass(frozen=True, kw_only=True)
+class MomentumGraph(BaseModel):
+    points: list[MomentumPoint]
+    period_time: int
+    period_count: int
+    overtime_length: Optional[int] = None
+
+    @classmethod
+    def _from_api(cls, raw: dict) -> MomentumGraph:
+        return MomentumGraph(
+            points=[
+                MomentumPoint(minute=p.get("minute"), value=p.get("value"))
+                for p in raw.get("graphPoints", [])
+            ],
+            period_time=raw.get("periodTime"),
+            period_count=raw.get("periodCount"),
+            overtime_length=raw.get("overtimeLength"),
         )

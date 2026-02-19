@@ -3,7 +3,7 @@ logger = logging.getLogger(__name__)
 
 from .channel import CountryChannels, Channel, ChannelSchedule
 from .core import BaseModel, Sport, Category
-from .event import Events, Event, Lineups
+from .event import Events, Event, EventStatistics, MomentumGraph, Lineups
 from .incident import Incident
 from .leaderboard import Rankings, TeamStandings, RacingStandings, TeamSeasonStats
 from .participants import Manager, Player, Referee, TeamPlayers, Team

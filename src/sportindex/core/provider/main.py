@@ -11,8 +11,10 @@ from .models import (
     CountryChannels,
     Event,
     Events,
+    EventStatistics,
     Incident,
     Lineups,
+    MomentumGraph,
     Manager,
     Player,
     RacingStandings,
@@ -323,19 +325,23 @@ class SofascoreProvider():
             return raw_data
         return [Incident.from_api(incident) for incident in raw_data.get("incidents", [])]
 
-    def get_statistics(self, event_id: str) -> dict:
+    def get_event_statistics(self, event_id: str, raw: bool = False) -> EventStatistics | dict:
         """ Fetch statistics for a specific event. """
         logger.debug(f"Fetching statistics for event ID: {event_id} from Sofascore...")
         url = self._format("event-statistics", event_id=event_id)
-        return self.fetch_url(url)
-        # TODO
+        raw_data = self.fetch_url(url)
+        if raw or not raw_data:
+            return raw_data
+        return EventStatistics.from_api(raw_data)
 
-    def get_graph(self, event_id: str) -> dict:
+    def get_event_graph(self, event_id: str, raw: bool = False) -> MomentumGraph | dict:
         """ Fetch momentum graph for a specific event. """
         logger.debug(f"Fetching momentum graph for event ID: {event_id} from Sofascore...")
         url = self._format("event-graph", event_id=event_id)
-        return self.fetch_url(url)
-        # TODO
+        raw_data = self.fetch_url(url)
+        if raw or not raw_data:
+            return raw_data
+        return MomentumGraph.from_api(raw_data)
 
     def get_channels(self, event_id: str, raw: bool = False) -> CountryChannels | dict:
         """ Fetch channels for a specific event. """
