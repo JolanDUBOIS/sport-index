@@ -96,6 +96,15 @@ class BaseStage(BaseModel):
     name: str
     description: Optional[str] = None
 
+    @classmethod
+    def _from_api(cls, raw: dict) -> BaseStage:
+        return BaseStage(
+            id=raw.get("id"),
+            slug=raw.get("slug"),
+            name=raw.get("name"),
+            description=raw.get("description"),
+        )
+
 @dataclass(frozen=True, kw_only=True)
 class UniqueStage(BaseStage):
     category: Category
@@ -118,13 +127,13 @@ class Stage(BaseStage):
     start: str
     kind: str # e.g. "Season", "Event", "Stage", etc.
     status: Status
-    season_stage_name: str
     end: Optional[str] = None
     flag: Optional[str] = None
     winner: Optional[Team] = None
     country: Optional[Country] = None
     unique_stage: Optional[UniqueStage] = None
     parent_stage: Optional[BaseStage] = None
+    season_stage_name: Optional[str] = None
     details: Optional[StageDetails] = None
     substages: Optional[list[Stage]] = None
 
@@ -139,13 +148,13 @@ class Stage(BaseStage):
             start=timestamp_to_iso(raw.get("startDateTimestamp")),
             kind=raw.get("type", {}).get("name"),
             status=Status.from_api(raw.get("status")),
-            season_stage_name=raw.get("seasonStageName"),
             end=timestamp_to_iso(raw.get("endDateTimestamp")),
             flag=raw.get("flag"),
             winner=Team.from_api(raw.get("winner")),
             country=Country.from_api(raw.get("country")),
             unique_stage=UniqueStage.from_api(raw.get("uniqueStage")),
             parent_stage=BaseStage.from_api(raw.get("stageParent")),
+            season_stage_name=raw.get("seasonStageName"),
             details=StageDetails.from_api(raw.get("info")),
             substages=[Stage.from_api(sub) for sub in raw.get("substages", [])],
         )

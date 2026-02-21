@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Optional, Literal
+from typing import Optional, Literal
 
 from .core import BaseModel, Country, Sport, Category
 from .event import Event
@@ -12,13 +12,13 @@ from .utils import timestamp_to_iso, get_nested
 # === Team/Individual Sports Standings ===
 
 @dataclass(frozen=True, kw_only=True)
-class PromotionInfo(BaseModel):
+class Promotion(BaseModel):
     id: str
     name: str
 
     @classmethod
-    def _from_api(cls, raw: dict) -> PromotionInfo:
-        return PromotionInfo(
+    def _from_api(cls, raw: dict) -> Promotion:
+        return Promotion(
             id=raw.get("id"),
             name=raw.get("text"),
         )
@@ -37,7 +37,7 @@ class TeamStandingsEntry(BaseModel):
     scores_for: Optional[int] = None
     scores_against: Optional[int] = None
     score_difference: Optional[str] = None
-    promotion: Optional[PromotionInfo] = None
+    promotion: Optional[Promotion] = None
     games_behind: Optional[int] = None
     streak: Optional[int] = None
 
@@ -56,7 +56,7 @@ class TeamStandingsEntry(BaseModel):
             scores_for=raw.get("scoresFor"),
             scores_against=raw.get("scoresAgainst"),
             score_difference=raw.get("scoreDiffFormatted"),
-            promotion=PromotionInfo.from_api(raw.get("promotion")),
+            promotion=Promotion.from_api(raw.get("promotion")),
             games_behind=raw.get("gamesBehind"),
             streak=raw.get("streak"),
         )
@@ -122,13 +122,13 @@ class RacingStandingsEntry(BaseModel):
 
 @dataclass(frozen=True, kw_only=True)
 class RacingStandings(BaseModel):
-    kind: str
+    view: Literal["competitors", "teams"]
     entries: list[RacingStandingsEntry]
 
     @classmethod
     def _from_api(cls, raw: dict) -> RacingStandings:
         return RacingStandings(
-            kind=raw.get("kind", ""),
+            view=raw.get("view", ""),
             entries=[RacingStandingsEntry.from_api(entry) for entry in raw.get("standings", [])]
         )
 
@@ -185,24 +185,4 @@ class Rankings(BaseModel):
             unique_tournament=UniqueTournament.from_api(get_nested(raw, "rankingType.uniqueTournament")),
             rankings=[RankingEntry.from_api(entry) for entry in raw.get("rankingRows", [])],
             updated_at=timestamp_to_iso(get_nested(raw, "rankingType.lastUpdatedTimestamp")),
-        )
-
-
-# === Team Season Statistics ===
-
-_TEAM_SEASON_STATS_META_KEYS = {"id", "statisticsType"}
-
-@dataclass(frozen=True, kw_only=True)
-class TeamSeasonStats(BaseModel):
-    id: str
-    sport: str
-    stats: dict[str, Any]
-
-    @classmethod
-    def _from_api(cls, raw: dict) -> TeamSeasonStats:
-        inner = raw.get("statistics", raw)
-        return TeamSeasonStats(
-            id=inner.get("id"),
-            sport=inner.get("statisticsType", {}).get("sportSlug"),
-            stats={k: v for k, v in inner.items() if k not in _TEAM_SEASON_STATS_META_KEYS},
         )

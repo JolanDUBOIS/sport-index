@@ -1,8 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, Any, TYPE_CHECKING
 
-from .common import Performance, Amount
+from .common import Amount
 from .core import BaseModel, Sport, Country, Category
 from .utils import timestamp_to_iso, iso_to_iso
 if TYPE_CHECKING:
@@ -11,6 +11,28 @@ if TYPE_CHECKING:
 
 
 # === Managers ===
+
+@dataclass(frozen=True, kw_only=True)
+class Performance(BaseModel):
+    total: int
+    wins: int
+    draws: int
+    losses: int
+    goal_scored: int
+    goal_conceded: int
+    total_points: int
+
+    @classmethod
+    def _from_api(cls, raw: dict) -> Performance:
+        return Performance(
+            total=raw.get("total"),
+            wins=raw.get("wins"),
+            draws=raw.get("draws"),
+            losses=raw.get("losses"),
+            goal_scored=raw.get("goalScored"),
+            goal_conceded=raw.get("goalConceded"),
+            total_points=raw.get("totalPoints"),
+        )
 
 @dataclass(frozen=True, kw_only=True)
 class Manager(BaseModel):
@@ -82,6 +104,7 @@ class Player(BaseModel):
     deceased: Optional[bool] = None
     proposed_market_value: Optional[Amount] = None
     salary: Optional[Amount] = None
+    handedness: Optional[str] = None
     preferred_foot: Optional[str] = None
 
     @classmethod
@@ -92,7 +115,7 @@ class Player(BaseModel):
             name=raw.get("name"),
             short_name=raw.get("shortName"),
             gender=raw.get("gender"),
-            number=raw.get("shirtNumber"),
+            number=int(raw.get("shirtNumber")),
             team=Team.from_api(raw.get("team")),
             position=Position.from_api(raw),
             country=Country.from_api(raw.get("country")),
@@ -104,6 +127,7 @@ class Player(BaseModel):
             deceased=raw.get("deceased"),
             proposed_market_value=Amount.from_api(raw.get("proposedMarketValueRaw")),
             salary=Amount.from_api(raw.get("salaryRaw")),
+            handedness=raw.get("handedness"),
             preferred_foot=raw.get("preferredFoot"),
         )
 
@@ -220,8 +244,8 @@ class Team(BaseModel):
     disabled: bool
     gender: str
     country: Country
-    category: Category
     sport: Sport
+    category: Optional[Category] = None
     primary_unique_tournament: Optional[UniqueTournament] = None
     manager: Optional[Manager] = None
     parent: Optional[Team] = None
@@ -245,8 +269,8 @@ class Team(BaseModel):
             disabled=raw.get("disabled"),
             gender=raw.get("gender"),
             country=Country.from_api(raw.get("country")),
-            category=Category.from_api(raw.get("category")),
             sport=Sport.from_api(raw.get("sport")),
+            category=Category.from_api(raw.get("category")),
             primary_unique_tournament=UniqueTournament.from_api(raw.get("primaryUniqueTournament")),
             manager=Manager.from_api(raw.get("manager")),
             parent=Team.from_api(raw.get("parentTeam")),
@@ -258,3 +282,23 @@ class Team(BaseModel):
 
 # Note - Additional keys:
 # - wdlRecords (MMA)
+
+
+# === Team Season Statistics ===
+
+_TEAM_SEASON_STATS_META_KEYS = {"id", "statisticsType"}
+
+@dataclass(frozen=True, kw_only=True)
+class TeamSeasonStats(BaseModel):
+    id: str
+    sport: str
+    stats: dict[str, Any]
+
+    @classmethod
+    def _from_api(cls, raw: dict) -> TeamSeasonStats:
+        inner = raw.get("statistics", raw)
+        return TeamSeasonStats(
+            id=inner.get("id"),
+            sport=inner.get("statisticsType", {}).get("sportSlug"),
+            stats={k: v for k, v in inner.items() if k not in _TEAM_SEASON_STATS_META_KEYS},
+        )
