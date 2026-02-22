@@ -34,6 +34,8 @@ ENDPOINTS = {
     "team-players": f"{BASE_API_URL}/team/{{team_id}}/players",
     "team-seasons": f"{BASE_API_URL}/team/{{team_id}}/team-statistics/seasons",
     "team-season-stats": f"{BASE_API_URL}/team/{{team_id}}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/statistics/overall",
+    "team-stage-seasons": f"{BASE_API_URL}/team/{{team_id}}/stage-seasons",
+    "team-stage-season-races": f"{BASE_API_URL}/team/{{team_id}}/stage-season/{{stage_season_id}}/races",
 
     "player": f"{BASE_API_URL}/player/{{player_id}}",
     "player-results": f"{BASE_API_URL}/player/{{player_id}}/events/last/{{page}}",
@@ -77,6 +79,7 @@ ENDPOINTS = {
     "stage": f"{BASE_API_URL}/stage/{{stage_id}}",
     "substages": f"{BASE_API_URL}/stage/{{stage_id}}/substages",
     "stage-details": f"{BASE_API_URL}/stage/{{stage_id}}/extended",
+    "stage-drivers-performance": f"{BASE_API_URL}/stage/{{stage_id}}/driver-performance",
     "standings-competitors": f"{BASE_API_URL}/stage/{{stage_id}}/standings/competitor",
     "standings-teams": f"{BASE_API_URL}/stage/{{stage_id}}/standings/team",
 
