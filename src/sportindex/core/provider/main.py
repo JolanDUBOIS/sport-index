@@ -1,42 +1,71 @@
-from datetime import datetime
+"""
+Sofascore provider — returns raw API dicts annotated with TypedDicts.
 
-from . import logger
+This is a drop-in replacement for the original SofascoreProvider that
+removes the model layer entirely. Every method returns the raw API
+response (or an extracted sub-dict), annotated with TypedDicts so
+your IDE knows what keys are available.
+
+For complex transformations (periods, incidents), use the functions
+in parsers.py.
+
+Reuses fetcher, endpoints, and exceptions from the existing provider.
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import datetime
+from typing import Any
+
 from .fetcher import Fetcher
 from .endpoints import ENDPOINTS
-from .exceptions import NotFoundError
-from .models import (
-    Category,
-    Channel,
-    ChannelSchedule,
-    CountryChannels,
-    Event,
-    Events,
-    EventStatistics,
-    Incident,
-    Lineups,
-    MomentumGraph,
-    Manager,
-    Player,
-    RacingStandings,
-    Rankings,
-    Referee,
-    TeamSeasonStats,
-    SearchResult,
-    Season,
-    Stage,
-    Team,
-    TeamPlayers,
-    TeamStandings,
-    Tournament,
-    UniqueStage,
-    UniqueTournament,
-    UniqueTournamentSeasons,
-    Venue
+
+from .types import (
+    RawCategory,
+    RawChannel,
+    RawChannelSchedule,
+    RawDriverPerformance,
+    RawEvent,
+    RawEventsResponse,
+    RawEventStatisticsResponse,
+    RawIncident,
+    RawLineupsResponse,
+    RawManager,
+    RawMomentumGraphResponse,
+    RawPlayer,
+    RawRace,
+    RawRacingStandingsEntry,
+    RawRankingsResponse,
+    RawReferee,
+    RawSearchResult,
+    RawSeason,
+    RawStage,
+    RawTeam,
+    RawTeamPlayers,
+    RawTeamSeasonStats,
+    RawTeamStandings,
+    RawTournament,
+    RawUniqueStage,
+    RawUniqueTournament,
+    RawUniqueTournamentSeasons,
+    RawVenue,
 )
 
+logger = logging.getLogger(__name__)
 
-class SofascoreProvider():
-    """ Raw data provider for Sofascore internal endpoints. """
+
+class SofascoreProvider:
+    """Raw data provider for Sofascore internal endpoints.
+
+    Every public method returns plain dicts (JSON from the API).
+    Return types are annotated with TypedDicts for IDE autocompletion
+    and static analysis — but at runtime these are regular dicts.
+
+    REMARK: The `raw` parameter from the old provider is gone.
+    Everything IS raw now. The higher layer (core/models) handles
+    coercion into domain objects.
+    """
 
     def __init__(self, fetch_delay: float = 0.5):
         self.fetcher = Fetcher()
@@ -44,480 +73,417 @@ class SofascoreProvider():
 
     # ---- Categories ---- #
 
-    def get_categories(self, sport: str, raw: bool = False) -> list[Category] | dict:
-        """ Fetch all categories for the sport. """
-        logger.debug("Fetching all categories from Sofascore...")
+    def get_categories(self, sport: str) -> list[RawCategory]:
+        """Fetch all categories for the sport."""
         url = self._format("all-categories", sport=sport)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return [Category.from_api(cat) for cat in raw_data.get("categories", [])]
+        data = self._fetch(url)
+        return data.get("categories", [])
 
-    def get_category_unique_tournaments(self, category_id: str, raw: bool = False) -> list[UniqueTournament] | dict:
-        """ Fetch unique tournaments for a specific category. """
-        logger.debug(f"Fetching unique tournaments for category ID: {category_id} from Sofascore...")
+    def get_category_unique_tournaments(self, category_id: str) -> list[RawUniqueTournament]:
+        """Fetch unique tournaments for a specific category.
+
+        REMARK: The API nests UTs inside `groups[].uniqueTournaments[]`.
+        This method flattens them into a single list.
+        """
         url = self._format("category-unique-tournaments", category_id=category_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
+        data = self._fetch(url)
         return [
-            UniqueTournament.from_api(ut)
-            for group in raw_data.get("groups", [])
+            ut
+            for group in data.get("groups", [])
             for ut in group.get("uniqueTournaments", [])
         ]
 
-    def get_category_unique_stages(self, category_id: str, raw: bool = False) -> list[UniqueStage] | dict:
-        """ Fetch unique stages for a specific category. """
-        logger.debug(f"Fetching unique stages for category ID: {category_id} from Sofascore...")
+    def get_category_unique_stages(self, category_id: str) -> list[RawUniqueStage]:
+        """Fetch unique stages for a specific category."""
         url = self._format("category-unique-stages", category_id=category_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return [UniqueStage.from_api(us) for us in raw_data.get("uniqueStages", [])]
+        data = self._fetch(url)
+        return data.get("uniqueStages", [])
 
     # ---- Unique Tournaments ---- #
 
-    def get_unique_tournament(self, unique_tournament_id: str, raw: bool = False) -> UniqueTournament | dict:
-        """ Fetch unique tournament details for a specific unique tournament ID. """
-        logger.debug(f"Fetching details for unique tournament ID: {unique_tournament_id} from Sofascore...")
+    def get_unique_tournament(self, unique_tournament_id: str) -> RawUniqueTournament:
+        """Fetch unique tournament details."""
         url = self._format("unique-tournament", unique_tournament_id=unique_tournament_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return UniqueTournament.from_api(raw_data.get("uniqueTournament", {}))
+        data = self._fetch(url)
+        return data.get("uniqueTournament", {})
 
-    def get_unique_tournament_seasons(self, unique_tournament_id: str, raw: bool = False) -> list[Season] | dict:
-        """ Fetch seasons for a specific unique tournament. """
-        logger.debug(f"Fetching seasons for unique tournament ID: {unique_tournament_id} from Sofascore...")
+    def get_unique_tournament_seasons(self, unique_tournament_id: str) -> list[RawSeason]:
+        """Fetch seasons for a unique tournament."""
         url = self._format("unique-tournament-seasons", unique_tournament_id=unique_tournament_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return [Season.from_api(season) for season in raw_data.get("seasons", [])]
+        data = self._fetch(url)
+        return data.get("seasons", [])
 
-    def get_unique_tournament_standings(self, unique_tournament_id: str, season_id: str, view: str = "total", raw: bool = False) -> list[TeamStandings] | dict:
-        """ Fetch standings for a specific unique tournament and season. """
-        logger.debug(f"Fetching standings for unique tournament ID: {unique_tournament_id}, season ID: {season_id} from Sofascore...")
-        url = self._format("unique-tournament-standings", unique_tournament_id=unique_tournament_id, season_id=season_id, view=view)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return [TeamStandings.from_api(std) for std in raw_data.get("standings", [])]
+    def get_unique_tournament_standings(
+        self,
+        unique_tournament_id: str,
+        season_id: str,
+        view: str = "total",
+    ) -> list[RawTeamStandings]:
+        """Fetch standings for a unique tournament + season."""
+        url = self._format(
+            "unique-tournament-standings",
+            unique_tournament_id=unique_tournament_id,
+            season_id=season_id,
+            view=view,
+        )
+        data = self._fetch(url)
+        return data.get("standings", [])
 
-    def get_unique_tournament_fixtures(self, unique_tournament_id: str, season_id: str, page: int = 0, raw: bool = False) -> Events | dict:
-        """ Fetch upcoming fixtures for a specific unique tournament and season. """
-        logger.debug(f"Fetching fixtures for unique tournament ID: {unique_tournament_id}, season ID: {season_id} from Sofascore...")
-        url = self._format("unique-tournament-fixtures", unique_tournament_id=unique_tournament_id, season_id=season_id, page=page)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Events.from_api(raw_data)
+    def get_unique_tournament_fixtures(
+        self,
+        unique_tournament_id: str,
+        season_id: str,
+        page: int = 0,
+    ) -> RawEventsResponse:
+        """Fetch upcoming fixtures for a unique tournament + season."""
+        url = self._format(
+            "unique-tournament-fixtures",
+            unique_tournament_id=unique_tournament_id,
+            season_id=season_id,
+            page=page,
+        )
+        return self._fetch(url)
 
-    def get_unique_tournament_results(self, unique_tournament_id: str, season_id: str, page: int = 0, raw: bool = False) -> Events | dict:
-        """ Fetch recent results for a specific unique tournament and season. """
-        logger.debug(f"Fetching results for unique tournament ID: {unique_tournament_id}, season ID: {season_id} from Sofascore...")
-        url = self._format("unique-tournament-results", unique_tournament_id=unique_tournament_id, season_id=season_id, page=page)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Events.from_api(raw_data)
+    def get_unique_tournament_results(
+        self,
+        unique_tournament_id: str,
+        season_id: str,
+        page: int = 0,
+    ) -> RawEventsResponse:
+        """Fetch recent results for a unique tournament + season."""
+        url = self._format(
+            "unique-tournament-results",
+            unique_tournament_id=unique_tournament_id,
+            season_id=season_id,
+            page=page,
+        )
+        return self._fetch(url)
 
     # ---- Tournaments ---- #
 
-    def get_tournament(self, tournament_id: str, raw: bool = False) -> Tournament | dict:
-        """ Fetch tournament details for a specific tournament ID. """
-        logger.debug(f"Fetching details for tournament ID: {tournament_id} from Sofascore...")
+    def get_tournament(self, tournament_id: str) -> RawTournament:
+        """Fetch tournament details."""
         url = self._format("tournament", tournament_id=tournament_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Tournament.from_api(raw_data.get("tournament", {}))
+        data = self._fetch(url)
+        return data.get("tournament", {})
 
     # ---- Teams ---- #
 
-    def get_team(self, team_id: str, raw: bool = False) -> Team | dict:
-        """ Fetch team details for a specific team ID. """
-        logger.debug(f"Fetching details for team ID: {team_id} from Sofascore...")
+    def get_team(self, team_id: str) -> RawTeam:
+        """Fetch team details."""
         url = self._format("team", team_id=team_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Team.from_api(raw_data.get("team", {}))
+        data = self._fetch(url)
+        # NOTE - When fetching a constructor, the API returns also the key "drivers" which can be interesting... (as well as relatedTeams which is less valuable ig...)
+        return data.get("team", {})
 
-    def get_team_seasons(self, team_id: str, raw: bool = False) -> list[UniqueTournamentSeasons] | dict:
-        """ Fetch seasons for a specific team. """
-        logger.debug(f"Fetching seasons for team ID: {team_id} from Sofascore...")
+    def get_team_seasons(self, team_id: str) -> list[RawUniqueTournamentSeasons]:
+        """Fetch seasons for a team (grouped by unique tournament)."""
         url = self._format("team-seasons", team_id=team_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return [UniqueTournamentSeasons.from_api(uts) for uts in raw_data.get("uniqueTournamentSeasons", [])]
+        data = self._fetch(url)
+        return data.get("uniqueTournamentSeasons", [])
 
-    def get_team_fixtures(self, team_id: str, page: int = 0, raw: bool = False) -> Events | dict:
-        """ Fetch upcoming fixtures for a specific team. """
-        logger.debug(f"Fetching fixtures for team ID: {team_id} from Sofascore...")
+    def get_team_fixtures(self, team_id: str, page: int = 0) -> RawEventsResponse:
+        """Fetch upcoming fixtures for a team."""
         url = self._format("team-fixtures", team_id=team_id, page=page)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Events.from_api(raw_data)
+        return self._fetch(url)
 
-    def get_team_results(self, team_id: str, page: int = 0, raw: bool = False) -> Events | dict:
-        """ Fetch recent results for a specific team. """
-        logger.debug(f"Fetching results for team ID: {team_id} from Sofascore...")
+    def get_team_results(self, team_id: str, page: int = 0) -> RawEventsResponse:
+        """Fetch recent results for a team."""
         url = self._format("team-results", team_id=team_id, page=page)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Events.from_api(raw_data)
+        return self._fetch(url)
 
-    def get_team_players(self, team_id: str, raw: bool = False) -> TeamPlayers | dict:
-        """ Fetch players for a specific team. """
-        logger.debug(f"Fetching players for team ID: {team_id} from Sofascore...")
+    def get_team_players(self, team_id: str) -> RawTeamPlayers:
+        """Fetch players for a team."""
         url = self._format("team-players", team_id=team_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return TeamPlayers.from_api(raw_data)
+        return self._fetch(url)
 
-    def get_team_season_stats(self, team_id: str, unique_tournament_id: str, season_id: str, raw: bool = False) -> TeamSeasonStats | dict:
-        """ Fetch season statistics for a specific team. """
-        logger.debug(f"Fetching season stats for team ID: {team_id}, unique tournament ID: {unique_tournament_id}, season ID: {season_id} from Sofascore...")
-        url = self._format("team-season-stats", team_id=team_id, unique_tournament_id=unique_tournament_id, season_id=season_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return TeamSeasonStats.from_api(raw_data)
+    def get_team_season_stats(
+        self,
+        team_id: str,
+        unique_tournament_id: str,
+        season_id: str,
+    ) -> RawTeamSeasonStats:
+        """Fetch season statistics for a team.
+
+        REMARK: The actual stat values are inside data["statistics"].
+        This returns the full response — the higher layer can dig into it.
+        """
+        url = self._format(
+            "team-season-stats",
+            team_id=team_id,
+            unique_tournament_id=unique_tournament_id,
+            season_id=season_id,
+        )
+        return self._fetch(url)
+
+    def get_team_stage_seasons(self, team_id: str) -> list[RawStage]:
+        """Fetch stage seasons for a team (motorsport)."""
+        url = self._format("team-stage-seasons", team_id=team_id)
+        data = self._fetch(url)
+        return data.get("stageSeasons", [])
+
+    def get_team_stage_races(self, team_id: str, stage_season_id: str) -> list[RawRace]:
+        """Fetch races for a team + season stage (motorsport)."""
+        url = self._format("team-stage-season-races", team_id=team_id, stage_season_id=stage_season_id)
+        data = self._fetch(url)
+        return data.get("races", [])
 
     # ---- Players ---- #
 
-    def get_player(self, player_id: str, raw: bool = False) -> Player | dict:
-        """ Fetch player details for a specific player ID. """
-        logger.debug(f"Fetching details for player ID: {player_id} from Sofascore...")
+    def get_player(self, player_id: str) -> RawPlayer:
+        """Fetch player details."""
         url = self._format("player", player_id=player_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Player.from_api(raw_data.get("player", {}))
+        data = self._fetch(url)
+        return data.get("player", {})
 
-    def get_player_results(self, player_id: str, page: int = 0, raw: bool = False) -> Events | dict:
-        """ Fetch recent results for a specific player. """
-        logger.debug(f"Fetching results for player ID: {player_id} from Sofascore...")
+    def get_player_results(self, player_id: str, page: int = 0) -> RawEventsResponse:
+        """Fetch recent results for a player."""
         url = self._format("player-results", player_id=player_id, page=page)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Events.from_api(raw_data)
+        return self._fetch(url)
 
-    def get_player_seasons(self, player_id: str, raw: bool = False) -> list[UniqueTournamentSeasons] | dict:
-        """ Fetch seasons for a specific player. """
-        logger.debug(f"Fetching seasons for player ID: {player_id} from Sofascore...")
+    def get_player_seasons(self, player_id: str) -> list[RawUniqueTournamentSeasons]:
+        """Fetch seasons for a player (grouped by unique tournament)."""
         url = self._format("player-seasons", player_id=player_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return [UniqueTournamentSeasons.from_api(uts) for uts in raw_data.get("uniqueTournamentSeasons", [])]
+        data = self._fetch(url)
+        return data.get("uniqueTournamentSeasons", [])
 
     # ---- Managers ---- #
 
-    def get_manager(self, manager_id: str, raw: bool = False) -> Manager | dict:
-        """ Fetch manager details for a specific manager ID. """
-        logger.debug(f"Fetching details for manager ID: {manager_id} from Sofascore...")
+    def get_manager(self, manager_id: str) -> RawManager:
+        """Fetch manager details."""
         url = self._format("manager", manager_id=manager_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Manager.from_api(raw_data.get("manager", {}))
+        data = self._fetch(url)
+        return data.get("manager", {})
 
-    def get_manager_results(self, manager_id: str, page: int = 0, raw: bool = False) -> Events | dict:
-        """ Fetch recent results for a specific manager. """
-        logger.debug(f"Fetching results for manager ID: {manager_id} from Sofascore...")
+    def get_manager_results(self, manager_id: str, page: int = 0) -> RawEventsResponse:
+        """Fetch recent results for a manager."""
         url = self._format("manager-results", manager_id=manager_id, page=page)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Events.from_api(raw_data)
+        return self._fetch(url)
 
-    def get_manager_seasons(self, manager_id: str, raw: bool = False) -> list[UniqueTournamentSeasons] | dict:
-        """ Fetch seasons for a specific manager. """
-        logger.debug(f"Fetching seasons for manager ID: {manager_id} from Sofascore...")
+    def get_manager_seasons(self, manager_id: str) -> list[RawUniqueTournamentSeasons]:
+        """Fetch seasons for a manager."""
         url = self._format("manager-seasons", manager_id=manager_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return [UniqueTournamentSeasons.from_api(uts) for uts in raw_data.get("uniqueTournamentSeasons", [])]
+        data = self._fetch(url)
+        return data.get("uniqueTournamentSeasons", [])
 
-    # --- Referees ---- #
+    # ---- Referees ---- #
 
-    def get_referee(self, referee_id: str, raw: bool = False) -> Referee | dict:
-        """ Fetch referee details for a specific referee ID. """
-        logger.debug(f"Fetching details for referee ID: {referee_id} from Sofascore...")
+    def get_referee(self, referee_id: str) -> RawReferee:
+        """Fetch referee details."""
         url = self._format("referee", referee_id=referee_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Referee.from_api(raw_data.get("referee", {}))
+        data = self._fetch(url)
+        return data.get("referee", {})
 
-    def get_referee_results(self, referee_id: str, page: int = 0, raw: bool = False) -> Events | dict:
-        """ Fetch recent results for a specific referee. """
-        logger.debug(f"Fetching results for referee ID: {referee_id} from Sofascore...")
+    def get_referee_results(self, referee_id: str, page: int = 0) -> RawEventsResponse:
+        """Fetch recent results for a referee."""
         url = self._format("referee-results", referee_id=referee_id, page=page)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Events.from_api(raw_data)
+        return self._fetch(url)
 
     # ---- Venues ---- #
 
-    def get_venue(self, venue_id: str, raw: bool = False) -> Venue | dict:
-        """ Fetch venue details for a specific venue ID. """
-        logger.debug(f"Fetching details for venue ID: {venue_id} from Sofascore...")
+    def get_venue(self, venue_id: str) -> RawVenue:
+        """Fetch venue details."""
         url = self._format("venue", venue_id=venue_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Venue.from_api(raw_data.get("venue", {}))
+        data = self._fetch(url)
+        return data.get("venue", {})
 
-    def get_venue_fixtures(self, venue_id: str, page: int = 1, raw: bool = False) -> Events | dict:
-        """ Fetch upcoming fixtures for a specific venue. """
-        logger.debug(f"Fetching fixtures for venue ID: {venue_id} from Sofascore...")
+    def get_venue_fixtures(self, venue_id: str, page: int = 1) -> RawEventsResponse:
+        """Fetch upcoming fixtures for a venue."""
         url = self._format("venue-fixtures", venue_id=venue_id, page=page)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Events.from_api(raw_data)
+        return self._fetch(url)
 
-    def get_venue_results(self, venue_id: str, page: int = 1, raw: bool = False) -> Events | dict:
-        """ Fetch recent results for a specific venue. """
-        logger.debug(f"Fetching results for venue ID: {venue_id} from Sofascore...")
+    def get_venue_results(self, venue_id: str, page: int = 1) -> RawEventsResponse:
+        """Fetch recent results for a venue."""
         url = self._format("venue-results", venue_id=venue_id, page=page)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Events.from_api(raw_data)
+        return self._fetch(url)
 
     # ---- Events ---- #
 
-    def get_event(self, event_id: str, raw: bool = False) -> Event | dict:
-        """ Fetch event details for a specific event ID. """
-        logger.debug(f"Fetching details for event ID: {event_id} from Sofascore...")
+    def get_event(self, event_id: str) -> RawEvent:
+        """Fetch event details.
+
+        REMARK: To extract derived data from this event, use:
+          - parsers.parse_periods(event)    → period structure
+          - parsers.get_event_outcome(event) → "home"/"away"/"draw"
+          - parsers.get_display_score(event) → {"home": int, "away": int}
+        """
         url = self._format("event", event_id=event_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Event.from_api(raw_data.get("event", {}))
+        data = self._fetch(url)
+        return data.get("event", {})
 
-    def get_lineups(self, event_id: str, raw: bool = False) -> Lineups | dict:
-        """ Fetch lineups for a specific event. """
-        logger.debug(f"Fetching lineups for event ID: {event_id} from Sofascore...")
+    def get_lineups(self, event_id: str) -> RawLineupsResponse:
+        """Fetch lineups for an event."""
         url = self._format("event-lineups", event_id=event_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Lineups.from_api(raw_data.get("lineups", {}))
+        data = self._fetch(url)
+        return data.get("lineups", {})
 
-    def get_incidents(self, event_id: str, raw: bool = False) -> list[Incident] | dict:
-        """ Fetch incidents for a specific event. """
-        logger.debug(f"Fetching incidents for event ID: {event_id} from Sofascore...")
+    def get_incidents(self, event_id: str) -> list[RawIncident]:
+        """Fetch raw incidents for an event.
+
+        REMARK: Use parsers.parse_incidents() to enrich with _side/_score
+        fields and filter unknown types. Or consume directly — the
+        RawIncident TypedDict documents all possible keys.
+        """
         url = self._format("event-incidents", event_id=event_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return [Incident.from_api(incident) for incident in raw_data.get("incidents", [])]
+        data = self._fetch(url)
+        return data.get("incidents", [])
 
-    def get_event_statistics(self, event_id: str, raw: bool = False) -> EventStatistics | dict:
-        """ Fetch statistics for a specific event. """
-        logger.debug(f"Fetching statistics for event ID: {event_id} from Sofascore...")
+    def get_event_statistics(self, event_id: str) -> RawEventStatisticsResponse:
+        """Fetch statistics for an event."""
         url = self._format("event-statistics", event_id=event_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return EventStatistics.from_api(raw_data)
+        return self._fetch(url)
 
-    def get_event_graph(self, event_id: str, raw: bool = False) -> MomentumGraph | dict:
-        """ Fetch momentum graph for a specific event. """
-        logger.debug(f"Fetching momentum graph for event ID: {event_id} from Sofascore...")
+    def get_event_graph(self, event_id: str) -> RawMomentumGraphResponse:
+        """Fetch momentum graph for an event."""
         url = self._format("event-graph", event_id=event_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return MomentumGraph.from_api(raw_data)
+        return self._fetch(url)
 
-    def get_channels(self, event_id: str, raw: bool = False) -> CountryChannels | dict:
-        """ Fetch channels for a specific event. """
-        logger.debug(f"Fetching channels for event ID: {event_id} from Sofascore...")
+    def get_channels(self, event_id: str) -> dict[str, list[str]]:
+        """Fetch country → channel mappings for an event.
+
+        REMARK: Returns the `channels` dict directly (country_code → list of channel IDs).
+        """
         url = self._format("event-channels", event_id=event_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return CountryChannels.from_api(raw_data)
+        data = self._fetch(url)
+        return data.get("channels", {})
 
-    def get_h2h_history(self, event_custom_id: str, raw: bool = False) -> Events | dict:
-        """ Fetch head-to-head history for a specific event. """
-        logger.debug(f"Fetching head-to-head history for event custom ID: {event_custom_id} from Sofascore...")
+    def get_h2h_history(self, event_custom_id: str) -> RawEventsResponse:
+        """Fetch head-to-head history for an event."""
         url = self._format("event-h2h-history", event_custom_id=event_custom_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Events.from_api(raw_data)
+        return self._fetch(url)
 
-    def get_scheduled_events(self, sport: str, date: str, raw: bool = False) -> Events | dict:
-        """ Fetch scheduled events for a specific sport and date (format YYYY-MM-DD). """
-        logger.debug(f"Fetching scheduled events for sport: {sport}, date: {date} from Sofascore...")
+    def get_scheduled_events(self, sport: str, date: str) -> RawEventsResponse:
+        """Fetch scheduled events for a sport on a specific date (YYYY-MM-DD)."""
         try:
             datetime.strptime(date, "%Y-%m-%d")
         except ValueError:
-            logger.error(f"Invalid date format: {date}. Expected format is YYYY-MM-DD.")
-            raise ValueError(f"Invalid date format: {date}. Expected format is YYYY-MM-DD.")
+            raise ValueError(f"Invalid date format: {date}. Expected YYYY-MM-DD.")
         url = self._format("scheduled-events", sport=sport, date=date)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Events.from_api(raw_data)
+        return self._fetch(url)
 
     # ---- Rankings ---- #
 
-    def get_ranking(self, ranking_id: str, raw: bool = False) -> Rankings | dict:
-        """ Fetch a specific ranking by ID. """
-        logger.debug(f"Fetching ranking ID: {ranking_id} from Sofascore...")
+    def get_ranking(self, ranking_id: str) -> RawRankingsResponse:
+        """Fetch a ranking by ID.
+
+        REMARK: The ranking metadata is under data["rankingType"], the rows
+        under data["rankingRows"]. This returns the full response dict.
+        """
         url = self._format("ranking", ranking_id=ranking_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Rankings.from_api(raw_data)
+        return self._fetch(url)
 
-    # --- Motorsport ---- #
+    # ---- Motorsport ---- #
 
-    def get_unique_stage_seasons(self, unique_stage_id: str, raw: bool = False) -> list[Stage] | dict:
-        """ Fetch seasons for a specific stage. """
-        logger.debug(f"Fetching seasons for stage ID: {unique_stage_id} from Sofascore...")
+    def get_unique_stage_seasons(self, unique_stage_id: str) -> list[RawStage]:
+        """Fetch seasons for a stage."""
         url = self._format("unique-stage-seasons", unique_stage_id=unique_stage_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return [Stage.from_api(stage) for stage in raw_data.get("seasons", [])]
+        data = self._fetch(url)
+        return data.get("seasons", [])
 
-    def get_stage(self, stage_id: str, raw: bool = False) -> Stage | dict: # NOTE - Irrelevant as get_stage_details returns the same details & more
-        """ Fetch stage details for a specific stage ID. """
-        logger.debug(f"Fetching details for stage ID: {stage_id} from Sofascore...")
+    def get_stage(self, stage_id: str) -> RawStage:
+        """Fetch stage details.
+
+        REMARK: get_stage_details() returns more info — consider using that instead.
+        """
         url = self._format("stage", stage_id=stage_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Stage.from_api(raw_data.get("stage", {}))
+        data = self._fetch(url)
+        return data.get("stage", {})
 
-    def get_stage_substages(self, stage_id: str, raw: bool = False) -> list[Stage] | dict: # NOTE - Irrelevant as get_stage_details returns the same details & more
-        """ Fetch substages for a specific stage. """
-        logger.debug(f"Fetching substages for stage ID: {stage_id} from Sofascore...")
+    def get_stage_substages(self, stage_id: str) -> list[RawStage]:
+        """Fetch substages for a stage."""
         url = self._format("substages", stage_id=stage_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return [Stage.from_api(stage) for stage in raw_data.get("stages", [])]
+        data = self._fetch(url)
+        return data.get("stages", [])
 
-    def get_stage_details(self, stage_id: str, raw: bool = False) -> Stage | dict:
-        """ Fetch extended details for a specific stage, including nested substages. """
-        logger.debug(f"Fetching extended details for stage ID: {stage_id} from Sofascore...")
+    def get_stage_details(self, stage_id: str) -> RawStage:
+        """Fetch extended details for a stage, including nested substages."""
         url = self._format("stage-details", stage_id=stage_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return Stage.from_api(raw_data.get("stage", {}))
+        data = self._fetch(url)
+        return data.get("stage", {})
 
-    def get_stage_standings_competitors(self, stage_id: str, raw: bool = False) -> RacingStandings | dict:
-        """ Fetch competitor (aka constructor or racing team) standings for a specific stage. """
-        logger.debug(f"Fetching competitor standings for stage ID: {stage_id} from Sofascore...")
+    def get_stage_standings_competitors(self, stage_id: str) -> list[RawRacingStandingsEntry]:
+        """Fetch competitor standings for a stage."""
         url = self._format("standings-competitors", stage_id=stage_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return RacingStandings.from_api({"kind": "competitors", "standings": raw_data.get("standings", [])})
+        data = self._fetch(url)
+        return data.get("standings", [])
 
-    def get_stage_standings_teams(self, stage_id: str, raw: bool = False) -> RacingStandings | dict:
-        """ Fetch team standings (aka driver) for a specific stage. """
-        logger.debug(f"Fetching team standings for stage ID: {stage_id} from Sofascore...")
+    def get_stage_standings_teams(self, stage_id: str) -> list[RawRacingStandingsEntry]:
+        """Fetch team/driver standings for a stage."""
         url = self._format("standings-teams", stage_id=stage_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return RacingStandings.from_api({"kind": "teams", "standings": raw_data.get("standings", [])})
+        data = self._fetch(url)
+        return data.get("standings", [])
+
+    def get_stage_drivers_performance(self, team_id: str, stage_id: str) -> list[RawDriverPerformance]:
+        """Fetch drivers performance for a team + stage (season stage in motorsport)."""
+        url = self._format("stage-drivers-performance", team_id=team_id, stage_id=stage_id)
+        data = self._fetch(url)
+        return data.get("driverPerformance", [])
 
     # ---- TV Channels ---- #
 
-    def get_country_channels(self, country_code: str, raw: bool = False) -> list[Channel] | dict:
-        """ Fetch TV channels for a specific country code. """
-        logger.debug(f"Fetching TV channels for country code: {country_code} from Sofascore...")
+    def get_country_channels(self, country_code: str) -> list[RawChannel]:
+        """Fetch TV channels for a country."""
         url = self._format("country-channels", country_code=country_code)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return [Channel.from_api(channel) for channel in raw_data.get("channels", [])]
+        data = self._fetch(url)
+        return data.get("channels", [])
 
-    def get_channel_schedule(self, channel_id: str, raw: bool = False) -> ChannelSchedule | dict:
-        """ Fetch schedule for a specific TV channel. """
-        logger.debug(f"Fetching schedule for channel ID: {channel_id} from Sofascore...")
+    def get_channel_schedule(self, channel_id: str) -> RawChannelSchedule:
+        """Fetch schedule for a TV channel."""
         url = self._format("channel-schedule", channel_id=channel_id)
-        raw_data = self.fetch_url(url)
-        if raw or not raw_data:
-            return raw_data
-        return ChannelSchedule.from_api(raw_data)
+        return self._fetch(url)
 
     # ---- Search ---- #
 
-    def search_all(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
-        """ Search for all entities by name. """
-        return self._search("search-all", query, page, raw)
+    def search_all(self, query: str, page: int = 0) -> list[RawSearchResult]:
+        """Search for all entities by name."""
+        return self._search("search-all", query, page)
 
-    def search_unique_tournaments(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
-        """ Search for unique tournaments by name. """
-        return self._search("search-unique-tournaments", query, page, raw)
+    def search_unique_tournaments(self, query: str, page: int = 0) -> list[RawSearchResult]:
+        """Search for unique tournaments by name."""
+        return self._search("search-unique-tournaments", query, page)
 
-    def search_teams(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
-        """ Search for teams by name. """
-        return self._search("search-teams", query, page, raw)
+    def search_teams(self, query: str, page: int = 0) -> list[RawSearchResult]:
+        """Search for teams by name."""
+        return self._search("search-teams", query, page)
 
-    def search_events(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
-        """ Search for events by name. """
-        return self._search("search-events", query, page, raw)
+    def search_events(self, query: str, page: int = 0) -> list[RawSearchResult]:
+        """Search for events by name."""
+        return self._search("search-events", query, page)
 
-    def search_players(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
-        """ Search for players by name. """
-        return self._search("search-players", query, page, raw)
+    def search_players(self, query: str, page: int = 0) -> list[RawSearchResult]:
+        """Search for players by name."""
+        return self._search("search-players", query, page)
 
-    def search_managers(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
-        """ Search for managers by name. """
-        return self._search("search-managers", query, page, raw)
+    def search_managers(self, query: str, page: int = 0) -> list[RawSearchResult]:
+        """Search for managers by name."""
+        return self._search("search-managers", query, page)
 
-    def search_referees(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
-        """ Search for referees by name. """
-        return self._search("search-referees", query, page, raw)
+    def search_referees(self, query: str, page: int = 0) -> list[RawSearchResult]:
+        """Search for referees by name."""
+        return self._search("search-referees", query, page)
 
-    def search_venues(self, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
-        """ Search for venues by name. """
-        return self._search("search-venues", query, page, raw)
+    def search_venues(self, query: str, page: int = 0) -> list[RawSearchResult]:
+        """Search for venues by name."""
+        return self._search("search-venues", query, page)
 
-    def _search(self, endpoint_name: str, query: str, page: int = 0, raw: bool = False) -> list[SearchResult] | dict:
-        """ Generic search helper method. """
-        logger.debug(f"Searching {endpoint_name} with query: '{query}' on Sofascore...")
+    # ---- Internal helpers ---- #
+
+    def _search(self, endpoint_name: str, query: str, page: int = 0) -> list[RawSearchResult]:
+        """Generic search helper."""
         url = self._format(endpoint_name)
         params = {"q": query, "page": page}
-        raw_data = self.fetch_url(url, params=params, fetch_delay=0)
-        if raw or not raw_data:
-            return raw_data
-        return [SearchResult.from_api(result) for result in raw_data.get("results", [])]
+        data = self._fetch(url, params=params, fetch_delay=0)
+        return data.get("results", [])
 
-    # ---- Helpers ---- #
-
-    def _format(self, endpoint_name: str, **kwargs) -> str:
-        """ Helper method to format endpoint URLs. """
+    def _format(self, endpoint_name: str, **kwargs: Any) -> str:
+        """Format an endpoint URL from the endpoint registry."""
         if endpoint_name not in ENDPOINTS:
-            logger.error(f"Endpoint '{endpoint_name}' not found in ENDPOINTS.")
             raise ValueError(f"Endpoint '{endpoint_name}' is not defined.")
         return ENDPOINTS[endpoint_name].format(**kwargs)
 
-    def fetch_url(self, url: str, *, params: dict = None, fetch_delay: float = None) -> dict | None:
-        try:
-            response = self.fetcher.fetch_url(url, params=params, initial_delay=fetch_delay or self.fetch_delay)
-        except NotFoundError:
-            return None
+    def _fetch(self, url: str, *, params: dict | None = None, fetch_delay: float | None = None) -> dict:
+        """Fetch a URL and return the parsed JSON dict."""
+        response = self.fetcher.fetch_url(
+            url, params=params, initial_delay=fetch_delay if fetch_delay is not None else self.fetch_delay
+        )
         return response.json()
