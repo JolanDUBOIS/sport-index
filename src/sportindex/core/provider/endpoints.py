@@ -33,17 +33,20 @@ ENDPOINTS = {
     "team-results": f"{BASE_API_URL}/team/{{team_id}}/events/last/{{page}}",
     "team-players": f"{BASE_API_URL}/team/{{team_id}}/players",
     "team-seasons": f"{BASE_API_URL}/team/{{team_id}}/team-statistics/seasons",
+    "team-year-statistics": f"{BASE_API_URL}/team/{{team_id}}/year-statistics/{{year}}",
     "team-season-stats": f"{BASE_API_URL}/team/{{team_id}}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/statistics/overall",
     "team-stage-seasons": f"{BASE_API_URL}/team/{{team_id}}/stage-seasons",
     "team-stage-season-races": f"{BASE_API_URL}/team/{{team_id}}/stage-season/{{stage_season_id}}/races",
+    "team-driver-career-history": f"{BASE_API_URL}/team/{{team_id}}/driver-career-history",
 
     "player": f"{BASE_API_URL}/player/{{player_id}}",
     "player-results": f"{BASE_API_URL}/player/{{player_id}}/events/last/{{page}}",
+    "player-statistics": f"{BASE_API_URL}/player/{{player_id}}/statistics",
     "player-seasons": f"{BASE_API_URL}/player/{{player_id}}/statistics/seasons",
 
     "manager": f"{BASE_API_URL}/manager/{{manager_id}}",
     "manager-results": f"{BASE_API_URL}/manager/{{manager_id}}/events/last/{{page}}",
-    "manager-seasons": f"{BASE_API_URL}/manager/{{manager_id}}/statistics/seasons",
+    "manager-career-history": f"{BASE_API_URL}/manager/{{manager_id}}/career-history",
 
     "referee": f"{BASE_API_URL}/referee/{{referee_id}}",
     "referee-results": f"{BASE_API_URL}/referee/{{referee_id}}/events/last/{{page}}",

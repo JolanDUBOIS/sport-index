@@ -24,7 +24,8 @@ from .endpoints import ENDPOINTS
 from .types import (
     RawCategory,
     RawChannel,
-    RawChannelSchedule,
+    RawChannelScheduleResponse,
+    RawDriverCareerHistory,
     RawDriverPerformance,
     RawEvent,
     RawEventsResponse,
@@ -32,23 +33,26 @@ from .types import (
     RawIncident,
     RawLineupsResponse,
     RawManager,
+    RawManagerCareerHistoryItem,
     RawMomentumGraphResponse,
     RawPlayer,
-    RawRace,
+    RawPlayerSeasonStats,
+    RawRaceResults,
     RawRacingStandingsEntry,
     RawRankingsResponse,
     RawReferee,
     RawSearchResult,
+    RawTeamResponse,
     RawSeason,
     RawStage,
-    RawTeam,
     RawTeamPlayers,
     RawTeamSeasonStats,
     RawTeamStandings,
+    RawTeamYearStats,
     RawTournament,
     RawUniqueStage,
     RawUniqueTournament,
-    RawUniqueTournamentSeasons,
+    RawUniqueTournamentSeasonsResponse,
     RawVenue,
 )
 
@@ -169,14 +173,12 @@ class SofascoreProvider:
 
     # ---- Teams ---- #
 
-    def get_team(self, team_id: str) -> RawTeam:
+    def get_team(self, team_id: str) -> RawTeamResponse:
         """Fetch team details."""
         url = self._format("team", team_id=team_id)
-        data = self._fetch(url)
-        # NOTE - When fetching a constructor, the API returns also the key "drivers" which can be interesting... (as well as relatedTeams which is less valuable ig...)
-        return data.get("team", {})
+        return self._fetch(url)
 
-    def get_team_seasons(self, team_id: str) -> list[RawUniqueTournamentSeasons]:
+    def get_team_seasons(self, team_id: str) -> list[RawUniqueTournamentSeasonsResponse]:
         """Fetch seasons for a team (grouped by unique tournament)."""
         url = self._format("team-seasons", team_id=team_id)
         data = self._fetch(url)
@@ -197,24 +199,27 @@ class SofascoreProvider:
         url = self._format("team-players", team_id=team_id)
         return self._fetch(url)
 
+    def get_team_year_statistics(self, team_id: str, year: str) -> RawTeamYearStats:
+        """Fetch year statistics for a team (tennis only)."""
+        url = self._format("team-year-statistics", team_id=team_id, year=year)
+        data = self._fetch(url)
+        return data.get("statistics", {})
+
     def get_team_season_stats(
         self,
         team_id: str,
         unique_tournament_id: str,
         season_id: str,
     ) -> RawTeamSeasonStats:
-        """Fetch season statistics for a team.
-
-        REMARK: The actual stat values are inside data["statistics"].
-        This returns the full response — the higher layer can dig into it.
-        """
+        """Fetch season statistics for a team."""
         url = self._format(
             "team-season-stats",
             team_id=team_id,
             unique_tournament_id=unique_tournament_id,
             season_id=season_id,
         )
-        return self._fetch(url)
+        data = self._fetch(url)
+        return data.get("statistics", {})
 
     def get_team_stage_seasons(self, team_id: str) -> list[RawStage]:
         """Fetch stage seasons for a team (motorsport)."""
@@ -222,11 +227,16 @@ class SofascoreProvider:
         data = self._fetch(url)
         return data.get("stageSeasons", [])
 
-    def get_team_stage_races(self, team_id: str, stage_season_id: str) -> list[RawRace]:
+    def get_team_stage_races(self, team_id: str, stage_season_id: str) -> list[RawRaceResults]:
         """Fetch races for a team + season stage (motorsport)."""
         url = self._format("team-stage-season-races", team_id=team_id, stage_season_id=stage_season_id)
         data = self._fetch(url)
         return data.get("races", [])
+
+    def get_team_driver_career_history(self, team_id: str) -> list[RawDriverCareerHistory]:
+        """Fetch driver career history for a team (motorsport)."""
+        url = self._format("team-driver-career-history", team_id=team_id)
+        return self._fetch(url)
 
     # ---- Players ---- #
 
@@ -241,7 +251,13 @@ class SofascoreProvider:
         url = self._format("player-results", player_id=player_id, page=page)
         return self._fetch(url)
 
-    def get_player_seasons(self, player_id: str) -> list[RawUniqueTournamentSeasons]:
+    def get_player_statistics(self, player_id: str) -> list[RawPlayerSeasonStats]:
+        """Fetch statistics for a player (grouped by season)."""
+        url = self._format("player-statistics", player_id=player_id)
+        data = self._fetch(url)
+        return data.get("seasons", [])
+
+    def get_player_seasons(self, player_id: str) -> list[RawUniqueTournamentSeasonsResponse]:
         """Fetch seasons for a player (grouped by unique tournament)."""
         url = self._format("player-seasons", player_id=player_id)
         data = self._fetch(url)
@@ -260,11 +276,11 @@ class SofascoreProvider:
         url = self._format("manager-results", manager_id=manager_id, page=page)
         return self._fetch(url)
 
-    def get_manager_seasons(self, manager_id: str) -> list[RawUniqueTournamentSeasons]:
-        """Fetch seasons for a manager."""
-        url = self._format("manager-seasons", manager_id=manager_id)
+    def get_manager_career_history(self, manager_id: str) -> list[RawManagerCareerHistoryItem]:
+        """Fetch career history for a manager."""
+        url = self._format("manager-career-history", manager_id=manager_id)
         data = self._fetch(url)
-        return data.get("uniqueTournamentSeasons", [])
+        return data.get("careerHistory", []) if data else []
 
     # ---- Referees ---- #
 
@@ -427,7 +443,7 @@ class SofascoreProvider:
         data = self._fetch(url)
         return data.get("channels", [])
 
-    def get_channel_schedule(self, channel_id: str) -> RawChannelSchedule:
+    def get_channel_schedule(self, channel_id: str) -> RawChannelScheduleResponse:
         """Fetch schedule for a TV channel."""
         url = self._format("channel-schedule", channel_id=channel_id)
         return self._fetch(url)
