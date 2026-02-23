@@ -123,12 +123,3 @@ class RawRankingEntry(TypedDict, total=False):
     tournamentsPlayed: int
     lastEvent: RawEvent
     updatedAtTimestamp: int
-
-
-class RawRankingsResponse(TypedDict, total=False):
-    """Response from /rankings/{id}.
-    REMARK: The current code flattens rankingType into top-level fields.
-    In this raw approach, access via data["rankingType"]["id"], etc.
-    """
-    rankingType: RawRankingType
-    rankingRows: list[RawRankingEntry]

@@ -14,24 +14,53 @@ Conventions:
   - "Parsed*" types are output shapes from parsers.py, NOT raw API shapes
 
 Submodules:
-  - common:       Core primitives (RawSport, RawCountry, RawStatus, etc.)
-  - entities:     Tournaments, teams, players, managers, referees, venues
-  - events:       Events, lineups, statistics, incidents, parsed output types
+  - common:       Core shared types (RawSport, RawCountry, RawCategory)
+  - primitives:   Small reusable blocks (RawAmount, RawStatus, RawPerformance, …)
+  - tournament:   Tournaments, seasons (RawTournament, RawUniqueTournament, RawSeason)
+  - entities:     Teams, players, managers, referees, venues
+  - event:        Events, scores, rounds
   - stages:       Stages, races (motorsport, cycling, multi-event sports)
-  - leaderboards: Standings, rankings, channels, search, transfers
+  - leaderboard:  Standings, rankings
+  - responses:    API response envelopes (wrappers around entities)
+  - details/:     Detailed / nested types (lineups, stats, incidents, …)
 """
-
-# TODO - Check if not missing imports...
 
 from .common import (
     RawCategory,
     RawCountry,
     RawSport,
 )
+from .primitives import (
+    RawAmount,
+    RawChannel,
+    RawCoordinates,
+    RawPerformance,
+    RawSearchResult,
+    RawStatus,
+)
+from .tournament import (
+    RawSeason,
+    RawTournament,
+    RawUniqueTournament,
+)
+from .entities import (
+    RawCity,
+    RawManager,
+    RawPlayer,
+    RawPlayerTeamInfo,
+    RawReferee,
+    RawStadium,
+    RawTeam,
+    RawVenue,
+)
+from .event import (
+    RawEvent,
+    RawEventPeriodLabels,
+    RawEventScore,
+    RawEventTime,
+    RawRound,
+)
 from .stages import (
-    RawDriverPerformance,
-    RawLap,
-    RawRace,
     RawStage,
     RawStageInfo,
     RawStageParent,
@@ -42,120 +71,124 @@ from .leaderboard import (
     RawPromotion,
     RawRacingStandingsEntry,
     RawRankingEntry,
-    RawRankingsResponse,
     RawRankingType,
     RawTeamStandings,
     RawTeamStandingsEntry,
 )
-from .entities import (
-    RawManager,
-    RawPerformance,
-    RawPlayer,
-    RawPlayerPreviousTeam,
-    RawPlayerTeamInfo,
-    RawReferee,
-    RawSeason,
-    RawStadium,
-    RawTeam,
-    RawTeamPlayers,
-    RawTeamSeasonStats,
-    RawTournament,
-    RawUniqueTournament,
-    RawUniqueTournamentSeasons,
-    RawVenue,
-)
-from .event import (
-    RawEvent,
-    RawEventPeriodLabels,
-    RawEventsResponse,
-    RawEventScore,
+from .responses import (
+    RawChannelScheduleResponse,
+    RawCountryChannelsResponse,
     RawEventStatisticsResponse,
-    RawEventTime,
-    RawIncident,
-    RawLineup,
+    RawEventsResponse,
     RawLineupsResponse,
     RawMomentumGraphResponse,
+    RawRankingsResponse,
+    RawTeamResponse,
+    RawUniqueTournamentSeasonsResponse,
+)
+from .details import (
+    # details/entities
+    RawManagerCareerHistoryItem,
+    RawPlayerPreviousTeam,
+    RawPlayerSeasonStats,
+    RawPlayerSeasonStatsItem,
+    RawTeamPlayers,
+    RawTeamSeasonStats,
+    RawTeamYearStats,
+    RawTeamYearSurfaceStats,
+    RawVenueStatistics,
+    # details/event
+    RawIncident,
+    RawLineup,
     RawMomentumPoint,
     RawPeriodStatistics,
-    RawRound,
     RawStatisticsGroup,
     RawStatisticsItem,
-)
-from .primitives import (
-    RawAmount,
-    RawCoordinates,
-    RawChannel,
-    RawChannelSchedule,
-    RawCountryChannelsResponse,
-    RawSearchResult,
+    # details/stage
+    RawDriverCareerHistory,
+    RawDriverPerformance,
+    RawLap,
+    RawRaceResults,
+    RawSeasonCareerHistory,
+    RawTotalCareerHistory,
 )
 
 __all__ = [
     # common
-    "RawAmount",
     "RawCategory",
-    "RawCoordinates",
     "RawCountry",
     "RawSport",
-    "RawStadium",
-    "RawStatus",
-    "RawTransferWindow",
-    # entities
-    "RawManager",
+    # primitives
+    "RawAmount",
+    "RawChannel",
+    "RawCoordinates",
     "RawPerformance",
-    "RawPlayer",
-    "RawPlayerPreviousTeam",
-    "RawPlayerTeamInfo",
-    "RawReferee",
+    "RawSearchResult",
+    "RawStatus",
+    # tournament
     "RawSeason",
-    "RawTeam",
-    "RawTeamPlayers",
-    "RawTeamSeasonStats",
     "RawTournament",
     "RawUniqueTournament",
-    "RawUniqueTournamentSeasons",
+    # entities
+    "RawCity",
+    "RawManager",
+    "RawPlayer",
+    "RawPlayerTeamInfo",
+    "RawReferee",
+    "RawStadium",
+    "RawTeam",
     "RawVenue",
-    # events
+    # event
     "RawEvent",
     "RawEventPeriodLabels",
-    "RawEventsResponse",
     "RawEventScore",
-    "RawEventStatisticsResponse",
     "RawEventTime",
-    "RawIncident",
-    "RawLineup",
-    "RawLineupsResponse",
-    "RawMomentumGraphResponse",
-    "RawMomentumPoint",
-    "RawPeriodStatistics",
     "RawRound",
-    "RawStatisticsGroup",
-    "RawStatisticsItem",
     # stages
-    "RawDriverPerformance",
-    "RawLap",
-    "RawRace",
     "RawStage",
     "RawStageInfo",
     "RawStageParent",
     "RawStageType",
     "RawUniqueStage",
-    # leaderboards, channels, search, transfers
-    "RawChannel",
-    "RawChannelSchedule",
-    "RawCountryChannelsResponse",
+    # leaderboard
     "RawPromotion",
     "RawRacingStandingsEntry",
     "RawRankingEntry",
-    "RawRankingsResponse",
     "RawRankingType",
-    "RawSearchResult",
-    "RawStage",
-    "RawStageInfo",
-    "RawStageParent",
-    "RawStageType",
     "RawTeamStandings",
     "RawTeamStandingsEntry",
-    "RawTransfer",
-    "RawUniqueStage",
+    # responses (API endpoint envelopes)
+    "RawChannelScheduleResponse",
+    "RawCountryChannelsResponse",
+    "RawEventStatisticsResponse",
+    "RawEventsResponse",
+    "RawLineupsResponse",
+    "RawMomentumGraphResponse",
+    "RawRankingsResponse",
+    "RawTeamResponse",
+    "RawUniqueTournamentSeasonsResponse",
+    # details/entities
+    "RawManagerCareerHistoryItem",
+    "RawPlayerPreviousTeam",
+    "RawPlayerSeasonStats",
+    "RawPlayerSeasonStatsItem",
+    "RawTeamPlayers",
+    "RawTeamSeasonStats",
+    "RawTeamYearStats",
+    "RawTeamYearSurfaceStats",
+    "RawVenueStatistics",
+    # details/event
+    "RawIncident",
+    "RawLineup",
+    "RawMomentumPoint",
+    "RawPeriodStatistics",
+    "RawStatisticsGroup",
+    "RawStatisticsItem",
+    # details/stage
+    "RawDriverCareerHistory",
+    "RawDriverPerformance",
+    "RawLap",
+    "RawRaceResults",
+    "RawSeasonCareerHistory",
+    "RawTotalCareerHistory",
 ]

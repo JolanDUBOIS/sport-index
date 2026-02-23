@@ -6,9 +6,6 @@ from __future__ import annotations
 
 from typing import TypedDict, Any
 
-from .event import RawEvent
-from .stages import RawStage
-
 
 # =====================================================================
 # Basic reusable blocks
@@ -29,6 +26,16 @@ class RawStatus(TypedDict, total=False):
 class RawCoordinates(TypedDict, total=False):
     latitude: float
     longitude: float
+
+
+class RawPerformance(TypedDict, total=False):
+    total: int
+    wins: int
+    draws: int
+    losses: int
+    goalScored: int
+    goalConceded: int
+    totalPoints: int
 
 
 # =====================================================================
@@ -59,14 +66,4 @@ class RawChannel(TypedDict, total=False):
     name: str
 
 
-class RawChannelSchedule(TypedDict, total=False):
-    """Response from /tv/channel/{id}/schedule."""
-    channel: RawChannel
-    events: list[RawEvent]
-    stages: list[RawStage]
 
-class RawCountryChannelsResponse(TypedDict, total=False):
-    """Response from /tv/event/{id}/country-channels.
-    The ``channels`` key maps country codes to lists of channel IDs.
-    """
-    channels: dict[str, list[int]]

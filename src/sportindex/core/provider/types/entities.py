@@ -16,6 +16,7 @@ from .common import (
 from .primitives import (
     RawAmount,
     RawCoordinates,
+    RawPerformance,
 )
 from .tournament import (
     RawUniqueTournament,
@@ -101,17 +102,6 @@ class RawPlayer(TypedDict, total=False):
 # =====================================================================
 # Manager
 # =====================================================================
-
-class RawPerformance(TypedDict, total=False):
-    """Manager performance stats."""
-    total: int
-    wins: int
-    draws: int
-    losses: int
-    goalScored: int
-    goalConceded: int
-    totalPoints: int
-
 
 class RawManager(TypedDict, total=False):
     id: int

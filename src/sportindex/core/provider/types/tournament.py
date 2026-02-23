@@ -54,9 +54,3 @@ class RawTournament(TypedDict, total=False):
     name: str
     category: RawCategory
     uniqueTournament: RawUniqueTournament
-
-
-class RawUniqueTournamentSeasons(TypedDict, total=False):
-    """Wrapper returned by team/player/manager seasons endpoints."""
-    uniqueTournament: RawUniqueTournament
-    seasons: list[RawSeason]

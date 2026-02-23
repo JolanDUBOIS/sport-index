@@ -131,9 +131,3 @@ class RawEvent(TypedDict, total=False):
     winType: str
     finalRound: int
     order: list[int]
-
-
-class RawEventsResponse(TypedDict, total=False):
-    """Wrapper for paginated event list endpoints."""
-    events: list[RawEvent]
-    hasNextPage: bool
