@@ -21,17 +21,12 @@ Submodules:
   - leaderboards: Standings, rankings, channels, search, transfers
 """
 
-# ruff: noqa: F401  — re-exports for backward compatibility
+# TODO - Check if not missing imports...
 
 from .common import (
-    RawAmount,
     RawCategory,
-    RawCoordinates,
     RawCountry,
     RawSport,
-    RawStadium,
-    RawStatus,
-    RawTransferWindow,
 )
 from .stages import (
     RawDriverPerformance,
@@ -43,19 +38,14 @@ from .stages import (
     RawStageType,
     RawUniqueStage,
 )
-from .leaderboards import (
-    RawChannel,
-    RawChannelSchedule,
-    RawCountryChannelsResponse,
+from .leaderboard import (
     RawPromotion,
     RawRacingStandingsEntry,
     RawRankingEntry,
     RawRankingsResponse,
     RawRankingType,
-    RawSearchResult,
     RawTeamStandings,
     RawTeamStandingsEntry,
-    RawTransfer,
 )
 from .entities import (
     RawManager,
@@ -65,6 +55,7 @@ from .entities import (
     RawPlayerTeamInfo,
     RawReferee,
     RawSeason,
+    RawStadium,
     RawTeam,
     RawTeamPlayers,
     RawTeamSeasonStats,
@@ -73,19 +64,7 @@ from .entities import (
     RawUniqueTournamentSeasons,
     RawVenue,
 )
-from .events import (
-    ParsedCardIncident,
-    ParsedExtraTimeIncident,
-    ParsedGoalIncident,
-    ParsedIncident,
-    ParsedPenaltyIncident,
-    ParsedPenaltyShootoutIncident,
-    ParsedPeriod,
-    ParsedPeriodIncident,
-    ParsedPeriods,
-    ParsedScore,
-    ParsedSubstitutionIncident,
-    ParsedVarDecisionIncident,
+from .event import (
     RawEvent,
     RawEventPeriodLabels,
     RawEventsResponse,
@@ -101,6 +80,14 @@ from .events import (
     RawRound,
     RawStatisticsGroup,
     RawStatisticsItem,
+)
+from .primitives import (
+    RawAmount,
+    RawCoordinates,
+    RawChannel,
+    RawChannelSchedule,
+    RawCountryChannelsResponse,
+    RawSearchResult,
 )
 
 __all__ = [
@@ -129,18 +116,6 @@ __all__ = [
     "RawUniqueTournamentSeasons",
     "RawVenue",
     # events
-    "ParsedCardIncident",
-    "ParsedExtraTimeIncident",
-    "ParsedGoalIncident",
-    "ParsedIncident",
-    "ParsedPenaltyIncident",
-    "ParsedPenaltyShootoutIncident",
-    "ParsedPeriod",
-    "ParsedPeriodIncident",
-    "ParsedPeriods",
-    "ParsedScore",
-    "ParsedSubstitutionIncident",
-    "ParsedVarDecisionIncident",
     "RawEvent",
     "RawEventPeriodLabels",
     "RawEventsResponse",

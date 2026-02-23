@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from .common import RawCategory, RawCountry, RawStatus
+from .common import RawCategory, RawCountry
 from .entities import RawTeam
+from .primitives import RawStatus
 
 
 # =====================================================================
@@ -46,14 +47,14 @@ class RawStageInfo(TypedDict, total=False):
     higher layer.
     """
     # Stage metadata
-    stageType: str     # e.g. "Mountain", "Sprint"
+    stageType: str     # e.g. "flat", "mountain", etc.
     stageRound: int
     discipline: str
     # Circuit info
     circuit: str       # Circuit name
     circuitCity: str
     circuitCountry: str
-    circuitLength: float  # In meters — ASSUMPTION
+    circuitLength: float  # In meters
     # Weather
     trackCondition: str
     weather: str
@@ -61,9 +62,9 @@ class RawStageInfo(TypedDict, total=False):
     trackTemperature: float
     humidity: float
     # Race stats
-    raceType: str      # e.g. "Circuit", "Point-to-point"
+    raceType: str      # e.g. "normal", "timetrial"
     laps: int
-    raceDistance: int   # In meters — ASSUMPTION
+    raceDistance: int   # In meters
     lapsCompleted: int
     lapRecord: str
     departureCity: str  # Cycling stages
@@ -88,51 +89,9 @@ class RawStage(TypedDict, total=False):
     uniqueStage: RawUniqueStage
     stageParent: RawStageParent
     type: RawStageType
-    # Exist on EventStage / SubStage only:
     status: RawStatus
     flag: str
     winner: RawTeam
     country: RawCountry
     info: RawStageInfo
-    # Nested substages (SeasonStage → EventStages, EventStage → SubStages)
-    substages: list[RawStage]         # ASSUMPTION: API nests them under 'substages'
-
-
-class RawRace(TypedDict, total=False):
-    """A race entry — combines stage data with finishing metadata.
-
-    Returned by endpoints that list a team/driver's races within a season
-    stage (e.g. ``/team/{id}/stage-season/{id}/races``).
-    """
-    stage: RawStage
-    position: int
-    gridPosition: int
-    points: int
-    time: str               # Finishing time
-    gap: str                # Gap to leader
-    updatedAtTimestamp: int
-
-
-# =====================================================================
-# Driver performance (per-lap data)
-# =====================================================================
-
-class RawLap(TypedDict, total=False):
-    """A single lap from a driver's race performance."""
-    lap: int
-    position: int
-    tyreType: str
-    visitedPitStop: bool
-
-
-class RawDriverPerformance(TypedDict, total=False):
-    """Driver performance in a stage, including per-lap data.
-
-    Returned by the ``drivers-performance`` endpoint.
-    """
-    id: int
-    name: str
-    slug: str
-    parentTeam: RawTeam
-    startNumber: int
-    laps: list[RawLap]
+    substages: list[RawStage]
