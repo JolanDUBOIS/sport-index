@@ -1,5 +1,5 @@
 """
-Event-related TypedDict types: events, lineups, statistics, incidents,
+Event-related dataclass types: events, lineups, statistics, incidents,
 momentum graph, and all Parsed* output types from parsers.py.
 
 See __init__.py for full package docstring and conventions.
@@ -7,29 +7,28 @@ See __init__.py for full package docstring and conventions.
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING
 
-from .entities import (
-    RawReferee,
-    RawTeam,
-    RawVenue,
-)
-from .tournament import RawSeason, RawTournament
-from .primitives import RawStatus
+from .base import RawModel
+
+if TYPE_CHECKING:
+    from .entities import RawReferee, RawTeam, RawVenue
+    from .tournament import RawSeason, RawTournament
+    from .primitives import RawStatus, Timestamp
 
 
 # =====================================================================
 # Event
 # =====================================================================
 
-class RawRound(TypedDict, total=False):
+class RawRound(RawModel):
     """Round info, nested under ``roundInfo`` in event responses."""
     name: str
     slug: str
     round: int
 
 
-class RawEventScore(TypedDict, total=False):
+class RawEventScore(RawModel):
     display: int
     current: int
     period1: int
@@ -52,7 +51,7 @@ class RawEventScore(TypedDict, total=False):
     period5TieBreak: int
 
 
-class RawEventTime(TypedDict, total=False):
+class RawEventTime(RawModel):
     played: int
     period1: int
     period2: int
@@ -74,7 +73,7 @@ class RawEventTime(TypedDict, total=False):
     totalPeriodCount: int
 
 
-class RawEventPeriodLabels(TypedDict, total=False):
+class RawEventPeriodLabels(RawModel):
     period1: str
     period2: str
     period3: str
@@ -87,11 +86,11 @@ class RawEventPeriodLabels(TypedDict, total=False):
     overtime: str
 
 
-class RawEvent(TypedDict, total=False):
+class RawEvent(RawModel):
     id: int
     customId: str
     slug: str
-    startTimestamp: int
+    startTimestamp: Timestamp
     gender: str
     season: RawSeason
     tournament: RawTournament

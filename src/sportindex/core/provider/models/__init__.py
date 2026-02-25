@@ -1,5 +1,5 @@
 """
-TypedDict definitions for Sofascore API responses.
+Dataclass definitions for Sofascore API responses.
 
 These types document the shape of raw API data returned by the provider.
 Keys are in camelCase to match the API's JSON response format.
@@ -8,35 +8,36 @@ All types use ``total=False`` — every key is optional — because field presen
 varies by endpoint, sport, and nesting context (e.g. a Team inside an Event
 has fewer fields than a Team from the /team/{id} endpoint).
 
-Conventions:
-  - ASSUMPTION: marks a type choice I'm not 100% sure about
-  - REMARK: notes about refactoring, API quirks, or things to revisit
-  - "Parsed*" types are output shapes from parsers.py, NOT raw API shapes
-
-Submodules:
-  - common:       Core shared types (RawSport, RawCountry, RawCategory)
-  - primitives:   Small reusable blocks (RawAmount, RawStatus, RawPerformance, …)
-  - tournament:   Tournaments, seasons (RawTournament, RawUniqueTournament, RawSeason)
-  - entities:     Teams, players, managers, referees, venues
-  - event:        Events, scores, rounds
-  - stages:       Stages, races (motorsport, cycling, multi-event sports)
-  - leaderboard:  Standings, rankings
-  - responses:    API response envelopes (wrappers around entities)
-  - details/:     Detailed / nested types (lineups, stats, incidents, …)
+Submodules: TODO - Has changed...
+    - common:       Core shared types (RawSport, RawCountry, RawCategory)
+    - primitives:   Small reusable blocks (RawAmount, RawStatus, RawPerformance, …)
+    - tournament:   Tournaments, seasons (RawTournament, RawUniqueTournament, RawSeason)
+    - entities:     Teams, players, managers, referees, venues
+    - event:        Events, scores, rounds
+    - stages:       Stages, races (motorsport, cycling, multi-event sports)
+    - leaderboard:  Standings, rankings
+    - responses:    API response envelopes (wrappers around entities)
+    - details/:     Detailed / nested types (lineups, stats, incidents, …)
 """
 
+from logging import getLogger
+logger = getLogger(__name__)
+
+from .base import RawModel
 from .common import (
     RawCategory,
     RawCountry,
     RawSport,
 )
 from .primitives import (
+    ISODate,
     RawAmount,
     RawChannel,
     RawCoordinates,
     RawPerformance,
     RawSearchResult,
     RawStatus,
+    Timestamp,
 )
 from .tournament import (
     RawSeason,
@@ -114,17 +115,21 @@ from .details import (
 )
 
 __all__ = [
+    # base
+    "RawModel",
     # common
     "RawCategory",
     "RawCountry",
     "RawSport",
     # primitives
+    "ISODate",
     "RawAmount",
     "RawChannel",
     "RawCoordinates",
     "RawPerformance",
     "RawSearchResult",
     "RawStatus",
+    "Timestamp",
     # tournament
     "RawSeason",
     "RawTournament",

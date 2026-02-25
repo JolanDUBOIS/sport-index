@@ -1,23 +1,26 @@
 """
-Stage and race TypedDict types: motorsport, cycling, multi-event sports.
+Stage and race dataclass types: motorsport, cycling, multi-event sports.
 
 See __init__.py for full package docstring and conventions.
 """
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING
 
-from .common import RawCategory, RawCountry
-from .entities import RawTeam
-from .primitives import RawStatus
+from .base import RawModel
+
+if TYPE_CHECKING:
+    from .common import RawCategory, RawCountry
+    from .entities import RawTeam
+    from .primitives import RawStatus, Timestamp
 
 
 # =====================================================================
 # Stage (Motorsport / Cycling / Multi-event sports)
 # =====================================================================
 
-class RawUniqueStage(TypedDict, total=False):
+class RawUniqueStage(RawModel):
     id: int
     slug: str
     name: str
@@ -25,26 +28,21 @@ class RawUniqueStage(TypedDict, total=False):
     description: str
 
 
-class RawStageParent(TypedDict, total=False):
+class RawStageParent(RawModel):
     id: int
     slug: str
     description: str
     startDateTimestamp: int
 
 
-class RawStageType(TypedDict, total=False):
+class RawStageType(RawModel):
     id: int
     name: str  # "Season", "Event", or other values — drives stage dispatch
 
 
-class RawStageInfo(TypedDict, total=False):
+class RawStageInfo(RawModel):
     """The ``info`` dict on a stage, containing circuit/weather/race details.
     All keys are at the top level of the ``info`` dict (not further nested).
-
-    REMARK: Fields like circuit/weather appear in the same flat dict.
-    The current code dispatches them into separate Circuit, WeatherConditions,
-    RaceStats classes — consider whether that grouping is useful in your
-    higher layer.
     """
     # Stage metadata
     stageType: str     # e.g. "flat", "mountain", etc.
@@ -71,20 +69,20 @@ class RawStageInfo(TypedDict, total=False):
     arrivalCity: str
 
 
-class RawStage(TypedDict, total=False):
+class RawStage(RawModel):
     """A stage can be a Season, Event, or SubStage — check ``type.name`` to
     dispatch. Substages may be nested recursively.
 
     REMARK: The current code uses class inheritance for SeasonStage/EventStage/
-    SubStage dispatch. With TypedDicts you just check type["name"] directly.
+    SubStage dispatch. With dataclasses you typically check `type.name` directly.
     """
     id: int
     slug: str
     name: str
     description: str
     year: str
-    startDateTimestamp: int
-    endDateTimestamp: int
+    startDateTimestamp: Timestamp
+    endDateTimestamp: Timestamp
     seasonStageName: str
     uniqueStage: RawUniqueStage
     stageParent: RawStageParent

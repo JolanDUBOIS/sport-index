@@ -1,34 +1,42 @@
-"""
-TODO
-"""
-
 from __future__ import annotations
 
-from typing import TypedDict, Any
+from typing import Any
+
+from .base import RawModel
 
 
 # =====================================================================
 # Basic reusable blocks
 # =====================================================================
 
-class RawAmount(TypedDict, total=False):
+class Timestamp(int):
+    """Marker type for timestamp fields."""
+    pass
+
+
+class ISODate(str):
+    """Marker type for ISO-formatted datetime strings."""
+    pass
+
+
+class RawAmount(RawModel):
     """Monetary amount (transfer fees, salaries, prize money)."""
     value: float
     currency: str  # e.g. "EUR", "USD"
 
 
-class RawStatus(TypedDict, total=False):
+class RawStatus(RawModel):
     code: int
     type: str         # e.g. "finished", "inprogress", "notstarted"
     description: str
 
 
-class RawCoordinates(TypedDict, total=False):
+class RawCoordinates(RawModel):
     latitude: float
     longitude: float
 
 
-class RawPerformance(TypedDict, total=False):
+class RawPerformance(RawModel):
     total: int
     wins: int
     draws: int
@@ -42,28 +50,25 @@ class RawPerformance(TypedDict, total=False):
 # Search Results
 # =====================================================================
 
-class RawSearchResult(TypedDict, total=False):
-    """A single search result.
-    The ``entity`` is a raw dict whose shape depends on ``type``:
-      - "team"             → RawTeam
-      - "player"           → RawPlayer
-      - "manager"          → RawManager
-      - "referee"          → RawReferee
-      - "uniqueTournament" → RawUniqueTournament
-      - "venue"            → RawVenue
-    """
-    type: str                 # The entity type
-    entity: dict[str, Any]    # Shape depends on `type`
-    score: float              # Search relevance score
+class RawSearchResult(RawModel):
+        """A single search result.
+        The ``entity`` is a raw dict whose shape depends on ``type``:
+            - "team"             → RawTeam
+            - "player"           → RawPlayer
+            - "manager"          → RawManager
+            - "referee"          → RawReferee
+            - "uniqueTournament" → RawUniqueTournament
+            - "venue"            → RawVenue
+        """
+        type: str                 # The entity type
+        entity: dict[str, Any]    # Shape depends on `type`
+        score: float              # Search relevance score
 
 
 # =====================================================================
 # Channel / TV
 # =====================================================================
 
-class RawChannel(TypedDict, total=False):
+class RawChannel(RawModel):
     id: int              # ASSUMPTION: int — could be str
     name: str
-
-
-

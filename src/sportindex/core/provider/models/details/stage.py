@@ -1,10 +1,13 @@
-from typing import TypedDict
+from typing import TYPE_CHECKING
 
-from ..stages import RawStage
-from ..entities import RawTeam
+from ..base import RawModel
+
+if TYPE_CHECKING:
+    from ..stages import RawStage
+    from ..entities import RawTeam
 
 
-class RawRaceResults(TypedDict, total=False):
+class RawRaceResults(RawModel):
     stage: RawStage
     position: int
     gridPosition: int
@@ -14,7 +17,7 @@ class RawRaceResults(TypedDict, total=False):
     updatedAtTimestamp: int
 
 
-class RawSeasonCareerHistory(TypedDict, total=False):
+class RawSeasonCareerHistory(RawModel):
     stage: RawStage
     position: int
     points: int
@@ -26,7 +29,7 @@ class RawSeasonCareerHistory(TypedDict, total=False):
     updatedAtTimestamp: int
 
 
-class RawTotalCareerHistory(TypedDict, total=False):
+class RawTotalCareerHistory(RawModel):
     team: RawTeam
     racesStarted: int
     victories: int
@@ -35,12 +38,12 @@ class RawTotalCareerHistory(TypedDict, total=False):
     worldChampionshipTitles: int
 
 
-class RawDriverCareerHistory(TypedDict, total=False):
+class RawDriverCareerHistory(RawModel):
     total: RawTotalCareerHistory
     bySeason: list[RawSeasonCareerHistory]
 
 
-class RawLap(TypedDict, total=False):
+class RawLap(RawModel):
     """A single lap from a driver's race performance."""
     lap: int
     position: int
@@ -48,7 +51,7 @@ class RawLap(TypedDict, total=False):
     visitedPitStop: bool
 
 
-class RawDriverPerformance(TypedDict, total=False):
+class RawDriverPerformance(RawModel):
     """Driver performance in a stage, including per-lap data.
 
     Returned by the ``drivers-performance`` endpoint.

@@ -1,34 +1,38 @@
 """
-Entity TypedDict types: tournaments, teams, players, managers, referees, venues.
+Entity dataclass types: tournaments, teams, players, managers, referees, venues.
 
 See __init__.py for full package docstring and conventions.
 """
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING
 
-from .common import (
-    RawCategory,
-    RawCountry,
-    RawSport,
-)
-from .primitives import (
-    RawAmount,
-    RawCoordinates,
-    RawPerformance,
-)
-from .tournament import (
-    RawUniqueTournament,
-    RawTournament,
-)
+from .base import RawModel
+
+if TYPE_CHECKING:
+    from .common import (
+        RawCategory,
+        RawCountry,
+        RawSport,
+    )
+    from .primitives import (
+        Timestamp,
+        RawAmount,
+        RawCoordinates,
+        RawPerformance,
+    )
+    from .tournament import (
+        RawUniqueTournament,
+        RawTournament,
+    )
 
 
 # =====================================================================
 # Team
 # =====================================================================
 
-class RawPlayerTeamInfo(TypedDict, total=False):
+class RawPlayerTeamInfo(RawModel):
     """Extra info present on a Team when that team represents an individual
     athlete (tennis, MMA, etc.)."""
     id: int
@@ -42,11 +46,11 @@ class RawPlayerTeamInfo(TypedDict, total=False):
     turnedPro: str       # e.g. "2018"
     prizeCurrentRaw: RawAmount
     prizeTotalRaw: RawAmount
-    birthDateTimestamp: int
+    birthDateTimestamp: Timestamp
     currentRanking: int
 
 
-class RawTeam(TypedDict, total=False):
+class RawTeam(RawModel):
     id: int
     slug: str
     name: str
@@ -63,7 +67,7 @@ class RawTeam(TypedDict, total=False):
     disabled: bool
     manager: RawManager
     venue: RawVenue
-    foundationDateTimestamp: int
+    foundationDateTimestamp: Timestamp
     ranking: int
     parentTeam: RawTeam
     playerTeamInfo: RawPlayerTeamInfo
@@ -73,7 +77,7 @@ class RawTeam(TypedDict, total=False):
 # Player
 # =====================================================================
 
-class RawPlayer(TypedDict, total=False):
+class RawPlayer(RawModel):
     id: int
     slug: str
     name: str
@@ -82,7 +86,7 @@ class RawPlayer(TypedDict, total=False):
     shortName: str
     team: RawTeam
     gender: str                  # "M", "F", "X"
-    dateOfBirthTimestamp: int
+    dateOfBirthTimestamp: Timestamp
     country: RawCountry
     weight: int                  # in kg
     height: int                  # in cm
@@ -93,7 +97,7 @@ class RawPlayer(TypedDict, total=False):
     preferredFoot: str
     salaryRaw: RawAmount
     proposedMarketValueRaw: RawAmount
-    contractUntilTimestamp: int
+    contractUntilTimestamp: Timestamp
     position: str                # e.g. "G", "D", "M", "F"
     positionsDetailed: list[str] # e.g. ["RW", "ST"]
     primaryPosition: str
@@ -103,7 +107,7 @@ class RawPlayer(TypedDict, total=False):
 # Manager
 # =====================================================================
 
-class RawManager(TypedDict, total=False):
+class RawManager(RawModel):
     id: int
     slug: str
     name: str
@@ -115,7 +119,7 @@ class RawManager(TypedDict, total=False):
     nationality: str              # ISO3
     nationalityISO2: str          # ISO2
     deceased: bool
-    dateOfBirthTimestamp: int
+    dateOfBirthTimestamp: Timestamp
     performance: RawPerformance
     preferredFormation: str       # e.g. "4-3-3"
     formerPlayerId: int
@@ -125,7 +129,7 @@ class RawManager(TypedDict, total=False):
 # Referee
 # =====================================================================
 
-class RawReferee(TypedDict, total=False):
+class RawReferee(RawModel):
     id: int
     slug: str
     name: str
@@ -135,23 +139,23 @@ class RawReferee(TypedDict, total=False):
     yellowCards: int
     redCards: int
     yellowRedCards: int
-    dateOfBirthTimestamp: int
+    dateOfBirthTimestamp: Timestamp
 
 
 # =====================================================================
 # Venue
 # =====================================================================
 
-class RawStadium(TypedDict, total=False):
+class RawStadium(RawModel):
     name: str
     capacity: int
 
 
-class RawCity(TypedDict, total=False):
+class RawCity(RawModel):
     name: str
 
 
-class RawVenue(TypedDict, total=False):
+class RawVenue(RawModel):
     id: int
     slug: str
     name: str

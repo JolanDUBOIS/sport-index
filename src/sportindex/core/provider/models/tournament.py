@@ -1,37 +1,36 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING
 
-from .common import (
-    RawCategory,
-    RawCountry,
-)
-from .entities import (
-    RawTeam,
-)
+from .base import RawModel
+
+if TYPE_CHECKING:
+    from .common import RawCategory
+    from .entities import RawTeam
+    from .primitives import Timestamp
 
 
 # =====================================================================
 # Tournament
 # =====================================================================
 
-class RawSeason(TypedDict, total=False):
+class RawSeason(RawModel):
     id: int
     name: str
     year: str              # e.g. "24/25" or "2025"
-    startDateTimestamp: int
+    startDateTimestamp: Timestamp
     description: str
 
 
-class RawUniqueTournament(TypedDict, total=False):
+class RawUniqueTournament(RawModel):
     id: int
     slug: str
     name: str
     category: RawCategory
     gender: str
     tier: str
-    startDateTimestamp: int
-    endDateTimestamp: int
+    startDateTimestamp: Timestamp
+    endDateTimestamp: Timestamp
     upperDivisions: list[RawUniqueTournament]
     lowerDivisions: list[RawUniqueTournament]
     titleHolder: RawTeam
@@ -47,7 +46,7 @@ class RawUniqueTournament(TypedDict, total=False):
     tennisPoints: int
 
 
-class RawTournament(TypedDict, total=False):
+class RawTournament(RawModel):
     """A Tournament is a concrete instance within a UniqueTournament (e.g. a group)."""
     id: int
     slug: str

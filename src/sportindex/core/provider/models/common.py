@@ -1,25 +1,25 @@
 """
-Core and common TypedDict types shared across all other type modules.
+Core and common dataclass types shared across all other type modules.
 
 See __init__.py for full package docstring and conventions.
 """
 
 from __future__ import annotations
 
-from typing import TypedDict
+from .base import RawModel
 
 
 # =====================================================================
 # Core
 # =====================================================================
 
-class RawSport(TypedDict, total=False):
+class RawSport(RawModel):
     id: int
     name: str
     slug: str
 
 
-class RawCountry(TypedDict, total=False):
+class RawCountry(RawModel):
     name: str
     slug: str
     alpha2: str
@@ -27,7 +27,7 @@ class RawCountry(TypedDict, total=False):
     flag: str
 
 
-class RawCategory(TypedDict, total=False):
+class RawCategory(RawModel):
     id: int
     name: str
     slug: str

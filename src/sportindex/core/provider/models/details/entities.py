@@ -1,26 +1,26 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING
 
-from ..entities import (
-    RawPlayer,
-    RawTeam
-)
-from ..primitives import RawPerformance
-from ..tournament import RawUniqueTournament, RawSeason
+from ..base import RawModel
+
+if TYPE_CHECKING:
+    from ..entities import RawPlayer, RawTeam
+    from ..primitives import RawPerformance, Timestamp, ISODate
+    from ..tournament import RawUniqueTournament, RawSeason
 
 
 # =====================================================================
 # Team Players
 # =====================================================================
 
-class RawPlayerPreviousTeam(TypedDict, total=False):
+class RawPlayerPreviousTeam(RawModel):
     player: RawPlayer
     previousTeam: RawTeam
-    transferDate: str  # ISO date string (YYYY-MM-DDT00:00:00+00:00)
+    transferDate: ISODate
 
 
-class RawTeamPlayers(TypedDict, total=False):
+class RawTeamPlayers(RawModel):
     players: list[RawPlayer]
     foreignPlayers: list[RawPlayer]
     nationalPlayers: list[RawPlayer]
@@ -31,8 +31,7 @@ class RawTeamPlayers(TypedDict, total=False):
 # Team Season Stats
 # =====================================================================
 
-class RawTeamSeasonStats(TypedDict, total=False):
-    """Response from /team/{id}/unique-tournament/{utId}/season/{sId}/statistics/overall."""
+class RawTeamSeasonStats(RawModel):
     id: int
     goalsScored: int
     goalsConceded: int
@@ -155,7 +154,7 @@ class RawTeamSeasonStats(TypedDict, total=False):
 # Team Year Stats (Tennis)
 # =====================================================================
 
-class RawTeamYearSurfaceStats(TypedDict, total=False):
+class RawTeamYearSurfaceStats(RawModel):
     matches: int
     groundType: str        # e.g. "Hardcourt indoor", "Red clay", "Grass"
     totalServeAttempts: int
@@ -180,8 +179,7 @@ class RawTeamYearSurfaceStats(TypedDict, total=False):
     doubleFaults: int
 
 
-class RawTeamYearStats(TypedDict, total=False):
-    """Response from /team/{id}/year-statistics/{year}."""
+class RawTeamYearStats(RawModel):
     statistics: list[RawTeamYearSurfaceStats]
 
 
@@ -189,7 +187,7 @@ class RawTeamYearStats(TypedDict, total=False):
 # Player Statistics
 # =====================================================================
 
-class RawPlayerSeasonStatsItem(TypedDict, total=False):
+class RawPlayerSeasonStatsItem(RawModel):
     id: int
     accurateCrosses: int
     accurateCrossesPercentage: float
@@ -229,7 +227,7 @@ class RawPlayerSeasonStatsItem(TypedDict, total=False):
     shotsFromInsideTheBox: int
     appearances: int
 
-class RawPlayerSeasonStats(TypedDict, total=False):
+class RawPlayerSeasonStats(RawModel):
     team: RawTeam
     year: str
     startYear: int
@@ -243,18 +241,18 @@ class RawPlayerSeasonStats(TypedDict, total=False):
 # Manager Career History
 # =====================================================================
 
-class RawManagerCareerHistoryItem(TypedDict, total=False):
+class RawManagerCareerHistoryItem(RawModel):
     team: RawTeam
     performance: RawPerformance
-    startTimestamp: int
-    endTimestamp: int
+    startTimestamp: Timestamp
+    endTimestamp: Timestamp
 
 
 # =====================================================================
 # Venue Statistics
 # =====================================================================
 
-class RawVenueStatistics(TypedDict, total=False):
+class RawVenueStatistics(RawModel):
     totalMatches: int
     homeTeamGoalsScored: int
     awayTeamGoalsScored: int

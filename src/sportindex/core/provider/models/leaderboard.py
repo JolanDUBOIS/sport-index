@@ -1,28 +1,32 @@
 """
-Leaderboard, ranking, channel, search, and transfer TypedDict types.
+Leaderboard, ranking, channel, search, and transfer dataclass types.
 
 See __init__.py for full package docstring and conventions.
 """
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING
 
-from .common import RawCategory, RawCountry, RawSport
-from .entities import RawTeam, RawTournament, RawUniqueTournament
-from .event import RawEvent
+from .base import RawModel
+
+if TYPE_CHECKING:
+    from .common import RawCategory, RawCountry, RawSport
+    from .entities import RawTeam, RawTournament, RawUniqueTournament
+    from .event import RawEvent
+    from .primitives import Timestamp
 
 
 # =====================================================================
 # Leaderboard — Team / Individual Standings
 # =====================================================================
 
-class RawPromotion(TypedDict, total=False):
+class RawPromotion(RawModel):
     id: int
     text: str  # Display name, e.g. "Champions League"
 
 
-class RawTeamStandingsEntry(TypedDict, total=False):
+class RawTeamStandingsEntry(RawModel):
     id: int
     team: RawTeam
     position: int
@@ -40,12 +44,12 @@ class RawTeamStandingsEntry(TypedDict, total=False):
     streak: int
 
 
-class RawTeamStandings(TypedDict, total=False):
+class RawTeamStandings(RawModel):
     id: int
     name: str                  # e.g. "Premier League"
     rows: list[RawTeamStandingsEntry]
     tournament: RawTournament
-    updatedAtTimestamp: int
+    updatedAtTimestamp: Timestamp
     type: str                  # "home", "away", "total"
 
 
@@ -53,13 +57,13 @@ class RawTeamStandings(TypedDict, total=False):
 # Leaderboard — Racing Standings
 # =====================================================================
 
-class RawRacingStandingsEntry(TypedDict, total=False):
+class RawRacingStandingsEntry(RawModel):
     # Identity / Participant
     team: RawTeam              # Driver/Cyclist or Team/Constructor
     parentTeam: RawTeam        # Team/Constructor if team is Driver/Cyclist, else None
     startNumber: int           # Driver or cyclist number
     number: int                # alternative numbering, if API provides
-    updatedAtTimestamp: int
+    updatedAtTimestamp: Timestamp
 
     # Position / Result
     position: int
@@ -98,7 +102,7 @@ class RawRacingStandingsEntry(TypedDict, total=False):
 # Leaderboard — Rankings
 # =====================================================================
 
-class RawRankingType(TypedDict, total=False):
+class RawRankingType(RawModel):
     """Nested under the ``rankingType`` key in ranking responses."""
     id: int
     slug: str
@@ -107,10 +111,10 @@ class RawRankingType(TypedDict, total=False):
     sport: RawSport
     category: RawCategory
     uniqueTournament: RawUniqueTournament
-    lastUpdatedTimestamp: int
+    lastUpdatedTimestamp: Timestamp
 
 
-class RawRankingEntry(TypedDict, total=False):
+class RawRankingEntry(RawModel):
     id: int
     name: str
     position: int         # For MMA, position starts at 0 instead of 1
@@ -122,4 +126,4 @@ class RawRankingEntry(TypedDict, total=False):
     previousPoints: float
     tournamentsPlayed: int
     lastEvent: RawEvent
-    updatedAtTimestamp: int
+    updatedAtTimestamp: Timestamp
