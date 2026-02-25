@@ -6,14 +6,10 @@ See __init__.py for full package docstring and conventions.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from .base import RawModel
-
-if TYPE_CHECKING:
-    from .common import RawCategory, RawCountry
-    from .entities import RawTeam
-    from .primitives import RawStatus, Timestamp
+from .common import RawCategory, RawCountry
+from .entities import RawTeam
+from .primitives import RawStatus, Timestamp
 
 
 # =====================================================================

@@ -7,14 +7,9 @@ See __init__.py for full package docstring and conventions.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from .base import RawModel
-
-if TYPE_CHECKING:
-    from .entities import RawReferee, RawTeam, RawVenue
-    from .tournament import RawSeason, RawTournament
-    from .primitives import RawStatus, Timestamp
+from .entities import RawReferee, RawTeam, RawVenue, RawSeason, RawTournament
+from .primitives import RawStatus, Timestamp
 
 
 # =====================================================================

@@ -1,10 +1,8 @@
-from typing import TYPE_CHECKING
+from __future__ import annotations
 
 from ..base import RawModel
-
-if TYPE_CHECKING:
-    from ..stages import RawStage
-    from ..entities import RawTeam
+from ..stages import RawStage
+from ..entities import RawTeam
 
 
 class RawRaceResults(RawModel):

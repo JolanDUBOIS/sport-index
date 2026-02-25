@@ -19,6 +19,7 @@ ENDPOINTS = {
     "unique-tournament-results": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/events/last/{{page}}",
     "unique-tournament-events-round": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/events/round/{{round}}",
     "unique-tournament-seasons": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/seasons",
+    "unique-tournament-season-info": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/info", # NOTE - Not implemented to provider yet
 
     # ------------------------------------------------------------------
     # Unique Tournaments
@@ -106,5 +107,3 @@ ENDPOINTS = {
     "search-referees": f"{BASE_API_URL}/search/referees",
     "search-venues": f"{BASE_API_URL}/search/venues",
 }
-
-# https://www.sofascore.com/api/v1/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/info

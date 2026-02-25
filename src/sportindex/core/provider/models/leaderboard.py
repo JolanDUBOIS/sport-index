@@ -6,15 +6,11 @@ See __init__.py for full package docstring and conventions.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from .base import RawModel
-
-if TYPE_CHECKING:
-    from .common import RawCategory, RawCountry, RawSport
-    from .entities import RawTeam, RawTournament, RawUniqueTournament
-    from .event import RawEvent
-    from .primitives import Timestamp
+from .common import RawCategory, RawCountry, RawSport
+from .entities import RawTeam, RawTournament, RawUniqueTournament
+from .event import RawEvent
+from .primitives import Timestamp
 
 
 # =====================================================================

@@ -1,9 +1,7 @@
-from typing import TYPE_CHECKING
+from __future__ import annotations
 
 from ..base import RawModel
-
-if TYPE_CHECKING:
-    from ..entities import RawPlayer, RawManager
+from ..entities import RawPlayer, RawManager
 
 
 # =====================================================================

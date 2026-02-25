@@ -11,18 +11,13 @@ See __init__.py for full package docstring and conventions.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from .base import RawModel
-
-if TYPE_CHECKING:
-    from .tournament import RawSeason, RawUniqueTournament
-    from .entities import RawTeam
-    from .event import RawEvent
-    from .stages import RawStage
-    from .primitives import RawChannel
-    from .leaderboard import RawRankingEntry, RawRankingType
-    from .details.event import RawLineup, RawMomentumPoint, RawPeriodStatistics
+from .entities import RawTeam, RawSeason, RawUniqueTournament
+from .event import RawEvent
+from .stages import RawStage
+from .primitives import RawChannel
+from .leaderboard import RawRankingEntry, RawRankingType
+from .details.event import RawLineup, RawMomentumPoint, RawPeriodStatistics
 
 
 # =====================================================================

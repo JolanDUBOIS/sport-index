@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from ..base import RawModel
-
-if TYPE_CHECKING:
-    from ..entities import RawPlayer, RawTeam
-    from ..primitives import RawPerformance, Timestamp, ISODate
-    from ..tournament import RawUniqueTournament, RawSeason
+from ..primitives import RawPerformance, Timestamp, ISODate
+from ..entities import RawPlayer, RawTeam, RawUniqueTournament, RawSeason
 
 
 # =====================================================================

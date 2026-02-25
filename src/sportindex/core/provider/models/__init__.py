@@ -39,19 +39,17 @@ from .primitives import (
     RawStatus,
     Timestamp,
 )
-from .tournament import (
-    RawSeason,
-    RawTournament,
-    RawUniqueTournament,
-)
 from .entities import (
     RawCity,
     RawManager,
     RawPlayer,
     RawPlayerTeamInfo,
     RawReferee,
+    RawSeason,
     RawStadium,
     RawTeam,
+    RawTournament,
+    RawUniqueTournament,
     RawVenue,
 )
 from .event import (

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, get_origin, get_args
+from typing import Any, get_origin, get_args, get_type_hints
 
 from . import logger
 
@@ -25,7 +25,7 @@ class RawModel:
     # ---------------------------
 
     def __init__(self, **data: Any) -> None:
-        annotations = self.__class__.__annotations__
+        annotations = get_type_hints(self.__class__)
         self._extra: dict[str, Any] = {}
 
         # Handle annotated fields
@@ -109,24 +109,26 @@ class RawModel:
     # Serialization
     # ---------------------------
 
-    def to_dict(self) -> dict[str, Any]:
-        result: dict[str, Any] = {}
+    def to_dict(self, strip: bool = False) -> dict[str, Any]:
+        result: dict[str, Any] = {
+            field_name: self._serialize(getattr(self, field_name), strip=strip)
+            for field_name in self.__class__.__annotations__
+        }
+        
+        if strip:
+            # Only annotated fields, no extras
+            return result
 
-        # Annotated fields
-        for field_name in self.__class__.__annotations__:
-            value = getattr(self, field_name)
-            result[field_name] = self._serialize(value)
-
-        # Extra fields
+        # Default: include extra fields
         result.update(self._extra)
         return result
 
     @classmethod
-    def _serialize(cls, value: Any) -> Any:
+    def _serialize(cls, value: Any, strip: bool = False) -> Any:
         if isinstance(value, RawModel):
-            return value.to_dict()
+            return value.to_dict(strip=strip)
         if isinstance(value, list):
-            return [cls._serialize(v) for v in value]
+            return [cls._serialize(v, strip=strip) for v in value]
         if isinstance(value, dict):
-            return {k: cls._serialize(v) for k, v in value.items()}
+            return {k: cls._serialize(v, strip=strip) for k, v in value.items()}
         return value
