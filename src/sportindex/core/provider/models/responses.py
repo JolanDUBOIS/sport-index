@@ -11,7 +11,7 @@ See __init__.py for full package docstring and conventions.
 
 from __future__ import annotations
 
-from .base import RawModel
+from sportindex.core.base import BaseModel
 from .entities import RawTeam, RawSeason, RawUniqueTournament
 from .event import RawEvent
 from .stages import RawStage
@@ -24,7 +24,7 @@ from .details.event import RawLineup, RawMomentumPoint, RawPeriodStatistics
 # Team
 # =====================================================================
 
-class RawTeamResponse(RawModel):
+class RawTeamResponse(BaseModel):
     """Response from /team/{id}."""
     team: RawTeam
     relatedTeams: list[RawTeam]
@@ -35,7 +35,7 @@ class RawTeamResponse(RawModel):
 # Tournament
 # =====================================================================
 
-class RawUniqueTournamentSeasonsResponse(RawModel):
+class RawUniqueTournamentSeasonsResponse(BaseModel):
     """Response from team/player/manager seasons endpoints."""
     uniqueTournament: RawUniqueTournament
     seasons: list[RawSeason]
@@ -45,7 +45,7 @@ class RawUniqueTournamentSeasonsResponse(RawModel):
 # Event
 # =====================================================================
 
-class RawEventsResponse(RawModel):
+class RawEventsResponse(BaseModel):
     """Response from paginated event list endpoints."""
     events: list[RawEvent]
     hasNextPage: bool
@@ -55,7 +55,7 @@ class RawEventsResponse(RawModel):
 # Leaderboard
 # =====================================================================
 
-class RawRankingsResponse(RawModel):
+class RawRankingsResponse(BaseModel):
     """Response from /rankings/{id}."""
     rankingType: RawRankingType
     rankingRows: list[RawRankingEntry]
@@ -65,14 +65,14 @@ class RawRankingsResponse(RawModel):
 # Channel / TV
 # =====================================================================
 
-class RawChannelScheduleResponse(RawModel):
+class RawChannelScheduleResponse(BaseModel):
     """Response from /tv/channel/{id}/schedule."""
     channel: RawChannel
     events: list[RawEvent]
     stages: list[RawStage]
 
 
-class RawCountryChannelsResponse(RawModel):
+class RawCountryChannelsResponse(BaseModel):
     """Response from /tv/event/{id}/country-channels."""
     channels: dict[str, list[int]]
 
@@ -81,18 +81,18 @@ class RawCountryChannelsResponse(RawModel):
 # Event Details
 # =====================================================================
 
-class RawLineupsResponse(RawModel):
+class RawLineupsResponse(BaseModel):
     """Response from /event/{id}/lineups."""
     home: RawLineup
     away: RawLineup
 
 
-class RawEventStatisticsResponse(RawModel):
+class RawEventStatisticsResponse(BaseModel):
     """Response from /event/{id}/statistics."""
     statistics: list[RawPeriodStatistics]
 
 
-class RawMomentumGraphResponse(RawModel):
+class RawMomentumGraphResponse(BaseModel):
     """Response from /event/{id}/graph."""
     graphPoints: list[RawMomentumPoint]
     periodTime: int

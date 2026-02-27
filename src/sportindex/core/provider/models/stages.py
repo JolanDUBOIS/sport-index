@@ -6,7 +6,7 @@ See __init__.py for full package docstring and conventions.
 
 from __future__ import annotations
 
-from .base import RawModel
+from sportindex.core.base import BaseModel
 from .common import RawCategory, RawCountry
 from .entities import RawTeam
 from .primitives import RawStatus, Timestamp
@@ -16,7 +16,7 @@ from .primitives import RawStatus, Timestamp
 # Stage (Motorsport / Cycling / Multi-event sports)
 # =====================================================================
 
-class RawUniqueStage(RawModel):
+class RawUniqueStage(BaseModel):
     id: int
     slug: str
     name: str
@@ -24,19 +24,19 @@ class RawUniqueStage(RawModel):
     description: str
 
 
-class RawStageParent(RawModel):
+class RawStageParent(BaseModel):
     id: int
     slug: str
     description: str
     startDateTimestamp: int
 
 
-class RawStageType(RawModel):
+class RawStageType(BaseModel):
     id: int
     name: str  # "Season", "Event", or other values — drives stage dispatch
 
 
-class RawStageInfo(RawModel):
+class RawStageInfo(BaseModel):
     """The ``info`` dict on a stage, containing circuit/weather/race details.
     All keys are at the top level of the ``info`` dict (not further nested).
     """
@@ -65,7 +65,7 @@ class RawStageInfo(RawModel):
     arrivalCity: str
 
 
-class RawStage(RawModel):
+class RawStage(BaseModel):
     """A stage can be a Season, Event, or SubStage — check ``type.name`` to
     dispatch. Substages may be nested recursively.
 

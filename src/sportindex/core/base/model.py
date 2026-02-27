@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, get_origin, get_args, get_type_hints
+from typing import Iterator, Any, get_origin, get_args, get_type_hints
 
 from . import logger
 
@@ -9,14 +9,14 @@ from . import logger
 # Core base model
 # =====================================================================
 
-class RawModel:
+class BaseModel:
     """
     Base class for lightweight typed raw models.
 
     Features:
     - Missing annotated fields default to None.
     - Unknown fields are preserved.
-    - Nested RawModel, list[RawModel], dict[str, RawModel] supported.
+    - Nested BaseModel, list[BaseModel], dict[str, BaseModel] supported.
     - Best-effort type coercion with warning on failure.
     """
 
@@ -43,7 +43,7 @@ class RawModel:
                 self._extra[key] = value
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> RawModel:
+    def from_dict(cls, data: dict[str, Any]) -> BaseModel:
         """Convenience method to construct from a dict."""
         return cls(**data)
 
@@ -59,8 +59,8 @@ class RawModel:
         origin = get_origin(expected_type)
         args = get_args(expected_type)
 
-        # Nested RawModel
-        if isinstance(expected_type, type) and issubclass(expected_type, RawModel):
+        # Nested BaseModel
+        if isinstance(expected_type, type) and issubclass(expected_type, BaseModel):
             if isinstance(value, dict):
                 return expected_type.from_dict(value)
             return value
@@ -98,7 +98,7 @@ class RawModel:
             return value
 
     # ---------------------------
-    # Extra field access
+    # Field access and extras
     # ---------------------------
 
     def __getattr__(self, item: str) -> Any:
@@ -106,15 +106,46 @@ class RawModel:
             return self._extra[item]
         raise AttributeError(item)
 
+    def __getitem__(self, item: str) -> Any:
+        """Allows dictionary-style access: value = model['field']"""
+        annotations = get_type_hints(self.__class__)
+        if item in annotations:
+            return getattr(self, item)
+        if hasattr(self, "_extra") and item in self._extra:
+            return self._extra[item]
+        raise KeyError(item)
+
+    def __iter__(self) -> Iterator[str]:
+        """Allows iterating over keys: for key in model: ..."""
+        annotations = get_type_hints(self.__class__)
+        for field in annotations:
+            yield field
+        if hasattr(self, "_extra"):
+            for key in self._extra:
+                yield key
+
+    def __contains__(self, key: str) -> bool:
+        """Check if a field (annotated or extra) exists."""
+        annotations = get_type_hints(self.__class__)
+        return key in annotations or key in self._extra
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Dictionary-style get method."""
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
     # ---------------------------
     # Serialization
     # ---------------------------
 
     def to_dict(self, strip: bool = False) -> dict[str, Any]:
         """Convert to dict, optionally stripping unknown fields (strip=True)."""
+        annotations = get_type_hints(self.__class__)
         result: dict[str, Any] = {
             field_name: self._serialize(getattr(self, field_name), strip=strip)
-            for field_name in self.__class__.__annotations__
+            for field_name in annotations
         }
         
         if strip:
@@ -127,7 +158,7 @@ class RawModel:
 
     @classmethod
     def _serialize(cls, value: Any, strip: bool = False) -> Any:
-        if isinstance(value, RawModel):
+        if isinstance(value, BaseModel):
             return value.to_dict(strip=strip)
         if isinstance(value, list):
             return [cls._serialize(v, strip=strip) for v in value]
@@ -140,5 +171,16 @@ class RawModel:
     # ---------------------------
 
     def __repr__(self) -> str:
-        fields = {field: getattr(self, field) for field in self.__class__.__annotations__}
+        annotations = get_type_hints(self.__class__)
+        fields = {field: getattr(self, field) for field in annotations}
         return f"{self.__class__.__name__}({fields}, extra={self._extra})"
+
+    # ---------------------------
+    # Copying and immutability
+    # ---------------------------
+
+    def copy(self, **overrides: Any) -> BaseModel:
+        """Create a copy of this model, optionally overriding some fields."""
+        data = self.to_dict(strip=False)
+        data.update(overrides)
+        return self.__class__(**data)

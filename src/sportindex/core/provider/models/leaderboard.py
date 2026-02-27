@@ -6,7 +6,7 @@ See __init__.py for full package docstring and conventions.
 
 from __future__ import annotations
 
-from .base import RawModel
+from sportindex.core.base import BaseModel
 from .common import RawCategory, RawCountry, RawSport
 from .entities import RawTeam, RawTournament, RawUniqueTournament
 from .event import RawEvent
@@ -17,12 +17,12 @@ from .primitives import Timestamp
 # Leaderboard — Team / Individual Standings
 # =====================================================================
 
-class RawPromotion(RawModel):
+class RawPromotion(BaseModel):
     id: int
     text: str  # Display name, e.g. "Champions League"
 
 
-class RawTeamStandingsEntry(RawModel):
+class RawTeamStandingsEntry(BaseModel):
     id: int
     team: RawTeam
     position: int
@@ -40,7 +40,7 @@ class RawTeamStandingsEntry(RawModel):
     streak: int
 
 
-class RawTeamStandings(RawModel):
+class RawTeamStandings(BaseModel):
     id: int
     name: str                  # e.g. "Premier League"
     rows: list[RawTeamStandingsEntry]
@@ -53,7 +53,7 @@ class RawTeamStandings(RawModel):
 # Leaderboard — Racing Standings
 # =====================================================================
 
-class RawRacingStandingsEntry(RawModel):
+class RawRacingStandingsEntry(BaseModel):
     # Identity / Participant
     team: RawTeam              # Driver/Cyclist or Team/Constructor
     parentTeam: RawTeam        # Team/Constructor if team is Driver/Cyclist, else None
@@ -98,7 +98,7 @@ class RawRacingStandingsEntry(RawModel):
 # Leaderboard — Rankings
 # =====================================================================
 
-class RawRankingType(RawModel):
+class RawRankingType(BaseModel):
     """Nested under the ``rankingType`` key in ranking responses."""
     id: int
     slug: str
@@ -110,7 +110,7 @@ class RawRankingType(RawModel):
     lastUpdatedTimestamp: Timestamp
 
 
-class RawRankingEntry(RawModel):
+class RawRankingEntry(BaseModel):
     id: int
     name: str
     position: int         # For MMA, position starts at 0 instead of 1

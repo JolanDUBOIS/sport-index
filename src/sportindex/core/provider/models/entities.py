@@ -6,7 +6,7 @@ See __init__.py for full package docstring and conventions.
 
 from __future__ import annotations
 
-from .base import RawModel
+from sportindex.core.base import BaseModel
 from .common import (
     RawCategory,
     RawCountry,
@@ -24,7 +24,7 @@ from .primitives import (
 # Tournament
 # =====================================================================
 
-class RawSeason(RawModel):
+class RawSeason(BaseModel):
     id: int
     name: str
     year: str              # e.g. "24/25" or "2025"
@@ -32,7 +32,7 @@ class RawSeason(RawModel):
     description: str
 
 
-class RawUniqueTournament(RawModel):
+class RawUniqueTournament(BaseModel):
     id: int
     slug: str
     name: str
@@ -56,7 +56,7 @@ class RawUniqueTournament(RawModel):
     tennisPoints: int
 
 
-class RawTournament(RawModel):
+class RawTournament(BaseModel):
     """A Tournament is a concrete instance within a UniqueTournament (e.g. a group)."""
     id: int
     slug: str
@@ -69,7 +69,7 @@ class RawTournament(RawModel):
 # Team
 # =====================================================================
 
-class RawPlayerTeamInfo(RawModel):
+class RawPlayerTeamInfo(BaseModel):
     """Extra info present on a Team when that team represents an individual
     athlete (tennis, MMA, etc.)."""
     id: int
@@ -87,7 +87,7 @@ class RawPlayerTeamInfo(RawModel):
     currentRanking: int
 
 
-class RawTeam(RawModel):
+class RawTeam(BaseModel):
     id: int
     slug: str
     name: str
@@ -114,7 +114,7 @@ class RawTeam(RawModel):
 # Player
 # =====================================================================
 
-class RawPlayer(RawModel):
+class RawPlayer(BaseModel):
     id: int
     slug: str
     name: str
@@ -144,7 +144,7 @@ class RawPlayer(RawModel):
 # Manager
 # =====================================================================
 
-class RawManager(RawModel):
+class RawManager(BaseModel):
     id: int
     slug: str
     name: str
@@ -166,7 +166,7 @@ class RawManager(RawModel):
 # Referee
 # =====================================================================
 
-class RawReferee(RawModel):
+class RawReferee(BaseModel):
     id: int
     slug: str
     name: str
@@ -183,16 +183,16 @@ class RawReferee(RawModel):
 # Venue
 # =====================================================================
 
-class RawStadium(RawModel):
+class RawStadium(BaseModel):
     name: str
     capacity: int
 
 
-class RawCity(RawModel):
+class RawCity(BaseModel):
     name: str
 
 
-class RawVenue(RawModel):
+class RawVenue(BaseModel):
     id: int
     slug: str
     name: str

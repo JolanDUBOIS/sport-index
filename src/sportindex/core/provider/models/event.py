@@ -7,7 +7,7 @@ See __init__.py for full package docstring and conventions.
 
 from __future__ import annotations
 
-from .base import RawModel
+from sportindex.core.base import BaseModel
 from .entities import RawReferee, RawTeam, RawVenue, RawSeason, RawTournament
 from .primitives import RawStatus, Timestamp
 
@@ -16,14 +16,14 @@ from .primitives import RawStatus, Timestamp
 # Event
 # =====================================================================
 
-class RawRound(RawModel):
+class RawRound(BaseModel):
     """Round info, nested under ``roundInfo`` in event responses."""
     name: str
     slug: str
     round: int
 
 
-class RawEventScore(RawModel):
+class RawEventScore(BaseModel):
     display: int
     current: int
     period1: int
@@ -46,7 +46,7 @@ class RawEventScore(RawModel):
     period5TieBreak: int
 
 
-class RawEventTime(RawModel):
+class RawEventTime(BaseModel):
     played: int
     period1: int
     period2: int
@@ -68,7 +68,7 @@ class RawEventTime(RawModel):
     totalPeriodCount: int
 
 
-class RawEventPeriodLabels(RawModel):
+class RawEventPeriodLabels(BaseModel):
     period1: str
     period2: str
     period3: str
@@ -81,7 +81,7 @@ class RawEventPeriodLabels(RawModel):
     overtime: str
 
 
-class RawEvent(RawModel):
+class RawEvent(BaseModel):
     id: int
     customId: str
     slug: str

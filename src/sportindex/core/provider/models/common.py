@@ -6,20 +6,20 @@ See __init__.py for full package docstring and conventions.
 
 from __future__ import annotations
 
-from .base import RawModel
+from sportindex.core.base import BaseModel
 
 
 # =====================================================================
 # Core
 # =====================================================================
 
-class RawSport(RawModel):
+class RawSport(BaseModel):
     id: int
     name: str
     slug: str
 
 
-class RawCountry(RawModel):
+class RawCountry(BaseModel):
     name: str
     slug: str
     alpha2: str
@@ -27,7 +27,7 @@ class RawCountry(RawModel):
     flag: str
 
 
-class RawCategory(RawModel):
+class RawCategory(BaseModel):
     id: int
     name: str
     slug: str

@@ -1,11 +1,11 @@
 from typing import Any
 
 from . import logger
-from .base import RawModel
+from sportindex.core.base import BaseModel
 from .entities import RawTeam, RawPlayer, RawManager, RawReferee, RawUniqueTournament, RawVenue
 
 
-ENTITY_MODELS: dict[str, type[RawModel]] = {
+ENTITY_MODELS: dict[str, type[BaseModel]] = {
     "team": RawTeam,
     "player": RawPlayer,
     "manager": RawManager,
@@ -14,7 +14,7 @@ ENTITY_MODELS: dict[str, type[RawModel]] = {
     "venue": RawVenue,
 }
 
-class RawSearchResult(RawModel):
+class RawSearchResult(BaseModel):
     """A single search result.
     The ``entity`` is a raw dict whose shape depends on ``type``:
         - "team"             → RawTeam

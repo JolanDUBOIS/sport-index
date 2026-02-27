@@ -23,7 +23,6 @@ Submodules: TODO - Has changed...
 from logging import getLogger
 logger = getLogger(__name__)
 
-from .base import RawModel
 from .common import (
     RawCategory,
     RawCountry,
@@ -114,7 +113,7 @@ from .details import (
 
 __all__ = [
     # base
-    "RawModel",
+    "BaseModel",
     # common
     "RawCategory",
     "RawCountry",

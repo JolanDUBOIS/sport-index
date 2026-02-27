@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from ..base import RawModel
-from ..entities import RawPlayer, RawManager
+from ..entities import RawPlayer
+from sportindex.core.base import BaseModel
 
 
 # =====================================================================
 # Lineups
 # =====================================================================
 
-class RawLineup(RawModel):
+class RawLineup(BaseModel):
     players: list[RawPlayer]
     missingPlayers: list[RawPlayer]
     formation: str                  # e.g. "4-3-3"
@@ -18,7 +18,7 @@ class RawLineup(RawModel):
 # Event Statistics
 # =====================================================================
 
-class RawStatisticsItem(RawModel):
+class RawStatisticsItem(BaseModel):
     key: str                      # e.g. "ballPossession", "totalShots"
     name: str                     # Display name, e.g. "Ball possession"
     home: str                     # String representation, e.g. "54%"
@@ -33,12 +33,12 @@ class RawStatisticsItem(RawModel):
     renderType: int
 
 
-class RawStatisticsGroup(RawModel):
+class RawStatisticsGroup(BaseModel):
     groupName: str                    # e.g. "Match overview", "Shots"
     statisticsItems: list[RawStatisticsItem]
 
 
-class RawPeriodStatistics(RawModel):
+class RawPeriodStatistics(BaseModel):
     period: str                       # e.g. "ALL", "1ST", "2ND"
     groups: list[RawStatisticsGroup]
 
@@ -47,7 +47,7 @@ class RawPeriodStatistics(RawModel):
 # Momentum Graph
 # =====================================================================
 
-class RawMomentumPoint(RawModel):
+class RawMomentumPoint(BaseModel):
     minute: float
     value: int  # positive=home, negative=away, range ~[-100, 100]
 
@@ -56,45 +56,8 @@ class RawMomentumPoint(RawModel):
 # Incidents
 # =====================================================================
 
-class RawIncident(RawModel):
-        """Superset of all fields across all incident types.
-
-        The ``incidentType`` key tells you which subset of fields is populated:
-            - "goal"            → player (scorer), assist, incidentClass ("regular", "ownGoal", "penalty")
-            - "penalty"         → player (shooter), incidentClass ("missed", etc.)
-            - "penaltyShootout" → player (shooter), incidentClass ("scored", "missed")
-            - "card"            → player OR manager, incidentClass ("yellow", "red"), rescinded, reason
-            - "period"          → text (e.g. "HT", "FT"), time may be 999 (= no meaningful time)
-            - "varDecision"     → incidentClass ("goalAwarded", "penaltyCheck"...), confirmed, text
-            - "substitution"    → playerIn, playerOut, incidentClass ("regular", "injury")
-            - "injuryTime"      → length (the added time in minutes)
-
-        REMARK: More incident types may exist in other sports. The current codebase
-        warns and skips unknowns. Consider adding them as you discover them.
-        """
+class RawIncident(BaseModel):
+        """TODO - We voluntarily keep the raw incident dict as-is, and only parse out a few key fields for easier handling in the higher layers."""
         incidentType: str
         id: int
         time: int
-        addedTime: int                      # Extra time / stoppage time minute offset
-        isHome: bool                        # True=home side, False=away side
-        homeScore: int                      # Running score at the time of incident
-        awayScore: int
-        incidentClass: str                  # Subtype within the incident (e.g. "regular", "yellow")
-        # Goal / Penalty / Card / Shootout
-        player: RawPlayer                   # The primary player (scorer, shooter, card recipient)
-        assist: RawPlayer                   # Goal assist
-        # Card
-        manager: RawManager                 # Card can be given to a manager
-        rescinded: bool
-        reason: str
-        # Period / VAR
-        text: str                           # Period label ("HT"), VAR description
-        confirmed: bool                     # VAR decision confirmed or not
-        # Substitution
-        playerIn: RawPlayer
-        playerOut: RawPlayer
-        # Injury time incident
-        length: int                         # Minutes of added time
-        # Penalty
-        description: str
-        # Fight sports — ASSUMPTION: there may be fight-specific incident fields

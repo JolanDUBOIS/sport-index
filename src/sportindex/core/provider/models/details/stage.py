@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from ..base import RawModel
 from ..stages import RawStage
 from ..entities import RawTeam
+from sportindex.core.base import BaseModel
 
 
-class RawRaceResults(RawModel):
+class RawRaceResults(BaseModel):
     stage: RawStage
     position: int
     gridPosition: int
@@ -15,7 +15,7 @@ class RawRaceResults(RawModel):
     updatedAtTimestamp: int
 
 
-class RawSeasonCareerHistory(RawModel):
+class RawSeasonCareerHistory(BaseModel):
     stage: RawStage
     position: int
     points: int
@@ -27,7 +27,7 @@ class RawSeasonCareerHistory(RawModel):
     updatedAtTimestamp: int
 
 
-class RawTotalCareerHistory(RawModel):
+class RawTotalCareerHistory(BaseModel):
     team: RawTeam
     racesStarted: int
     victories: int
@@ -36,12 +36,12 @@ class RawTotalCareerHistory(RawModel):
     worldChampionshipTitles: int
 
 
-class RawDriverCareerHistory(RawModel):
+class RawDriverCareerHistory(BaseModel):
     total: RawTotalCareerHistory
     bySeason: list[RawSeasonCareerHistory]
 
 
-class RawLap(RawModel):
+class RawLap(BaseModel):
     """A single lap from a driver's race performance."""
     lap: int
     position: int
@@ -49,7 +49,7 @@ class RawLap(RawModel):
     visitedPitStop: bool
 
 
-class RawDriverPerformance(RawModel):
+class RawDriverPerformance(BaseModel):
     """Driver performance in a stage, including per-lap data.
 
     Returned by the ``drivers-performance`` endpoint.

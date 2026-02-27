@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-from ..base import RawModel
 from ..primitives import RawPerformance, Timestamp, ISODate
 from ..entities import RawPlayer, RawTeam, RawUniqueTournament, RawSeason
+from sportindex.core.base import BaseModel
 
 
 # =====================================================================
 # Team Players
 # =====================================================================
 
-class RawPlayerPreviousTeam(RawModel):
+class RawPlayerPreviousTeam(BaseModel):
     player: RawPlayer
     previousTeam: RawTeam
     transferDate: ISODate
 
 
-class RawTeamPlayers(RawModel):
+class RawTeamPlayers(BaseModel):
     players: list[RawPlayer]
     foreignPlayers: list[RawPlayer]
     nationalPlayers: list[RawPlayer]
@@ -26,7 +26,7 @@ class RawTeamPlayers(RawModel):
 # Team Season Stats
 # =====================================================================
 
-class RawTeamSeasonStats(RawModel):
+class RawTeamSeasonStats(BaseModel):
     id: int
     goalsScored: int
     goalsConceded: int
@@ -149,7 +149,7 @@ class RawTeamSeasonStats(RawModel):
 # Team Year Stats (Tennis)
 # =====================================================================
 
-class RawTeamYearSurfaceStats(RawModel):
+class RawTeamYearSurfaceStats(BaseModel):
     matches: int
     groundType: str        # e.g. "Hardcourt indoor", "Red clay", "Grass"
     totalServeAttempts: int
@@ -174,7 +174,7 @@ class RawTeamYearSurfaceStats(RawModel):
     doubleFaults: int
 
 
-class RawTeamYearStats(RawModel):
+class RawTeamYearStats(BaseModel):
     statistics: list[RawTeamYearSurfaceStats]
 
 
@@ -182,7 +182,7 @@ class RawTeamYearStats(RawModel):
 # Player Statistics
 # =====================================================================
 
-class RawPlayerSeasonStatsItem(RawModel):
+class RawPlayerSeasonStatsItem(BaseModel):
     id: int
     accurateCrosses: int
     accurateCrossesPercentage: float
@@ -222,7 +222,7 @@ class RawPlayerSeasonStatsItem(RawModel):
     shotsFromInsideTheBox: int
     appearances: int
 
-class RawPlayerSeasonStats(RawModel):
+class RawPlayerSeasonStats(BaseModel):
     team: RawTeam
     year: str
     startYear: int
@@ -236,7 +236,7 @@ class RawPlayerSeasonStats(RawModel):
 # Manager Career History
 # =====================================================================
 
-class RawManagerCareerHistoryItem(RawModel):
+class RawManagerCareerHistoryItem(BaseModel):
     team: RawTeam
     performance: RawPerformance
     startTimestamp: Timestamp
@@ -247,7 +247,7 @@ class RawManagerCareerHistoryItem(RawModel):
 # Venue Statistics
 # =====================================================================
 
-class RawVenueStatistics(RawModel):
+class RawVenueStatistics(BaseModel):
     totalMatches: int
     homeTeamGoalsScored: int
     awayTeamGoalsScored: int
