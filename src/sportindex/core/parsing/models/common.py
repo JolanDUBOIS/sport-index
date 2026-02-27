@@ -1,11 +1,11 @@
-from typing import TypedDict
+from sportindex.core.base import BaseModel
 
 
 # =====================================================================
 # Common types
 # =====================================================================
 
-class ParsedScore(TypedDict, total=False):
+class ParsedScore(BaseModel):
     """Simple home/away score pair, used in parsed periods and incidents."""
-    home: int | None
-    away: int | None
+    home: int
+    away: int
