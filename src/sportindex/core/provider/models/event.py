@@ -62,7 +62,7 @@ class RawEventTime(RawModel):
     injuryTime3: int
     injuryTime4: int
 
-    # When fixed-length periods (e.g. basketball)
+    # When qxed-length periods (e.g. basketball)
     periodLength: int
     overtimeLength: int
     totalPeriodCount: int

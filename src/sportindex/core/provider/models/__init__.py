@@ -35,7 +35,6 @@ from .primitives import (
     RawChannel,
     RawCoordinates,
     RawPerformance,
-    RawSearchResult,
     RawStatus,
     Timestamp,
 )
@@ -85,6 +84,7 @@ from .responses import (
     RawTeamResponse,
     RawUniqueTournamentSeasonsResponse,
 )
+from .search import RawSearchResult
 from .details import (
     # details/entities
     RawManagerCareerHistoryItem,

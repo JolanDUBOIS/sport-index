@@ -432,43 +432,35 @@ class SofascoreProvider:
 
     def search_all(self, query: str, page: int = 0) -> list[RawSearchResult]:
         """Search for all entities by name."""
-        data = self._search("search-all", query, page)
-        return [RawSearchResult(**it) for it in data]
+        return self._search("search-all", query, page)
 
     def search_unique_tournaments(self, query: str, page: int = 0) -> list[RawSearchResult]:
         """Search for unique tournaments by name."""
-        data = self._search("search-unique-tournaments", query, page)
-        return [RawSearchResult(**it) for it in data]
+        return self._search("search-unique-tournaments", query, page)
 
     def search_teams(self, query: str, page: int = 0) -> list[RawSearchResult]:
         """Search for teams by name."""
-        data = self._search("search-teams", query, page)
-        return [RawSearchResult(**it) for it in data]
+        return self._search("search-teams", query, page)
 
     def search_events(self, query: str, page: int = 0) -> list[RawSearchResult]:
         """Search for events by name."""
-        data = self._search("search-events", query, page)
-        return [RawSearchResult(**it) for it in data]
+        return self._search("search-events", query, page)
 
     def search_players(self, query: str, page: int = 0) -> list[RawSearchResult]:
         """Search for players by name."""
-        data = self._search("search-players", query, page)
-        return [RawSearchResult(**it) for it in data]
+        return self._search("search-players", query, page)
 
     def search_managers(self, query: str, page: int = 0) -> list[RawSearchResult]:
         """Search for managers by name."""
-        data = self._search("search-managers", query, page)
-        return [RawSearchResult(**it) for it in data]
+        return self._search("search-managers", query, page)
 
     def search_referees(self, query: str, page: int = 0) -> list[RawSearchResult]:
         """Search for referees by name."""
-        data = self._search("search-referees", query, page)
-        return [RawSearchResult(**it) for it in data]
+        return self._search("search-referees", query, page)
 
     def search_venues(self, query: str, page: int = 0) -> list[RawSearchResult]:
         """Search for venues by name."""
-        data = self._search("search-venues", query, page)
-        return [RawSearchResult(**it) for it in data]
+        return self._search("search-venues", query, page)
 
     # ---- Internal helpers ---- #
 

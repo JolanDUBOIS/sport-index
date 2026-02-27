@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Generic, TypeVar
 
 from .base import RawModel
 
@@ -44,25 +44,6 @@ class RawPerformance(RawModel):
     goalScored: int
     goalConceded: int
     totalPoints: int
-
-
-# =====================================================================
-# Search Results
-# =====================================================================
-
-class RawSearchResult(RawModel):
-        """A single search result.
-        The ``entity`` is a raw dict whose shape depends on ``type``:
-            - "team"             → RawTeam
-            - "player"           → RawPlayer
-            - "manager"          → RawManager
-            - "referee"          → RawReferee
-            - "uniqueTournament" → RawUniqueTournament
-            - "venue"            → RawVenue
-        """
-        type: str                 # The entity type
-        entity: dict[str, Any]    # Shape depends on `type`
-        score: float              # Search relevance score
 
 
 # =====================================================================

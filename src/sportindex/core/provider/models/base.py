@@ -44,6 +44,7 @@ class RawModel:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> RawModel:
+        """Convenience method to construct from a dict."""
         return cls(**data)
 
     # ---------------------------
@@ -110,6 +111,7 @@ class RawModel:
     # ---------------------------
 
     def to_dict(self, strip: bool = False) -> dict[str, Any]:
+        """Convert to dict, optionally stripping unknown fields (strip=True)."""
         result: dict[str, Any] = {
             field_name: self._serialize(getattr(self, field_name), strip=strip)
             for field_name in self.__class__.__annotations__
@@ -132,3 +134,11 @@ class RawModel:
         if isinstance(value, dict):
             return {k: cls._serialize(v, strip=strip) for k, v in value.items()}
         return value
+
+    # ---------------------------
+    # Representation
+    # ---------------------------
+
+    def __repr__(self) -> str:
+        fields = {field: getattr(self, field) for field in self.__class__.__annotations__}
+        return f"{self.__class__.__name__}({fields}, extra={self._extra})"
