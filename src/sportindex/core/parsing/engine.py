@@ -1,8 +1,10 @@
-from typing import Any
+from typing import TypeVar
 from .registry import get_parser
-from sportindex.core.base.model import BaseModel  
+from sportindex.core.models.base import BaseModel  
 
-def parse(node: Any) -> Any:
+T = TypeVar('T')
+
+def parse(node: T) -> T:
     """
     Recursively traverse and parse a model and all its nested fields.
     Uses a bottom-up approach: children are parsed before their parents.
