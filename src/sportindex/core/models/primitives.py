@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar
-
-from sportindex.core.base import BaseModel
+from .base import BaseModel
 
 
 # =====================================================================
@@ -19,24 +17,28 @@ class ISODate(str):
     pass
 
 
-class RawAmount(BaseModel):
+class Amount(BaseModel):
     """Monetary amount (transfer fees, salaries, prize money)."""
     value: float
     currency: str  # e.g. "EUR", "USD"
 
 
-class RawStatus(BaseModel):
+class Status(BaseModel):
     code: int
     type: str         # e.g. "finished", "inprogress", "notstarted"
     description: str
 
 
-class RawCoordinates(BaseModel):
+class Coordinates(BaseModel):
     latitude: float
     longitude: float
 
 
-class RawPerformance(BaseModel):
+class City(BaseModel):
+    name: str
+
+
+class Performance(BaseModel):
     total: int
     wins: int
     draws: int
@@ -46,10 +48,15 @@ class RawPerformance(BaseModel):
     totalPoints: int
 
 
+class Promotion(BaseModel):
+    id: int
+    text: str  # Display name, e.g. "Champions League"
+
+
 # =====================================================================
 # Channel / TV
 # =====================================================================
 
-class RawChannel(BaseModel):
+class Channel(BaseModel):
     id: int              # ASSUMPTION: int — could be str
     name: str

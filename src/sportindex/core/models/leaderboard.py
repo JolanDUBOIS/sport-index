@@ -1,30 +1,19 @@
-"""
-Leaderboard, ranking, channel, search, and transfer dataclass types.
+from datetime import datetime
 
-See __init__.py for full package docstring and conventions.
-"""
-
-from __future__ import annotations
-
-from sportindex.core.base import BaseModel
-from .common import RawCategory, RawCountry, RawSport
-from .entities import RawTeam, RawTournament, RawUniqueTournament
-from .event import RawEvent
-from .primitives import Timestamp
-
+from .base import BaseModel, RawModel, ParsedModel
+from .common import Country, Sport, Category
+from .event import RawEvent, ParsedEvent
+from .primitives import Timestamp, Promotion
+from .team import RawTeam, ParsedTeam
+from .tournament import RawTournament, ParsedTournament, RawUniqueTournament, ParsedUniqueTournament
 
 # =====================================================================
 # Leaderboard — Team / Individual Standings
 # =====================================================================
 
-class RawPromotion(BaseModel):
-    id: int
-    text: str  # Display name, e.g. "Champions League"
 
-
-class RawTeamStandingsEntry(BaseModel):
+class TeamStandingsEntry(BaseModel):
     id: int
-    team: RawTeam
     position: int
     matches: int
     wins: int
@@ -35,31 +24,40 @@ class RawTeamStandingsEntry(BaseModel):
     scoresFor: int
     scoresAgainst: int
     scoreDiffFormatted: str    # e.g. "+15"
-    promotion: RawPromotion
+    promotion: Promotion
     gamesBehind: int
     streak: int
 
+class RawTeamStandingsEntry(TeamStandingsEntry, RawModel):
+    team: RawTeam
 
-class RawTeamStandings(BaseModel):
+class ParsedTeamStandingsEntry(TeamStandingsEntry, ParsedModel):
+    team: ParsedTeam
+
+
+class TeamStandings(BaseModel):
     id: int
     name: str                  # e.g. "Premier League"
+    type: str                  # "home", "away", "total"
+
+class RawTeamStandings(TeamStandings, RawModel):
     rows: list[RawTeamStandingsEntry]
     tournament: RawTournament
     updatedAtTimestamp: Timestamp
-    type: str                  # "home", "away", "total"
+
+class ParsedTeamStandings(TeamStandings, ParsedModel):
+    rows: list[ParsedTeamStandingsEntry]
+    tournament: ParsedTournament
+    updatedAt: datetime
 
 
 # =====================================================================
 # Leaderboard — Racing Standings
 # =====================================================================
 
-class RawRacingStandingsEntry(BaseModel):
-    # Identity / Participant
-    team: RawTeam              # Driver/Cyclist or Team/Constructor
-    parentTeam: RawTeam        # Team/Constructor if team is Driver/Cyclist, else None
+class RacingStandingsEntry(BaseModel):
     startNumber: int           # Driver or cyclist number
     number: int                # alternative numbering, if API provides
-    updatedAtTimestamp: Timestamp
 
     # Position / Result
     position: int
@@ -93,33 +91,55 @@ class RawRacingStandingsEntry(BaseModel):
     climbPosition: int
     shirt: str
 
+class RawRacingStandingsEntry(RacingStandingsEntry, RawModel):
+    team: RawTeam              # Driver/Cyclist or Team/Constructor
+    parentTeam: RawTeam        # Team/Constructor if team is Driver/Cyclist, else None
+    updatedAtTimestamp: Timestamp
+
+class ParsedRacingStandingsEntry(RacingStandingsEntry, ParsedModel):
+    team: ParsedTeam
+    parentTeam: ParsedTeam
+    updatedAt: datetime
+
 
 # =====================================================================
 # Leaderboard — Rankings
 # =====================================================================
 
-class RawRankingType(BaseModel):
-    """Nested under the ``rankingType`` key in ranking responses."""
+class RankingType(BaseModel):
     id: int
     slug: str
     name: str
     gender: str
-    sport: RawSport
-    category: RawCategory
+    sport: Sport
+    category: Category
+
+class RawRankingType(RankingType, RawModel):
     uniqueTournament: RawUniqueTournament
     lastUpdatedTimestamp: Timestamp
 
+class ParsedRankingType(RankingType, ParsedModel):
+    uniqueTournament: ParsedUniqueTournament
+    lastUpdated: datetime
 
-class RawRankingEntry(BaseModel):
+
+class RankingEntry(BaseModel):
     id: int
     name: str
     position: int         # For MMA, position starts at 0 instead of 1
-    team: RawTeam
     points: float
-    country: RawCountry
+    country: Country
     bestPosition: int
     previousPosition: int
     previousPoints: float
     tournamentsPlayed: int
+
+class RawRankingEntry(RankingEntry, RawModel):
+    team: RawTeam
     lastEvent: RawEvent
     updatedAtTimestamp: Timestamp
+
+class ParsedRankingEntry(RankingEntry, ParsedModel):
+    team: ParsedTeam
+    lastEvent: ParsedEvent
+    updatedAt: datetime
