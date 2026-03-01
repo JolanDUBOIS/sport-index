@@ -15,21 +15,21 @@ from typing import Any
 
 from .fetcher import Fetcher
 from .endpoints import ENDPOINTS
-from .models import (
-    RawCategory,
-    RawChannel,
+from sportindex.core.models import (
+    Category,
+    Channel,
     RawChannelScheduleResponse,
-    RawCountryChannelsResponse,
+    CountryChannelsResponse,
     RawDriverCareerHistory,
     RawDriverPerformance,
     RawEvent,
     RawEventsResponse,
-    RawEventStatisticsResponse,
-    RawIncident,
+    EventStatisticsResponse,
+    Incident,
     RawLineupsResponse,
     RawManager,
     RawManagerCareerHistoryItem,
-    RawMomentumGraphResponse,
+    MomentumGraphResponse,
     RawPlayer,
     RawPlayerSeasonStats,
     RawRaceResults,
@@ -41,11 +41,11 @@ from .models import (
     RawSeason,
     RawStage,
     RawTeamPlayers,
-    RawTeamSeasonStats,
+    TeamSeasonStats,
     RawTeamStandings,
-    RawTeamYearStats,
+    TeamYearStats,
     RawTournament,
-    RawUniqueStage,
+    UniqueStage,
     RawUniqueTournament,
     RawUniqueTournamentSeasonsResponse,
     RawVenue,
@@ -63,11 +63,11 @@ class SofascoreProvider:
 
     # ---- Categories ---- #
 
-    def get_categories(self, sport: str) -> list[RawCategory]:
+    def get_categories(self, sport: str) -> list[Category]:
         """Fetch all categories for the sport."""
         url = self._format("all-categories", sport=sport)
         data = self._fetch(url)
-        return [RawCategory(**cat) for cat in data.get("categories", [])]
+        return [Category(**cat) for cat in data.get("categories", [])]
 
     def get_category_unique_tournaments(self, category_id: str) -> list[RawUniqueTournament]:
         """Fetch unique tournaments for a specific category."""
@@ -79,11 +79,11 @@ class SofascoreProvider:
             for ut in group.get("uniqueTournaments", [])
         ]
 
-    def get_category_unique_stages(self, category_id: str) -> list[RawUniqueStage]:
+    def get_category_unique_stages(self, category_id: str) -> list[UniqueStage]:
         """Fetch unique stages for a specific category."""
         url = self._format("category-unique-stages", category_id=category_id)
         data = self._fetch(url)
-        return [RawUniqueStage(**s) for s in data.get("uniqueStages", [])]
+        return [UniqueStage(**s) for s in data.get("uniqueStages", [])]
 
     # ---- Unique Tournaments ---- #
 
@@ -187,18 +187,18 @@ class SofascoreProvider:
         data = self._fetch(url)
         return RawTeamPlayers(**data)
 
-    def get_team_year_statistics(self, team_id: str, year: str) -> RawTeamYearStats:
+    def get_team_year_statistics(self, team_id: str, year: str) -> TeamYearStats:
         """Fetch year statistics for a team (tennis only)."""
         url = self._format("team-year-statistics", team_id=team_id, year=year)
         data = self._fetch(url)
-        return RawTeamYearStats(**data.get("statistics", {}))
+        return TeamYearStats(**data.get("statistics", {}))
 
     def get_team_season_stats(
         self,
         team_id: str,
         unique_tournament_id: str,
         season_id: str,
-    ) -> RawTeamSeasonStats:
+    ) -> TeamSeasonStats:
         """Fetch season statistics for a team."""
         url = self._format(
             "team-season-stats",
@@ -207,7 +207,7 @@ class SofascoreProvider:
             season_id=season_id,
         )
         data = self._fetch(url)
-        return RawTeamSeasonStats(**data.get("statistics", {}))
+        return TeamSeasonStats(**data.get("statistics", {}))
 
     def get_team_stage_seasons(self, team_id: str) -> list[RawStage]:
         """Fetch stage seasons for a team (motorsport)."""
@@ -322,29 +322,29 @@ class SofascoreProvider:
         data = self._fetch(url)
         return RawLineupsResponse(**data.get("lineups", {}))
 
-    def get_incidents(self, event_id: str) -> list[RawIncident]:
+    def get_incidents(self, event_id: str) -> list[Incident]:
         """Fetch raw incidents for an event."""
         url = self._format("event-incidents", event_id=event_id)
         data = self._fetch(url)
-        return [RawIncident(**it) for it in data.get("incidents", [])]
+        return [Incident(**it) for it in data.get("incidents", [])]
 
-    def get_event_statistics(self, event_id: str) -> RawEventStatisticsResponse:
+    def get_event_statistics(self, event_id: str) -> EventStatisticsResponse:
         """Fetch statistics for an event."""
         url = self._format("event-statistics", event_id=event_id)
         data = self._fetch(url)
-        return RawEventStatisticsResponse(**data)
+        return EventStatisticsResponse(**data)
 
-    def get_event_graph(self, event_id: str) -> RawMomentumGraphResponse:
+    def get_event_graph(self, event_id: str) -> MomentumGraphResponse:
         """Fetch momentum graph for an event."""
         url = self._format("event-graph", event_id=event_id)
         data = self._fetch(url)
-        return RawMomentumGraphResponse(**data)
+        return MomentumGraphResponse(**data)
 
-    def get_channels(self, event_id: str) -> RawCountryChannelsResponse:
+    def get_channels(self, event_id: str) -> CountryChannelsResponse:
         """Fetch country → channel mappings for an event."""
         url = self._format("event-channels", event_id=event_id)
         data = self._fetch(url)
-        return RawCountryChannelsResponse(**data)
+        return CountryChannelsResponse(**data)
 
     def get_h2h_history(self, event_custom_id: str) -> RawEventsResponse:
         """Fetch head-to-head history for an event."""
@@ -416,11 +416,11 @@ class SofascoreProvider:
 
     # ---- TV Channels ---- #
 
-    def get_country_channels(self, country_code: str) -> list[RawChannel]:
+    def get_country_channels(self, country_code: str) -> list[Channel]:
         """Fetch TV channels for a country."""
         url = self._format("country-channels", country_code=country_code)
         data = self._fetch(url)
-        return [RawChannel(**ch) for ch in data.get("channels", [])]
+        return [Channel(**ch) for ch in data.get("channels", [])]
 
     def get_channel_schedule(self, channel_id: str) -> RawChannelScheduleResponse:
         """Fetch schedule for a TV channel."""

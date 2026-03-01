@@ -1,6 +1,6 @@
 from typing import TypeVar
 from .registry import get_parser
-from sportindex.core.models.base import BaseModel  
+from sportindex.core.base import BaseModel  
 
 T = TypeVar('T')
 
