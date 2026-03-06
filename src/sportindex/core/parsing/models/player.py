@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from .parsers import parse_timestamp
+if TYPE_CHECKING:
+    from .team import ParsedTeam
+    from sportindex.core.provider.models import Player, Country, Amount
+
+
+@dataclass
+class ParsedPlayer:
+    id: int
+    slug: str
+    name: str
+    firstName: str
+    lastName: str
+    shortName: str
+    gender: str                  # "M", "F", "X"
+    country: Country
+    weight: int                  # in kg
+    height: int                  # in cm
+    shirtNumber: int
+    status: str                  # e.g. "Active", "Retired"
+    retired: bool
+    deceased: bool
+    preferredFoot: str
+    salaryRaw: Amount
+    proposedMarketValueRaw: Amount
+    position: str                # e.g. "G", "D", "M", "F"
+    positionsDetailed: list[str] # e.g. ["RW", "ST"]
+    primaryPosition: str
+    team: ParsedTeam
+    dateOfBirthTimestamp: datetime
+    contractUntilTimestamp: datetime
+
+    @classmethod
+    def from_raw(cls, raw: Player) -> ParsedPlayer:
+        from .team import ParsedTeam
+        return cls(
+            id=raw.get("id"),
+            slug=raw.get("slug"),
+            name=raw.get("name"),
+            firstName=raw.get("firstName"),
+            lastName=raw.get("lastName"),
+            shortName=raw.get("shortName"),
+            gender=raw.get("gender"),
+            country=raw.get("country"),
+            weight=raw.get("weight"),
+            height=raw.get("height"),
+            shirtNumber=raw.get("shirtNumber"),
+            status=raw.get("status"),
+            retired=raw.get("retired"),
+            deceased=raw.get("deceased"),
+            preferredFoot=raw.get("preferredFoot"),
+            salaryRaw=raw.get("salaryRaw"),
+            proposedMarketValueRaw=raw.get("proposedMarketValueRaw"),
+            position=raw.get("position"),
+            positionsDetailed=raw.get("positionsDetailed"),
+            primaryPosition=raw.get("primaryPosition"),
+            team=ParsedTeam.from_raw(raw.get("team")),
+            dateOfBirthTimestamp=parse_timestamp(raw.get("dateOfBirthTimestamp")),
+            contractUntilTimestamp=parse_timestamp(raw.get("contractUntilTimestamp"))
+        )
