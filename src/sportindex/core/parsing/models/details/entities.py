@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from ..base import BaseParsedModel
 from ..parsers import parse_timestamp, parse_iso
 if TYPE_CHECKING:
     from ..team import ParsedTeam
@@ -21,13 +22,13 @@ if TYPE_CHECKING:
 # =====================================================================
 
 @dataclass
-class ParsedPlayerPreviousTeam:
+class ParsedPlayerPreviousTeam(BaseParsedModel):
     player: ParsedPlayer
     previousTeam: ParsedTeam
     transferDate: datetime
 
     @classmethod
-    def from_raw(cls, raw: PlayerPreviousTeam) -> ParsedPlayerPreviousTeam:
+    def _parse(cls, raw: PlayerPreviousTeam) -> ParsedPlayerPreviousTeam:
         from ..player import ParsedPlayer
         from ..team import ParsedTeam
         return cls(
@@ -38,14 +39,14 @@ class ParsedPlayerPreviousTeam:
 
 
 @dataclass
-class ParsedTeamPlayers:
+class ParsedTeamPlayers(BaseParsedModel):
     players: list[ParsedPlayer]
     foreignPlayers: list[ParsedPlayer]
     nationalPlayers: list[ParsedPlayer]
     playerPreviousTeams: list[ParsedPlayerPreviousTeam]
 
     @classmethod
-    def from_raw(cls, raw: TeamPlayers) -> ParsedTeamPlayers:
+    def _parse(cls, raw: TeamPlayers) -> ParsedTeamPlayers:
         from ..player import ParsedPlayer
         from ..team import ParsedTeam
         from ..tournament import ParsedUniqueTournament, ParsedSeason
@@ -62,7 +63,7 @@ class ParsedTeamPlayers:
 # =====================================================================
 
 @dataclass
-class ParsedPlayerSeasonStats:
+class ParsedPlayerSeasonStats(BaseParsedModel):
     year: str
     startYear: int
     endYear: int
@@ -72,7 +73,7 @@ class ParsedPlayerSeasonStats:
     season: ParsedSeason
 
     @classmethod
-    def from_raw(cls, raw: PlayerSeasonStats) -> ParsedPlayerSeasonStats:
+    def _parse(cls, raw: PlayerSeasonStats) -> ParsedPlayerSeasonStats:
         from ..team import ParsedTeam
         from ..tournament import ParsedUniqueTournament, ParsedSeason
         return cls(
@@ -91,14 +92,14 @@ class ParsedPlayerSeasonStats:
 # =====================================================================
 
 @dataclass
-class ParsedManagerCareerHistoryItem:
+class ParsedManagerCareerHistoryItem(BaseParsedModel):
     performance: Performance
     team: ParsedTeam
     startTimestamp: datetime
     endTimestamp: datetime
 
     @classmethod
-    def from_raw(cls, raw: ManagerCareerHistoryItem) -> ParsedManagerCareerHistoryItem:
+    def _parse(cls, raw: ManagerCareerHistoryItem) -> ParsedManagerCareerHistoryItem:
         from ..team import ParsedTeam
         return cls(
             performance=raw.get("performance"),

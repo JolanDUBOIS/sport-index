@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .team import ParsedTeam
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class ParsedSeason:
+class ParsedSeason(BaseParsedModel):
     id: int
     name: str
     year: str              # e.g. "24/25" or "2025"
@@ -19,7 +20,7 @@ class ParsedSeason:
     startDateTimestamp: datetime
 
     @classmethod
-    def from_raw(cls, raw: Season) -> ParsedSeason:
+    def _parse(cls, raw: Season) -> ParsedSeason:
         return cls(
             id=raw.get("id"),
             name=raw.get("name"),
@@ -30,7 +31,7 @@ class ParsedSeason:
 
 
 @dataclass
-class ParsedUniqueTournament:
+class ParsedUniqueTournament(BaseParsedModel):
     id: int
     slug: str
     name: str
@@ -54,7 +55,7 @@ class ParsedUniqueTournament:
     linkedUniqueTournaments: list[ParsedUniqueTournament]
 
     @classmethod
-    def from_raw(cls, raw: UniqueTournament) -> ParsedUniqueTournament:
+    def _parse(cls, raw: UniqueTournament) -> ParsedUniqueTournament:
         from .team import ParsedTeam
         return cls(
             id=raw.get("id"),
@@ -82,7 +83,7 @@ class ParsedUniqueTournament:
 
 
 @dataclass
-class ParsedTournament:
+class ParsedTournament(BaseParsedModel):
     id: int
     slug: str
     name: str
@@ -90,7 +91,7 @@ class ParsedTournament:
     uniqueTournament: ParsedUniqueTournament
 
     @classmethod
-    def from_raw(cls, raw: UniqueTournament) -> ParsedTournament:
+    def _parse(cls, raw: UniqueTournament) -> ParsedTournament:
         return cls(
             id=raw.get("id"),
             slug=raw.get("slug"),

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from ..base import BaseParsedModel
 
 if TYPE_CHECKING:
     from ..manager import ParsedManager
@@ -16,13 +17,16 @@ if TYPE_CHECKING:
 # =====================================================================
 
 @dataclass
-class ParsedIncident:
+class ParsedIncident(BaseParsedModel):
     incidentType: str
 
     @classmethod
-    def from_raw(cls, raw: Incident) -> ParsedIncident:
-        # TODO 
-        pass
+    def _parse(cls, raw: Incident) -> ParsedIncident:
+        incident_type = raw.get("incidentType")
+        if incident_type in _INCIDENT_TYPE_MAPPING:
+            return _INCIDENT_TYPE_MAPPING[incident_type].from_raw(raw)
+        else:
+            raise ValueError(f"Unknown incident type: {incident_type}")
 
 
 @dataclass
@@ -37,18 +41,19 @@ class ParsedGoalIncident(ParsedIncident):
     kind: str                  # "regular", "ownGoal", "penalty" (football); "try", "twoPoints"... (rugby)
 
     @classmethod
-    def from_raw(cls, raw: Incident) -> ParsedGoalIncident:
+    def _parse(cls, raw: Incident) -> ParsedGoalIncident:
+        from ..player import ParsedPlayer
         return cls(
-        incidentType="goal",
-        id=raw.get("id"),
-        time=raw.get("time"),
-        side=_get_side(raw),
-        score=_get_score(raw),
-        scorer=raw.get("player"),        # raw player dict, kept as-is
-        assist=raw.get("assist"),         # raw player dict or None
-        extraTime=raw.get("addedTime"),
-        kind=raw.get("incidentClass"),    # "regular", "ownGoal", "penalty", "try", "twoPoints"...
-    )
+            incidentType="goal",
+            id=raw.get("id"),
+            time=raw.get("time"),
+            side=_get_side(raw),
+            score=_get_score(raw),
+            scorer=ParsedPlayer.from_raw(raw.get("player")),        # raw player dict, kept as-is
+            assist=ParsedPlayer.from_raw(raw.get("assist")),         # raw player dict or None
+            extraTime=raw.get("addedTime"),
+            kind=raw.get("incidentClass"),    # "regular", "ownGoal", "penalty", "try", "twoPoints"...
+        )
 
 
 @dataclass
@@ -63,17 +68,18 @@ class ParsedPenaltyIncident(ParsedIncident):
     kind: str                  # "missed", etc.
 
     @classmethod
-    def from_raw(cls, raw: Incident) -> ParsedPenaltyIncident:
+    def _parse(cls, raw: Incident) -> ParsedPenaltyIncident:
+        from ..player import ParsedPlayer
         return cls(
-        incidentType="penalty",
-        id=raw.get("id"),
-        time=raw.get("time"),
-        side=_get_side(raw),
-        shooter=raw.get("player"),
-        extraTime=raw.get("addedTime"),
-        description=raw.get("description"),
-        kind=raw.get("incidentClass"),
-    )
+            incidentType="penalty",
+            id=raw.get("id"),
+            time=raw.get("time"),
+            side=_get_side(raw),
+            shooter=ParsedPlayer.from_raw(raw.get("player")),
+            extraTime=raw.get("addedTime"),
+            description=raw.get("description"),
+            kind=raw.get("incidentClass"),
+        )
 
 
 @dataclass
@@ -85,15 +91,16 @@ class ParsedPenaltyShootoutIncident(ParsedIncident):
     kind: str                  # "scored", "missed"
 
     @classmethod
-    def from_raw(cls, raw: Incident) -> ParsedPenaltyShootoutIncident:
+    def _parse(cls, raw: Incident) -> ParsedPenaltyShootoutIncident:
+        from ..player import ParsedPlayer
         return cls(
-        incidentType="penaltyShootout",
-        id=raw.get("id"),
-        side=_get_side(raw),
-        score=_get_score(raw),
-        shooter=raw.get("player"),
-        kind=raw.get("incidentClass"),    # "scored", "missed"
-    )
+            incidentType="penaltyShootout",
+            id=raw.get("id"),
+            side=_get_side(raw),
+            score=_get_score(raw),
+            shooter=ParsedPlayer.from_raw(raw.get("player")),
+            kind=raw.get("incidentClass"),    # "scored", "missed"
+        )
 
 
 @dataclass
@@ -108,10 +115,12 @@ class ParsedCardIncident(ParsedIncident):
     kind: str                         # "yellow", "red", "yellowRed"
 
     @classmethod
-    def from_raw(cls, raw: Incident) -> ParsedCardIncident:
+    def _parse(cls, raw: Incident) -> ParsedCardIncident:
         if raw.get("player"):
+            from ..player import ParsedPlayer
             recipient = ParsedPlayer.from_raw(raw.get("player"))
         else:
+            from ..manager import ParsedManager
             recipient = ParsedManager.from_raw(raw.get("manager"))
         
         return cls(
@@ -134,7 +143,7 @@ class ParsedPeriodIncident(ParsedIncident):
     kind: str                  # "HT", "FT", "PEN", etc.
 
     @classmethod
-    def from_raw(cls, raw: Incident) -> ParsedPeriodIncident:
+    def _parse(cls, raw: Incident) -> ParsedPeriodIncident:
         time = raw.get("time")
         if time == 999:
             time = None
@@ -158,7 +167,7 @@ class ParsedVarDecisionIncident(ParsedIncident):
     confirmed: bool
 
     @classmethod
-    def from_raw(cls, raw: Incident) -> ParsedVarDecisionIncident:
+    def _parse(cls, raw: Incident) -> ParsedVarDecisionIncident:
         return cls(
             incidentType="varDecision",
             id=raw.get("id"),
@@ -183,7 +192,8 @@ class ParsedSubstitutionIncident(ParsedIncident):
 
 
     @classmethod
-    def from_raw(cls, raw: Incident) -> ParsedSubstitutionIncident:
+    def _parse(cls, raw: Incident) -> ParsedSubstitutionIncident:
+        from ..player import ParsedPlayer
         return cls(
             incidentType="substitution",
             id=raw.get("id"),
@@ -203,7 +213,7 @@ class ParsedExtraTimeIncident(ParsedIncident):
     addedTime: int             # minutes of added time
 
     @classmethod
-    def from_raw(cls, raw: Incident) -> ParsedExtraTimeIncident:
+    def _parse(cls, raw: Incident) -> ParsedExtraTimeIncident:
         return cls(
             incidentType="injuryTime",
             time=raw.get("time"),
@@ -215,7 +225,7 @@ class ParsedExtraTimeIncident(ParsedIncident):
 # Incident Types Mapping
 # =====================================================================
 
-_INCIDENT_TYPE_MAPPING = {
+_INCIDENT_TYPE_MAPPING: dict[str, type[ParsedIncident]] = {
     "goal": ParsedGoalIncident,
     "penalty": ParsedPenaltyIncident,
     "penaltyShootout": ParsedPenaltyShootoutIncident,

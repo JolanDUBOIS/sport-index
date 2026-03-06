@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from ..base import BaseParsedModel
 from ..parsers import parse_timestamp
 if TYPE_CHECKING:
     from ..stage import ParsedStage
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class ParsedRaceResults:
+class ParsedRaceResults(BaseParsedModel):
     position: int
     gridPosition: int
     points: int
@@ -26,7 +27,7 @@ class ParsedRaceResults:
     stage: ParsedStage
 
     @classmethod
-    def from_raw(cls, raw: RaceResults) -> ParsedRaceResults:
+    def _parse(cls, raw: RaceResults) -> ParsedRaceResults:
         from ..stage import ParsedStage
         return cls(
             position=raw.get("position"),
@@ -40,7 +41,7 @@ class ParsedRaceResults:
 
 
 @dataclass
-class ParsedSeasonCareerHistory:
+class ParsedSeasonCareerHistory(BaseParsedModel):
     position: int
     points: int
     victories: int
@@ -52,7 +53,7 @@ class ParsedSeasonCareerHistory:
     updatedAtTimestamp: datetime
 
     @classmethod
-    def from_raw(cls, raw: SeasonCareerHistory) -> ParsedSeasonCareerHistory:
+    def _parse(cls, raw: SeasonCareerHistory) -> ParsedSeasonCareerHistory:
         from ..stage import ParsedStage
         from ..team import ParsedTeam
         return cls(
@@ -69,7 +70,7 @@ class ParsedSeasonCareerHistory:
 
 
 @dataclass
-class ParsedTotalCareerHistory:
+class ParsedTotalCareerHistory(BaseParsedModel):
     racesStarted: int
     victories: int
     podiums: int
@@ -78,7 +79,7 @@ class ParsedTotalCareerHistory:
     team: ParsedTeam
 
     @classmethod
-    def from_raw(cls, raw: TotalCareerHistory) -> ParsedTotalCareerHistory:
+    def _parse(cls, raw: TotalCareerHistory) -> ParsedTotalCareerHistory:
         from ..team import ParsedTeam
         return cls(
             racesStarted=raw.get("racesStarted"),
@@ -91,13 +92,13 @@ class ParsedTotalCareerHistory:
 
 
 @dataclass
-class ParsedDriverCareerHistory:
+class ParsedDriverCareerHistory(BaseParsedModel):
     total: ParsedTotalCareerHistory
     bySeason: list[ParsedSeasonCareerHistory]
 
 
     @classmethod
-    def from_raw(cls, raw: DriverCareerHistory) -> ParsedDriverCareerHistory:
+    def _parse(cls, raw: DriverCareerHistory) -> ParsedDriverCareerHistory:
         return cls(
             total=ParsedTotalCareerHistory.from_raw(raw.get("total")),
             bySeason=[ParsedSeasonCareerHistory.from_raw(season) for season in raw.get("bySeason")]

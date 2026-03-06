@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TypedDict, TYPE_CHECKING
 
+from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .referee import ParsedReferee
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 # =====================================================================
 
 @dataclass
-class ParsedEvent:
+class ParsedEvent(BaseParsedModel):
     id: int
     customId: str
     slug: str
@@ -48,7 +49,7 @@ class ParsedEvent:
     parsedPeriods: ParsedPeriods
 
     @classmethod
-    def from_raw(cls, raw: Event) -> ParsedEvent:return cls(
+    def _parse(cls, raw: Event) -> ParsedEvent:return cls(
             id=raw.get("id"),
             customId=raw.get("customId"),
             slug=raw.get("slug"),
@@ -100,7 +101,7 @@ class ParsedScore(TypedDict, total=False):
     away: int
 
 @dataclass
-class ParsedPeriod:
+class ParsedPeriod(BaseParsedModel):
     key: str                                # e.g. "period1", "overtime", "penalties", "period2TieBreak"
     type: str                               # "normal", "overtime", "tiebreak", "penalties"
     label: str                              # Display label, e.g. "1st Half", "Overtime"
@@ -110,12 +111,12 @@ class ParsedPeriod:
     extraTime: list[int]                    # Injury/stoppage time added in this period
 
 @dataclass
-class ParsedPeriods:
+class ParsedPeriods(BaseParsedModel):
     defaultCount: int
     periods: list[ParsedPeriod]
 
     @classmethod
-    def from_raw(cls, raw: Event) -> ParsedPeriods | None:
+    def _parse(cls, raw: Event) -> ParsedPeriods | None:
         if "defaultPeriodCount" not in raw:
             return None
 
@@ -220,7 +221,7 @@ class ParsedPeriods:
 # =====================================================================
 
 @dataclass
-class ParsedFightExtra:
+class ParsedFightExtra(BaseParsedModel):
     fightType: str
     weightClass: str
     winType: str
@@ -228,7 +229,7 @@ class ParsedFightExtra:
     order: list[int]
 
 @dataclass
-class ParsedRacketExtra:
+class ParsedRacketExtra(BaseParsedModel):
     firstToServe: int
 
 ParsedExtra = ParsedFightExtra | ParsedRacketExtra

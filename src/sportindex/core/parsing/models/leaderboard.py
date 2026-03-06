@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .event import ParsedEvent
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class ParsedTeamStandingsEntry:
+class ParsedTeamStandingsEntry(BaseParsedModel):
     id: int
     position: int
     matches: int
@@ -36,7 +37,7 @@ class ParsedTeamStandingsEntry:
     team: ParsedTeam
 
     @classmethod
-    def from_raw(cls, raw: TeamStandingsEntry) -> ParsedTeamStandingsEntry:
+    def _parse(cls, raw: TeamStandingsEntry) -> ParsedTeamStandingsEntry:
         from .team import ParsedTeam
         return cls(
             id=raw.get("id"),
@@ -58,7 +59,7 @@ class ParsedTeamStandingsEntry:
 
 
 @dataclass
-class ParsedTeamStandings:
+class ParsedTeamStandings(BaseParsedModel):
     id: int
     name: str                  # e.g. "Premier League"
     type_: str                  # "home", "away", "total"
@@ -67,7 +68,7 @@ class ParsedTeamStandings:
     updatedAt: datetime
 
     @classmethod
-    def from_raw(cls, raw: TeamStandings) -> ParsedTeamStandings:
+    def _parse(cls, raw: TeamStandings) -> ParsedTeamStandings:
         from .tournament import ParsedTournament
         return cls(
             id=raw.get("id"),
@@ -80,7 +81,7 @@ class ParsedTeamStandings:
 
 
 @dataclass
-class ParsedRacingStandingsEntry:
+class ParsedRacingStandingsEntry(BaseParsedModel):
     startNumber: int           # Driver or cyclist number
     number: int                # alternative numbering, if API provides
     team: ParsedTeam
@@ -120,7 +121,7 @@ class ParsedRacingStandingsEntry:
     shirt: str
 
     @classmethod
-    def from_raw(cls, raw: RacingStandingsEntry) -> ParsedRacingStandingsEntry:
+    def _parse(cls, raw: RacingStandingsEntry) -> ParsedRacingStandingsEntry:
         from .team import ParsedTeam
         return cls(
             startNumber=raw.get("startNumber"),
@@ -158,7 +159,7 @@ class ParsedRacingStandingsEntry:
 
 
 @dataclass
-class ParsedRankingType:
+class ParsedRankingType(BaseParsedModel):
     id: int
     slug: str
     name: str
@@ -169,7 +170,7 @@ class ParsedRankingType:
     lastUpdated: datetime
 
     @classmethod
-    def from_raw(cls, raw: RankingType) -> ParsedRankingType:
+    def _parse(cls, raw: RankingType) -> ParsedRankingType:
         from .tournament import ParsedUniqueTournament
         return cls(
             id=raw.get("id"),
@@ -184,7 +185,7 @@ class ParsedRankingType:
 
 
 @dataclass
-class ParsedRankingEntry:
+class ParsedRankingEntry(BaseParsedModel):
     id: int
     name: str
     position: int         # For MMA, position starts at 0 instead of 1
@@ -199,7 +200,7 @@ class ParsedRankingEntry:
     updatedAt: datetime
 
     @classmethod
-    def from_raw(cls, raw: RankingEntry) -> ParsedRankingEntry:
+    def _parse(cls, raw: RankingEntry) -> ParsedRankingEntry:
         from .team import ParsedTeam
         from .event import ParsedEvent
         return cls(

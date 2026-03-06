@@ -4,13 +4,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from sportindex.core.provider.models import Referee, Sport, Country
 
 
 @dataclass
-class ParsedReferee:
+class ParsedReferee(BaseParsedModel):
     id: int
     slug: str
     name: str
@@ -23,7 +24,7 @@ class ParsedReferee:
     dateOfBirthTimestamp: datetime
 
     @classmethod
-    def from_raw(cls, raw: Referee) -> ParsedReferee:
+    def _parse(cls, raw: Referee) -> ParsedReferee:
         return cls(
             id=raw.get("id"),
             slug=raw.get("slug"),

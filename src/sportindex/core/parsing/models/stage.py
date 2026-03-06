@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .team import ParsedTeam
@@ -15,14 +16,14 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class ParsedStageParent:
+class ParsedStageParent(BaseParsedModel):
     id: int
     slug: str
     description: str
     startDateTimestamp: datetime
 
     @classmethod
-    def from_raw(cls, raw: StageParent) -> ParsedStageParent:
+    def _parse(cls, raw: StageParent) -> ParsedStageParent:
         return cls(
             id=raw.get("id"),
             slug=raw.get("slug"),
@@ -32,7 +33,7 @@ class ParsedStageParent:
 
 
 @dataclass
-class ParsedStage:
+class ParsedStage(BaseParsedModel):
     id: int
     slug: str
     name: str
@@ -52,7 +53,7 @@ class ParsedStage:
     substages: list[ParsedStage]
 
     @classmethod
-    def from_raw(cls, raw: Stage) -> ParsedStage:
+    def _parse(cls, raw: Stage) -> ParsedStage:
         from .team import ParsedTeam
         return cls(
             id=raw.get("id"),

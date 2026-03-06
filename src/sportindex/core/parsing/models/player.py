@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .team import ParsedTeam
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class ParsedPlayer:
+class ParsedPlayer(BaseParsedModel):
     id: int
     slug: str
     name: str
@@ -37,7 +38,7 @@ class ParsedPlayer:
     contractUntilTimestamp: datetime
 
     @classmethod
-    def from_raw(cls, raw: Player) -> ParsedPlayer:
+    def _parse(cls, raw: Player) -> ParsedPlayer:
         from .team import ParsedTeam
         return cls(
             id=raw.get("id"),

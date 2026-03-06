@@ -1,10 +1,6 @@
 """
-Sofascore provider — returns TODO.
-
-This is a drop-in replacement for the original SofascoreProvider that
-removes the model layer entirely. Every method returns TODO
-
-Reuses fetcher, endpoints, and exceptions from the existing provider.
+Sofascore provider
+Docstring TODO
 """
 
 from __future__ import annotations
@@ -58,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 
 class SofascoreProvider:
-    """TODO: Docstring for the provider class."""
+    """Provider class for Sofascore API fetching."""
 
     def __init__(self, fetch_delay: float = 0.5):
         self.fetcher = Fetcher()
@@ -70,14 +66,14 @@ class SofascoreProvider:
         """Fetch all categories for the sport."""
         url = self._format("all-categories", sport=sport)
         data = self._fetch(url)
-        return [Category(**cat) for cat in data.get("categories", [])]
+        return data.get("categories", [])
 
     def get_category_unique_tournaments(self, category_id: str) -> list[UniqueTournament]:
         """Fetch unique tournaments for a specific category."""
-        url = self._format("category-unique-tournamenRts", category_id=category_id)
+        url = self._format("category-unique-tournaments", category_id=category_id)
         data = self._fetch(url)
         return [
-            UniqueTournament(**ut)
+            ut
             for group in data.get("groups", [])
             for ut in group.get("uniqueTournaments", [])
         ]
@@ -86,7 +82,7 @@ class SofascoreProvider:
         """Fetch unique stages for a specific category."""
         url = self._format("category-unique-stages", category_id=category_id)
         data = self._fetch(url)
-        return [UniqueStage(**s) for s in data.get("uniqueStages", [])]
+        return data.get("uniqueStages", [])
 
     # ---- Unique Tournaments ---- #
 
@@ -94,13 +90,13 @@ class SofascoreProvider:
         """Fetch unique tournament details."""
         url = self._format("unique-tournament", unique_tournament_id=unique_tournament_id)
         data = self._fetch(url)
-        return UniqueTournament(**data.get("uniqueTournament", {}))
+        return data.get("uniqueTournament", {})
 
     def get_unique_tournament_seasons(self, unique_tournament_id: str) -> list[Season]:
         """Fetch seasons for a unique tournament."""
         url = self._format("unique-tournament-seasons", unique_tournament_id=unique_tournament_id)
         data = self._fetch(url)
-        return [Season(**s) for s in data.get("seasons", [])]
+        return data.get("seasons", [])
 
     def get_unique_tournament_standings(
         self,
@@ -116,7 +112,7 @@ class SofascoreProvider:
             view=view,
         )
         data = self._fetch(url)
-        return [TeamStandings(**s) for s in data.get("standings", [])]
+        return data.get("standings", [])
 
     def get_unique_tournament_fixtures(
         self,
@@ -131,8 +127,7 @@ class SofascoreProvider:
             season_id=season_id,
             page=page,
         )
-        data = self._fetch(url)
-        return EventsResponse(**data)
+        return self._fetch(url)
 
     def get_unique_tournament_results(
         self,
@@ -147,8 +142,7 @@ class SofascoreProvider:
             season_id=season_id,
             page=page,
         )
-        data = self._fetch(url)
-        return EventsResponse(**data)
+        return self._fetch(url)
 
     # ---- Tournaments ---- #
 
@@ -156,45 +150,41 @@ class SofascoreProvider:
         """Fetch tournament details."""
         url = self._format("tournament", tournament_id=tournament_id)
         data = self._fetch(url)
-        return Tournament(**data.get("tournament", {}))
+        return data.get("tournament", {})
 
     # ---- Teams ---- #
 
     def get_team(self, team_id: str) -> TeamResponse:
         """Fetch team details."""
         url = self._format("team", team_id=team_id)
-        data = self._fetch(url)
-        return TeamResponse(**data)
+        return self._fetch(url)
 
     def get_team_seasons(self, team_id: str) -> list[UniqueTournamentSeasonsResponse]:
         """Fetch seasons for a team (grouped by unique tournament)."""
         url = self._format("team-seasons", team_id=team_id)
         data = self._fetch(url)
-        return [UniqueTournamentSeasonsResponse(**s) for s in data.get("uniqueTournamentSeasons", [])]
+        return data.get("uniqueTournamentSeasons", [])
 
     def get_team_fixtures(self, team_id: str, page: int = 0) -> EventsResponse:
         """Fetch upcoming fixtures for a team."""
         url = self._format("team-fixtures", team_id=team_id, page=page)
-        data = self._fetch(url)
-        return EventsResponse(**data)
+        return self._fetch(url)
 
     def get_team_results(self, team_id: str, page: int = 0) -> EventsResponse:
         """Fetch recent results for a team."""
         url = self._format("team-results", team_id=team_id, page=page)
-        data = self._fetch(url)
-        return EventsResponse(**data)
+        return self._fetch(url)
 
     def get_team_players(self, team_id: str) -> TeamPlayers:
         """Fetch players for a team."""
         url = self._format("team-players", team_id=team_id)
-        data = self._fetch(url)
-        return TeamPlayers(**data)
+        return self._fetch(url)
 
     def get_team_year_statistics(self, team_id: str, year: str) -> TeamYearStats:
         """Fetch year statistics for a team (tennis only)."""
         url = self._format("team-year-statistics", team_id=team_id, year=year)
         data = self._fetch(url)
-        return TeamYearStats(**data.get("statistics", {}))
+        return data.get("statistics", {})
 
     def get_team_season_stats(
         self,
@@ -210,25 +200,25 @@ class SofascoreProvider:
             season_id=season_id,
         )
         data = self._fetch(url)
-        return TeamSeasonStats(**data.get("statistics", {}))
+        return data.get("statistics", {})
 
     def get_team_stage_seasons(self, team_id: str) -> list[Stage]:
         """Fetch stage seasons for a team (motorsport)."""
         url = self._format("team-stage-seasons", team_id=team_id)
         data = self._fetch(url)
-        return [Stage(**s) for s in data.get("stageSeasons", [])]
+        return data.get("stageSeasons", [])
 
     def get_team_stage_races(self, team_id: str, stage_season_id: str) -> list[RaceResults]:
         """Fetch races for a team + season stage (motorsport)."""
         url = self._format("team-stage-season-races", team_id=team_id, stage_season_id=stage_season_id)
         data = self._fetch(url)
-        return [RaceResults(**r) for r in data.get("races", [])]
+        return data.get("races", [])
 
     def get_team_driver_career_history(self, team_id: str) -> list[DriverCareerHistory]:
         """Fetch driver career history for a team (motorsport)."""
         url = self._format("team-driver-career-history", team_id=team_id)
         data = self._fetch(url)
-        return [DriverCareerHistory(**it) for it in data]
+        return data
 
     # ---- Players ---- #
 
@@ -236,25 +226,24 @@ class SofascoreProvider:
         """Fetch player details."""
         url = self._format("player", player_id=player_id)
         data = self._fetch(url)
-        return Player(**data.get("player", {}))
+        return data.get("player", {})
 
     def get_player_results(self, player_id: str, page: int = 0) -> EventsResponse:
         """Fetch recent results for a player."""
         url = self._format("player-results", player_id=player_id, page=page)
-        data = self._fetch(url)
-        return EventsResponse(**data)
+        return self._fetch(url)
 
     def get_player_statistics(self, player_id: str) -> list[PlayerSeasonStats]:
         """Fetch statistics for a player (grouped by season)."""
         url = self._format("player-statistics", player_id=player_id)
         data = self._fetch(url)
-        return [PlayerSeasonStats(**s) for s in data.get("seasons", [])]
+        return data.get("seasons", [])
 
     def get_player_seasons(self, player_id: str) -> list[UniqueTournamentSeasonsResponse]:
         """Fetch seasons for a player (grouped by unique tournament)."""
         url = self._format("player-seasons", player_id=player_id)
         data = self._fetch(url)
-        return [UniqueTournamentSeasonsResponse(**s) for s in data.get("uniqueTournamentSeasons", [])]
+        return data.get("uniqueTournamentSeasons", [])
 
     # ---- Managers ---- #
 
@@ -262,20 +251,18 @@ class SofascoreProvider:
         """Fetch manager details."""
         url = self._format("manager", manager_id=manager_id)
         data = self._fetch(url)
-        return Manager(**data.get("manager", {}))
+        return data.get("manager", {})
 
     def get_manager_results(self, manager_id: str, page: int = 0) -> EventsResponse:
         """Fetch recent results for a manager."""
         url = self._format("manager-results", manager_id=manager_id, page=page)
-        data = self._fetch(url)
-        return EventsResponse(**data)
+        return self._fetch(url)
 
     def get_manager_career_history(self, manager_id: str) -> list[ManagerCareerHistoryItem]:
         """Fetch career history for a manager."""
         url = self._format("manager-career-history", manager_id=manager_id)
         data = self._fetch(url)
-        items = data.get("careerHistory", []) if data else []
-        return [ManagerCareerHistoryItem(**it) for it in items]
+        return data.get("careerHistory", []) if data else []
 
     # ---- Referees ---- #
 
@@ -283,13 +270,12 @@ class SofascoreProvider:
         """Fetch referee details."""
         url = self._format("referee", referee_id=referee_id)
         data = self._fetch(url)
-        return Referee(**data.get("referee", {}))
+        return data.get("referee", {})
 
     def get_referee_results(self, referee_id: str, page: int = 0) -> EventsResponse:
         """Fetch recent results for a referee."""
         url = self._format("referee-results", referee_id=referee_id, page=page)
-        data = self._fetch(url)
-        return EventsResponse(**data)
+        return self._fetch(url)
 
     # ---- Venues ---- #
 
@@ -297,19 +283,17 @@ class SofascoreProvider:
         """Fetch venue details."""
         url = self._format("venue", venue_id=venue_id)
         data = self._fetch(url)
-        return Venue(**data.get("venue", {}))
+        return data.get("venue", {})
 
     def get_venue_fixtures(self, venue_id: str, page: int = 1) -> EventsResponse:
         """Fetch upcoming fixtures for a venue."""
         url = self._format("venue-fixtures", venue_id=venue_id, page=page)
-        data = self._fetch(url)
-        return EventsResponse(**data)
+        return self._fetch(url)
 
     def get_venue_results(self, venue_id: str, page: int = 1) -> EventsResponse:
         """Fetch recent results for a venue."""
         url = self._format("venue-results", venue_id=venue_id, page=page)
-        data = self._fetch(url)
-        return EventsResponse(**data)
+        return self._fetch(url)
 
     # ---- Events ---- #
 
@@ -317,43 +301,39 @@ class SofascoreProvider:
         """Fetch event details."""
         url = self._format("event", event_id=event_id)
         data = self._fetch(url)
-        return Event(**data.get("event", {}))
+        return data.get("event", {})
 
     def get_lineups(self, event_id: str) -> LineupsResponse:
         """Fetch lineups for an event."""
         url = self._format("event-lineups", event_id=event_id)
         data = self._fetch(url)
-        return LineupsResponse(**data.get("lineups", {}))
+        return data.get("lineups", {})
 
     def get_incidents(self, event_id: str) -> list[Incident]:
         """Fetch raw incidents for an event."""
         url = self._format("event-incidents", event_id=event_id)
         data = self._fetch(url)
-        return [Incident(**it) for it in data.get("incidents", [])]
+        return data.get("incidents", [])
 
     def get_event_statistics(self, event_id: str) -> EventStatisticsResponse:
         """Fetch statistics for an event."""
         url = self._format("event-statistics", event_id=event_id)
-        data = self._fetch(url)
-        return EventStatisticsResponse(**data)
+        return self._fetch(url)
 
     def get_event_graph(self, event_id: str) -> MomentumGraphResponse:
         """Fetch momentum graph for an event."""
         url = self._format("event-graph", event_id=event_id)
-        data = self._fetch(url)
-        return MomentumGraphResponse(**data)
+        return self._fetch(url)
 
     def get_channels(self, event_id: str) -> CountryChannelsResponse:
         """Fetch country → channel mappings for an event."""
         url = self._format("event-channels", event_id=event_id)
-        data = self._fetch(url)
-        return CountryChannelsResponse(**data)
+        return self._fetch(url)
 
     def get_h2h_history(self, event_custom_id: str) -> EventsResponse:
         """Fetch head-to-head history for an event."""
         url = self._format("event-h2h-history", event_custom_id=event_custom_id)
-        data = self._fetch(url)
-        return EventsResponse(**data)
+        return self._fetch(url)
 
     def get_scheduled_events(self, sport: str, date: str) -> EventsResponse:
         """Fetch scheduled events for a sport on a specific date (YYYY-MM-DD)."""
@@ -362,16 +342,14 @@ class SofascoreProvider:
         except ValueError:
             raise ValueError(f"Invalid date format: {date}. Expected YYYY-MM-DD.")
         url = self._format("scheduled-events", sport=sport, date=date)
-        data = self._fetch(url)
-        return EventsResponse(**data)
+        return self._fetch(url)
 
     # ---- Rankings ---- #
 
     def get_ranking(self, ranking_id: str) -> RankingsResponse:
         """Fetch a ranking by ID."""
         url = self._format("ranking", ranking_id=ranking_id)
-        data = self._fetch(url)
-        return RankingsResponse(**data)
+        return self._fetch(url)
 
     # ---- Motorsport ---- #
 
@@ -379,43 +357,43 @@ class SofascoreProvider:
         """Fetch seasons for a stage."""
         url = self._format("unique-stage-seasons", unique_stage_id=unique_stage_id)
         data = self._fetch(url)
-        return [Stage(**s) for s in data.get("seasons", [])]
+        return data.get("seasons", [])
 
     def get_stage(self, stage_id: str) -> Stage:
         """Fetch stage details."""
         url = self._format("stage", stage_id=stage_id)
         data = self._fetch(url)
-        return Stage(**data.get("stage", {}))
+        return data.get("stage", {})
 
     def get_stage_substages(self, stage_id: str) -> list[Stage]:
         """Fetch substages for a stage."""
         url = self._format("substages", stage_id=stage_id)
         data = self._fetch(url)
-        return [Stage(**s) for s in data.get("stages", [])]
+        return data.get("stages", [])
 
     def get_stage_details(self, stage_id: str) -> Stage:
         """Fetch extended details for a stage, including nested substages."""
         url = self._format("stage-details", stage_id=stage_id)
         data = self._fetch(url)
-        return Stage(**data.get("stage", {}))
+        return data.get("stage", {})
 
     def get_stage_standings_competitors(self, stage_id: str) -> list[RacingStandingsEntry]:
         """Fetch competitor standings for a stage."""
         url = self._format("standings-competitors", stage_id=stage_id)
         data = self._fetch(url)
-        return [RacingStandingsEntry(**s) for s in data.get("standings", [])]
+        return data.get("standings", [])
 
     def get_stage_standings_teams(self, stage_id: str) -> list[RacingStandingsEntry]:
         """Fetch team/driver standings for a stage."""
         url = self._format("standings-teams", stage_id=stage_id)
         data = self._fetch(url)
-        return [RacingStandingsEntry(**s) for s in data.get("standings", [])]
+        return data.get("standings", [])
 
     def get_stage_drivers_performance(self, team_id: str, stage_id: str) -> list[DriverPerformance]:
         """Fetch drivers performance for a team + stage (season stage in motorsport)."""
         url = self._format("stage-drivers-performance", team_id=team_id, stage_id=stage_id)
         data = self._fetch(url)
-        return [DriverPerformance(**it) for it in data.get("driverPerformance", [])]
+        return data.get("driverPerformance", [])
 
     # ---- TV Channels ---- #
 
@@ -423,13 +401,12 @@ class SofascoreProvider:
         """Fetch TV channels for a country."""
         url = self._format("country-channels", country_code=country_code)
         data = self._fetch(url)
-        return [Channel(**ch) for ch in data.get("channels", [])]
+        return data.get("channels", [])
 
     def get_channel_schedule(self, channel_id: str) -> ChannelScheduleResponse:
         """Fetch schedule for a TV channel."""
         url = self._format("channel-schedule", channel_id=channel_id)
-        data = self._fetch(url)
-        return ChannelScheduleResponse(**data)
+        return self._fetch(url)
 
     # ---- Search ---- #
 
@@ -472,7 +449,7 @@ class SofascoreProvider:
         url = self._format(endpoint_name)
         params = {"q": query, "page": page}
         data = self._fetch(url, params=params, fetch_delay=0)
-        return [SearchResult(**it) for it in data.get("results", [])]
+        return data.get("results", [])
 
     def _format(self, endpoint_name: str, **kwargs: Any) -> str:
         """Format an endpoint URL from the endpoint registry."""

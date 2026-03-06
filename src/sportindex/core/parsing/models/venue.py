@@ -3,13 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .base import BaseParsedModel
 if TYPE_CHECKING:
     from .team import ParsedTeam
     from sportindex.core.provider.models import City, Country, Coordinates, Stadium, Venue
 
 
 @dataclass
-class ParsedVenue:
+class ParsedVenue(BaseParsedModel):
     id: int
     slug: str
     name: str
@@ -21,7 +22,7 @@ class ParsedVenue:
     mainTeams: list[ParsedTeam]
 
     @classmethod
-    def from_raw(cls, raw: Venue) -> ParsedVenue:
+    def _parse(cls, raw: Venue) -> ParsedVenue:
         from .team import ParsedTeam
         return cls(
             id = raw.get("id"),

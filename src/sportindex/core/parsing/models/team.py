@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .manager import ParsedManager
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class ParsedTeam:
+class ParsedTeam(BaseParsedModel):
     id: int
     slug: str
     name: str
@@ -39,7 +40,7 @@ class ParsedTeam:
     playerTeamInfo: ParsedPlayerTeamInfo
 
     @classmethod
-    def from_raw(cls, raw: Team) -> ParsedTeam:
+    def _parse(cls, raw: Team) -> ParsedTeam:
         from .manager import ParsedManager
         from .tournament import ParsedTournament, ParsedUniqueTournament
         from .venue import ParsedVenue
@@ -67,7 +68,7 @@ class ParsedTeam:
         )
 
 @dataclass
-class ParsedPlayerTeamInfo:
+class ParsedPlayerTeamInfo(BaseParsedModel):
     id: int
     residence: str
     birthplace: str
@@ -83,7 +84,7 @@ class ParsedPlayerTeamInfo:
     birthDateTimestamp: datetime
 
     @classmethod
-    def from_raw(cls, raw: PlayerTeamInfo) -> ParsedPlayerTeamInfo:
+    def _parse(cls, raw: PlayerTeamInfo) -> ParsedPlayerTeamInfo:
         return cls(
             id=raw.get("id"),
             residence=raw.get("residence"),
