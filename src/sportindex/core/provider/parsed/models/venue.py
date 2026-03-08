@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING
 
 from .base import BaseParsedModel
 if TYPE_CHECKING:
+    from .main import ParsedCountry
     from .team import ParsedTeam
-    from sportindex.core.provider.models import City, Country, Coordinates, Stadium, Venue
+    from sportindex.core.provider.raw.models import City, Coordinates, Stadium, Venue
 
 
 @dataclass
@@ -17,12 +18,13 @@ class ParsedVenue(BaseParsedModel):
     capacity: int
     city: City
     stadium: Stadium
-    country: Country
+    country: ParsedCountry
     venueCoordinates: Coordinates
     mainTeams: list[ParsedTeam]
 
     @classmethod
     def _parse(cls, raw: Venue) -> ParsedVenue:
+        from .main import ParsedCountry
         from .team import ParsedTeam
         return cls(
             id = raw.get("id"),
@@ -31,7 +33,7 @@ class ParsedVenue(BaseParsedModel):
             capacity = raw.get("capacity"),
             city = raw.get("city"),
             stadium = raw.get("stadium"),
-            country = raw.get("country"),
+            country = ParsedCountry.from_raw(raw.get("country")),
             venueCoordinates = raw.get("venueCoordinates"),
             mainTeams = [ParsedTeam.from_raw(t) for t in raw.get("mainTeams", [])],
         )

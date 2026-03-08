@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from .team import ParsedTeam
     from .tournament import ParsedSeason, ParsedTournament
     from .venue import ParsedVenue
-    from sportindex.core.provider.models import (
+    from sportindex.core.provider.raw.models import (
         Round, Status, Event
     )
 

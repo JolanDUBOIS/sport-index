@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING
 from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
+    from .main import ParsedSport, ParsedCountry, ParsedCategory
     from .manager import ParsedManager
     from .tournament import ParsedTournament, ParsedUniqueTournament
     from .venue import ParsedVenue
-    from sportindex.core.provider.models import (
-        Sport, Category, Country,
+    from sportindex.core.provider.raw.models import (
         Team, Amount, PlayerTeamInfo
     )
 
@@ -25,9 +25,9 @@ class ParsedTeam(BaseParsedModel):
     fullName: str
     nameCode: str        # e.g. "PSG", "BAR"
     gender: str          # "M", "F"
-    sport: Sport
-    category: Category
-    country: Country
+    sport: ParsedSport
+    category: ParsedCategory
+    country: ParsedCountry
     national: bool
     disabled: bool
     ranking: int
@@ -41,6 +41,7 @@ class ParsedTeam(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: Team) -> ParsedTeam:
+        from .main import ParsedSport, ParsedCountry, ParsedCategory
         from .manager import ParsedManager
         from .tournament import ParsedTournament, ParsedUniqueTournament
         from .venue import ParsedVenue
@@ -52,9 +53,9 @@ class ParsedTeam(BaseParsedModel):
             fullName=raw.get("fullName"),
             nameCode=raw.get("nameCode"),
             gender=raw.get("gender"),
-            sport=raw.get("sport"),
-            category=raw.get("category"),
-            country=raw.get("country"),
+            sport=ParsedSport.from_raw(raw.get("sport")),
+            category=ParsedCategory.from_raw(raw.get("category")),
+            country=ParsedCountry.from_raw(raw.get("country")),
             national=raw.get("national"),
             disabled=raw.get("disabled"),
             ranking=raw.get("ranking"),

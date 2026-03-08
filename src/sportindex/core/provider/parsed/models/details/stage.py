@@ -9,7 +9,7 @@ from ..parsers import parse_timestamp
 if TYPE_CHECKING:
     from ..stage import ParsedStage
     from ..team import ParsedTeam
-    from sportindex.core.provider.models import (
+    from sportindex.core.provider.raw.models import (
         RaceResults, SeasonCareerHistory,
         TotalCareerHistory, DriverCareerHistory,
         DriverPerformance, Lap
@@ -105,7 +105,8 @@ class ParsedDriverCareerHistory(BaseParsedModel):
         )
 
 
-class ParsedDriverPerformance:
+@dataclass
+class ParsedDriverPerformance(BaseParsedModel):
     id: int
     name: str
     slug: str
@@ -114,7 +115,7 @@ class ParsedDriverPerformance:
     parentTeam: ParsedTeam
 
     @classmethod
-    def from_raw(cls, raw: DriverPerformance) -> ParsedDriverPerformance:
+    def _parse(cls, raw: DriverPerformance) -> ParsedDriverPerformance:
         from ..team import ParsedTeam
         return cls(
             id=raw.get("id"),

@@ -4,6 +4,7 @@ from .event import *
 from .leaderboard import *
 from .manager import *
 from .player import *
+from .primitives import *
 from .referee import *
 from .responses import *
 from .search import *

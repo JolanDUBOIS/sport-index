@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from ..manager import ParsedManager
     from ..player import ParsedPlayer
     from ..event import ParsedScore
-    from sportindex.core.provider.models import Incident
+    from sportindex.core.provider.raw.models import Incident
 
 
 # =====================================================================
@@ -233,7 +233,7 @@ _INCIDENT_TYPE_MAPPING: dict[str, type[ParsedIncident]] = {
     "period": ParsedPeriodIncident,
     "varDecision": ParsedVarDecisionIncident,
     "substitution": ParsedSubstitutionIncident,
-    "extraTime": ParsedExtraTimeIncident,
+    "injuryTime": ParsedExtraTimeIncident,
 }
 
 

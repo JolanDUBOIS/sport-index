@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from .base import BaseParsedModel
@@ -12,13 +11,19 @@ if TYPE_CHECKING:
     from .stage import ParsedStage
     from .team import ParsedTeam
     from .tournament import ParsedUniqueTournament, ParsedSeason
-    from sportindex.core.provider.models import (
+    from sportindex.core.provider.raw.models import (
         TeamResponse, UniqueTournamentSeasonsResponse,
         EventsResponse, RankingsResponse,
         ChannelScheduleResponse, LineupsResponse,
-        Channel
+        Channel, PeriodStatistics, MomentumPoint,
+        CountryChannelsResponse, EventStatisticsResponse,
+        MomentumGraphResponse
     )
 
+
+# =====================================================================
+# Team
+# =====================================================================
 
 @dataclass
 class ParsedTeamResponse(BaseParsedModel):
@@ -36,6 +41,10 @@ class ParsedTeamResponse(BaseParsedModel):
         )
 
 
+# =====================================================================
+# Tournament
+# =====================================================================
+
 @dataclass
 class ParsedUniqueTournamentSeasonsResponse(BaseParsedModel):
     uniqueTournament: ParsedUniqueTournament
@@ -49,6 +58,10 @@ class ParsedUniqueTournamentSeasonsResponse(BaseParsedModel):
             seasons=[ParsedSeason.from_raw(s) for s in raw.get("seasons", [])],
         )
 
+
+# =====================================================================
+# Event
+# =====================================================================
 
 @dataclass
 class ParsedEventsResponse(BaseParsedModel):
@@ -64,6 +77,10 @@ class ParsedEventsResponse(BaseParsedModel):
         )
 
 
+# =====================================================================
+# Leaderboard
+# =====================================================================
+
 @dataclass
 class ParsedRankingsResponse(BaseParsedModel):
     rankingType: ParsedRankingType
@@ -77,6 +94,10 @@ class ParsedRankingsResponse(BaseParsedModel):
             rankingRows=[ParsedRankingEntry.from_raw(r) for r in raw.get("rankingRows", [])],
         )
 
+
+# =====================================================================
+# Channel / TV
+# =====================================================================
 
 @dataclass
 class ParsedChannelScheduleResponse(BaseParsedModel):
@@ -96,6 +117,19 @@ class ParsedChannelScheduleResponse(BaseParsedModel):
 
 
 @dataclass
+class ParsedCountryChannelsResponse(BaseParsedModel):
+    channels: dict[str, list[int]]
+
+    @classmethod
+    def _parse(cls, raw: CountryChannelsResponse) -> ParsedCountryChannelsResponse:
+        return cls(channels=raw.get("channels", {}))
+
+
+# =====================================================================
+# Event Details
+# =====================================================================
+
+@dataclass
 class ParsedLineupsResponse(BaseParsedModel):
     home: ParsedLineup
     away: ParsedLineup
@@ -107,3 +141,24 @@ class ParsedLineupsResponse(BaseParsedModel):
             home=ParsedLineup.from_raw(raw.get("home")),
             away=ParsedLineup.from_raw(raw.get("away")),
         )
+
+
+@dataclass
+class ParsedEventStatisticsResponse(BaseParsedModel):
+    statistics: list[PeriodStatistics]
+
+    @classmethod
+    def _parse(cls, raw: EventStatisticsResponse) -> ParsedEventStatisticsResponse:
+        return cls(statistics=raw.get("statistics", []))
+
+
+@dataclass
+class ParsedMomentumGraphResponse(BaseParsedModel):
+    graphPoints: list[MomentumPoint]
+    periodTime: int
+    periodCount: int
+    overtimeLength: int
+
+    @classmethod
+    def _parse(cls, raw: MomentumGraphResponse) -> ParsedMomentumGraphResponse:
+        return cls(**raw.values())

@@ -8,13 +8,13 @@ from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .event import ParsedEvent
+    from .main import ParsedSport, ParsedCountry, ParsedCategory
     from .team import ParsedTeam
     from .tournament import ParsedTournament, ParsedUniqueTournament
-    from sportindex.core.provider.models import (
+    from sportindex.core.provider.raw.models import (
         TeamStandingsEntry, TeamStandings,
         RacingStandingsEntry, RankingEntry,
-        RankingType, Promotion, Sport,
-        Category, Country
+        RankingType, Promotion
     )
 
 
@@ -164,21 +164,22 @@ class ParsedRankingType(BaseParsedModel):
     slug: str
     name: str
     gender: str
-    sport: Sport
-    category: Category
+    sport: ParsedSport
+    category: ParsedCategory
     uniqueTournament: ParsedUniqueTournament
     lastUpdated: datetime
 
     @classmethod
     def _parse(cls, raw: RankingType) -> ParsedRankingType:
+        from .main import ParsedSport, ParsedCategory
         from .tournament import ParsedUniqueTournament
         return cls(
             id=raw.get("id"),
             slug=raw.get("slug"),
             name=raw.get("name"),
             gender=raw.get("gender"),
-            sport=raw.get("sport"),
-            category=raw.get("category"),
+            sport=ParsedSport.from_raw(raw.get("sport")),
+            category=ParsedCategory.from_raw(raw.get("category")),
             uniqueTournament=ParsedUniqueTournament.from_raw(raw.get("uniqueTournament")),
             lastUpdated=parse_timestamp(raw.get("lastUpdated"))
         )
@@ -190,7 +191,7 @@ class ParsedRankingEntry(BaseParsedModel):
     name: str
     position: int         # For MMA, position starts at 0 instead of 1
     points: float
-    country: Country
+    country: ParsedCountry
     bestPosition: int
     previousPosition: int
     previousPoints: float
@@ -201,14 +202,15 @@ class ParsedRankingEntry(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: RankingEntry) -> ParsedRankingEntry:
-        from .team import ParsedTeam
         from .event import ParsedEvent
+        from .main import ParsedCountry
+        from .team import ParsedTeam
         return cls(
             id=raw.get("id"),
             name=raw.get("name"),
             position=raw.get("position"),
             points=raw.get("points"),
-            country=raw.get("country"),
+            country=ParsedCountry.from_raw(raw.get("country")),
             bestPosition=raw.get("bestPosition"),
             previousPosition=raw.get("previousPosition"),
             previousPoints=raw.get("previousPoints"),

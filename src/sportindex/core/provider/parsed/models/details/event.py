@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from ..base import BaseParsedModel
 if TYPE_CHECKING:
     from ..player import ParsedPlayer
-    from sportindex.core.provider.models import Lineup
+    from sportindex.core.provider.raw.models import Lineup
 
 
 # =====================================================================
