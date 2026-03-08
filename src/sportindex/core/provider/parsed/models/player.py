@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
-    from .main import ParsedCountry
+    from .core import ParsedCountry
     from .team import ParsedTeam
     from sportindex.core.provider.raw.models import Player, Amount
 
@@ -40,7 +40,7 @@ class ParsedPlayer(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: Player) -> ParsedPlayer:
-        from .main import ParsedCountry
+        from .core import ParsedCountry
         from .team import ParsedTeam
         return cls(
             id=raw.get("id"),

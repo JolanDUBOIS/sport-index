@@ -4,7 +4,7 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .main import Country
+    from .core import Country
     from .primitives import Coordinates, City
     from .team import Team
 

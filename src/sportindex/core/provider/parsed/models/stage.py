@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
-    from .main import ParsedCountry, ParsedCategory
+    from .core import ParsedCountry, ParsedCategory
     from .team import ParsedTeam
     from sportindex.core.provider.raw.models import (
         StageParent, UniqueStage,
@@ -30,7 +30,7 @@ class ParsedUniqueStage(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: UniqueStage) -> ParsedUniqueStage:
-        from .main import ParsedCategory
+        from .core import ParsedCategory
         return cls(
             id=raw.get("id"),
             slug=raw.get("slug"),
@@ -67,7 +67,7 @@ class ParsedStage(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: Stage) -> ParsedStage:
-        from .main import ParsedCountry
+        from .core import ParsedCountry
         from .team import ParsedTeam
         return cls(
             id=raw.get("id"),

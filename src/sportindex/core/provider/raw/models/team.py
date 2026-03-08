@@ -4,7 +4,7 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .main import Category, Sport, Country
+    from .core import Category, Sport, Country
     from .manager import Manager
     from .primitives import Timestamp, Amount
     from .tournament import Tournament, UniqueTournament

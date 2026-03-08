@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
-    from .main import ParsedSport, ParsedCountry
+    from .core import ParsedSport, ParsedCountry
     from sportindex.core.provider.raw.models import Referee
 
 
@@ -26,7 +26,7 @@ class ParsedReferee(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: Referee) -> ParsedReferee:
-        from .main import ParsedSport, ParsedCountry
+        from .core import ParsedSport, ParsedCountry
         return cls(
             id=raw.get("id"),
             slug=raw.get("slug"),

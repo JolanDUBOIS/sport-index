@@ -4,7 +4,7 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .main import Category
+    from .core import Category
     from .primitives import Timestamp
     from .team import Team
 

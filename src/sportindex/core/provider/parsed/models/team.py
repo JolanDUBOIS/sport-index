@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
-    from .main import ParsedSport, ParsedCountry, ParsedCategory
+    from .core import ParsedSport, ParsedCountry, ParsedCategory
     from .manager import ParsedManager
     from .tournament import ParsedTournament, ParsedUniqueTournament
     from .venue import ParsedVenue
@@ -41,7 +41,7 @@ class ParsedTeam(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: Team) -> ParsedTeam:
-        from .main import ParsedSport, ParsedCountry, ParsedCategory
+        from .core import ParsedSport, ParsedCountry, ParsedCategory
         from .manager import ParsedManager
         from .tournament import ParsedTournament, ParsedUniqueTournament
         from .venue import ParsedVenue

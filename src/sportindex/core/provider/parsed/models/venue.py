@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from .base import BaseParsedModel
 if TYPE_CHECKING:
-    from .main import ParsedCountry
+    from .core import ParsedCountry
     from .team import ParsedTeam
     from sportindex.core.provider.raw.models import City, Coordinates, Stadium, Venue
 
@@ -24,7 +24,7 @@ class ParsedVenue(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: Venue) -> ParsedVenue:
-        from .main import ParsedCountry
+        from .core import ParsedCountry
         from .team import ParsedTeam
         return cls(
             id = raw.get("id"),

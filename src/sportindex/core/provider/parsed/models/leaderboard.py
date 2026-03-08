@@ -8,7 +8,7 @@ from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .event import ParsedEvent
-    from .main import ParsedSport, ParsedCountry, ParsedCategory
+    from .core import ParsedSport, ParsedCountry, ParsedCategory
     from .team import ParsedTeam
     from .tournament import ParsedTournament, ParsedUniqueTournament
     from sportindex.core.provider.raw.models import (
@@ -171,7 +171,7 @@ class ParsedRankingType(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: RankingType) -> ParsedRankingType:
-        from .main import ParsedSport, ParsedCategory
+        from .core import ParsedSport, ParsedCategory
         from .tournament import ParsedUniqueTournament
         return cls(
             id=raw.get("id"),
@@ -203,7 +203,7 @@ class ParsedRankingEntry(BaseParsedModel):
     @classmethod
     def _parse(cls, raw: RankingEntry) -> ParsedRankingEntry:
         from .event import ParsedEvent
-        from .main import ParsedCountry
+        from .core import ParsedCountry
         from .team import ParsedTeam
         return cls(
             id=raw.get("id"),
