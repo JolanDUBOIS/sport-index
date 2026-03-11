@@ -22,7 +22,7 @@ class ParsedReferee(BaseParsedModel):
     yellowCards: int
     redCards: int
     yellowRedCards: int
-    dateOfBirthTimestamp: datetime
+    dateOfBirth: datetime
 
     @classmethod
     def _parse(cls, raw: Referee) -> ParsedReferee:
@@ -37,5 +37,5 @@ class ParsedReferee(BaseParsedModel):
             yellowCards=raw.get("yellowCards"),
             redCards=raw.get("redCards"),
             yellowRedCards=raw.get("yellowRedCards"),
-            dateOfBirthTimestamp=parse_timestamp(raw.get("dateOfBirthTimestamp"))
+            dateOfBirth=parse_timestamp(raw.get("dateOfBirthTimestamp"))
         )

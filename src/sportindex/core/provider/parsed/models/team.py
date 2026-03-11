@@ -82,7 +82,7 @@ class ParsedPlayerTeamInfo(BaseParsedModel):
     prizeCurrentRaw: Amount
     prizeTotalRaw: Amount
     currentRanking: int
-    birthDateTimestamp: datetime
+    birthDate: datetime
 
     @classmethod
     def _parse(cls, raw: PlayerTeamInfo) -> ParsedPlayerTeamInfo:
@@ -99,5 +99,5 @@ class ParsedPlayerTeamInfo(BaseParsedModel):
             prizeCurrentRaw=raw.get("prizeCurrentRaw"),
             prizeTotalRaw=raw.get("prizeTotalRaw"),
             currentRanking=raw.get("currentRanking"),
-            birthDateTimestamp=parse_timestamp(raw.get("birthDateTimestamp")),
+            birthDate=parse_timestamp(raw.get("birthDateTimestamp")),
         )

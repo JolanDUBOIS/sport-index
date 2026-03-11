@@ -26,7 +26,7 @@ class ParsedEvent(BaseParsedModel):
     customId: str
     slug: str
     gender: str
-    startTimestamp: datetime
+    start: datetime
     roundInfo: Round
     season: ParsedSeason
     tournament: ParsedTournament
@@ -34,7 +34,7 @@ class ParsedEvent(BaseParsedModel):
     attendance: int
     status: Status
     previousLegEventId: int
-    winnerCode: int
+    winnerCode: int  # 1=home, 2=away, 3=draw 
 
     # Teams / participants
     home: EventTeam
@@ -54,7 +54,7 @@ class ParsedEvent(BaseParsedModel):
             customId=raw.get("customId"),
             slug=raw.get("slug"),
             gender=raw.get("gender"),
-            startTimestamp=parse_timestamp(raw.get("startTimestamp")),
+            start=parse_timestamp(raw.get("startTimestamp")),
             roundInfo=raw.get("roundInfo"),
             season=raw.get("season"),
             tournament=raw.get("tournament"),

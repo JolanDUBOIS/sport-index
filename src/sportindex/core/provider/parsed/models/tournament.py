@@ -9,7 +9,7 @@ from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .core import ParsedCategory
     from .team import ParsedTeam
-    from sportindex.core.provider.raw.models import Season, UniqueTournament
+    from sportindex.core.provider.raw.models import Season, UniqueTournament, Tournament
 
 
 @dataclass
@@ -18,7 +18,7 @@ class ParsedSeason(BaseParsedModel):
     name: str
     year: str              # e.g. "24/25" or "2025"
     description: str
-    startDateTimestamp: datetime
+    start: datetime
 
     @classmethod
     def _parse(cls, raw: Season) -> ParsedSeason:
@@ -27,7 +27,7 @@ class ParsedSeason(BaseParsedModel):
             name=raw.get("name"),
             year=raw.get("year"),
             description=raw.get("description"),
-            startDateTimestamp=parse_timestamp(raw.get("startDateTimestamp"))
+            start=parse_timestamp(raw.get("startDateTimestamp"))
         )
 
 
@@ -47,8 +47,8 @@ class ParsedUniqueTournament(BaseParsedModel):
     groundType: str         # e.g. "Red clay", "Grass", etc.
     numberOfSets: int
     tennisPoints: int
-    startDateTimestamp: datetime
-    endDateTimestamp: datetime
+    start: datetime
+    end: datetime
     upperDivisions: list[ParsedUniqueTournament]
     lowerDivisions: list[ParsedUniqueTournament]
     titleHolder: ParsedTeam
@@ -74,8 +74,8 @@ class ParsedUniqueTournament(BaseParsedModel):
             groundType=raw.get("groundType"),
             numberOfSets=raw.get("numberOfSets"),
             tennisPoints=raw.get("tennisPoints"),
-            startDateTimestamp=parse_timestamp(raw.get("startDateTimestamp")),
-            endDateTimestamp=parse_timestamp(raw.get("endDateTimestamp")),
+            start=parse_timestamp(raw.get("startDateTimestamp")),
+            end=parse_timestamp(raw.get("endDateTimestamp")),
             upperDivisions=[cls.from_raw(t) for t in raw.get("upperDivisions", [])],
             lowerDivisions=[cls.from_raw(t) for t in raw.get("lowerDivisions", [])],
             titleHolder=ParsedTeam.from_raw(raw.get("titleHolder")) if raw.get("titleHolder") else None,
@@ -89,15 +89,15 @@ class ParsedTournament(BaseParsedModel):
     id: int
     slug: str
     name: str
-    season: ParsedSeason
+    category: ParsedCategory
     uniqueTournament: ParsedUniqueTournament
 
     @classmethod
-    def _parse(cls, raw: UniqueTournament) -> ParsedTournament:
+    def _parse(cls, raw: Tournament) -> ParsedTournament:
         return cls(
             id=raw.get("id"),
             slug=raw.get("slug"),
             name=raw.get("name"),
-            season=ParsedSeason.from_raw(raw.get("season")),
+            category=ParsedCategory.from_raw(raw.get("category")),
             uniqueTournament=ParsedUniqueTournament.from_raw(raw.get("uniqueTournament")),
         )

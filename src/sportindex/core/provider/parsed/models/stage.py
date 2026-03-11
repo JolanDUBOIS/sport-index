@@ -44,7 +44,6 @@ class ParsedUniqueStage(BaseParsedModel):
 # Stage
 # =====================================================================
 
-
 @dataclass
 class ParsedStage(BaseParsedModel):
     id: int
@@ -54,13 +53,13 @@ class ParsedStage(BaseParsedModel):
     year: str
     seasonStageName: str
     uniqueStage: UniqueStage
-    type: StageType
+    type_: StageType
     status: Status
     flag: str
     country: ParsedCountry
     info: StageInfo
-    startDateTimestamp: datetime
-    endDateTimestamp: datetime
+    start: datetime
+    end: datetime
     stageParent: ParsedStageParent
     winner: ParsedTeam
     substages: list[ParsedStage]
@@ -77,13 +76,13 @@ class ParsedStage(BaseParsedModel):
             year=raw.get("year"),
             seasonStageName=raw.get("seasonStageName"),
             uniqueStage=raw.get("uniqueStage"),
-            type=raw.get("type"),
+            type_=raw.get("type"),
             status=raw.get("status"),
             flag=raw.get("flag"),
             country=ParsedCountry.from_raw(raw.get("country")),
             info=raw.get("info"),
-            startDateTimestamp=parse_timestamp(raw.get("startDateTimestamp")),
-            endDateTimestamp=parse_timestamp(raw.get("endDateTimestamp")),
+            start=parse_timestamp(raw.get("startDateTimestamp")),
+            end=parse_timestamp(raw.get("endDateTimestamp")),
             stageParent=ParsedStageParent.from_raw(raw.get("stageParent")),
             winner=ParsedTeam.from_raw(raw.get("winner")),
             substages=[cls.from_raw(s) for s in raw.get("substages", [])]
@@ -94,13 +93,12 @@ class ParsedStage(BaseParsedModel):
 # Primitives
 # =====================================================================
 
-
 @dataclass
 class ParsedStageParent(BaseParsedModel):
     id: int
     slug: str
     description: str
-    startDateTimestamp: datetime
+    start: datetime
 
     @classmethod
     def _parse(cls, raw: StageParent) -> ParsedStageParent:
@@ -108,5 +106,5 @@ class ParsedStageParent(BaseParsedModel):
             id=raw.get("id"),
             slug=raw.get("slug"),
             description=raw.get("description"),
-            startDateTimestamp=parse_timestamp(raw.get("startDateTimestamp"))
+            start=parse_timestamp(raw.get("startDateTimestamp"))
         )

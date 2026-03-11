@@ -25,6 +25,7 @@ class Player(TypedDict, total=False):
     retired: bool
     deceased: bool
     preferredFoot: str
+    preferredHand: str           # Never seen this field populated, but it might exist...
     salaryRaw: Amount
     proposedMarketValueRaw: Amount
     position: str                # e.g. "G", "D", "M", "F"

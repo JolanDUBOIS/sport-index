@@ -29,14 +29,15 @@ class ParsedPlayer(BaseParsedModel):
     retired: bool
     deceased: bool
     preferredFoot: str
+    preferredHand: str
     salaryRaw: Amount
     proposedMarketValueRaw: Amount
     position: str                # e.g. "G", "D", "M", "F"
     positionsDetailed: list[str] # e.g. ["RW", "ST"]
     primaryPosition: str
     team: ParsedTeam
-    dateOfBirthTimestamp: datetime
-    contractUntilTimestamp: datetime
+    dateOfBirth: datetime
+    contractUntil: datetime
 
     @classmethod
     def _parse(cls, raw: Player) -> ParsedPlayer:
@@ -58,12 +59,13 @@ class ParsedPlayer(BaseParsedModel):
             retired=raw.get("retired"),
             deceased=raw.get("deceased"),
             preferredFoot=raw.get("preferredFoot"),
+            preferredHand=raw.get("preferredHand"),
             salaryRaw=raw.get("salaryRaw"),
             proposedMarketValueRaw=raw.get("proposedMarketValueRaw"),
             position=raw.get("position"),
             positionsDetailed=raw.get("positionsDetailed"),
             primaryPosition=raw.get("primaryPosition"),
             team=ParsedTeam.from_raw(raw.get("team")),
-            dateOfBirthTimestamp=parse_timestamp(raw.get("dateOfBirthTimestamp")),
-            contractUntilTimestamp=parse_timestamp(raw.get("contractUntilTimestamp"))
+            dateOfBirth=parse_timestamp(raw.get("dateOfBirthTimestamp")),
+            contractUntil=parse_timestamp(raw.get("contractUntilTimestamp"))
         )
