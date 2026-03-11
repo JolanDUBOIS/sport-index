@@ -1,6 +1,6 @@
 .venv/
-poetry.lock
 __pycache__/
 *.pyc
 data/*
 notebooks/*
+.vscode/*
