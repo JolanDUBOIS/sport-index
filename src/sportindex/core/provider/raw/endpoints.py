@@ -86,6 +86,7 @@ ENDPOINTS = {
     "stage-drivers-performance": f"{BASE_API_URL}/stage/{{stage_id}}/driver-performance",
     "standings-competitors": f"{BASE_API_URL}/stage/{{stage_id}}/standings/competitor",
     "standings-teams": f"{BASE_API_URL}/stage/{{stage_id}}/standings/team",
+    "stage-channels": f"{BASE_API_URL}/tv/stage/{{stage_id}}/country-channels",
 
     # ------------------------------------------------------------------
     # TV Channels

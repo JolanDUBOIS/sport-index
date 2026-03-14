@@ -3,6 +3,7 @@ from __future__ import annotations
 from .models import (
     ParsedCategory,
     ParsedChannel,
+    ParsedChannelEventVotesResponse,
     ParsedChannelScheduleResponse,
     ParsedCountryChannelsResponse,
     ParsedDriverCareerHistory,
@@ -226,12 +227,12 @@ class ParsedSofascoreProvider:
         raw = self._provider.get_event(event_id=event_id)
         return ParsedEvent.from_raw(raw)
 
-    def get_lineups(self, event_id: str) -> ParsedLineupsResponse:
-        raw = self._provider.get_lineups(event_id=event_id)
+    def get_event_lineups(self, event_id: str) -> ParsedLineupsResponse:
+        raw = self._provider.get_event_lineups(event_id=event_id)
         return ParsedLineupsResponse.from_raw(raw)
 
-    def get_incidents(self, event_id: str) -> list[ParsedIncident]:
-        raw = self._provider.get_incidents(event_id=event_id)
+    def get_event_incidents(self, event_id: str) -> list[ParsedIncident]:
+        raw = self._provider.get_event_incidents(event_id=event_id)
         return [ParsedIncident.from_raw(item) for item in raw]
 
     def get_event_statistics(self, event_id: str) -> ParsedEventStatisticsResponse:
@@ -242,8 +243,8 @@ class ParsedSofascoreProvider:
         raw = self._provider.get_event_graph(event_id=event_id)
         return ParsedMomentumGraphResponse.from_raw(raw)
 
-    def get_channels(self, event_id: str) -> ParsedCountryChannelsResponse:
-        raw = self._provider.get_channels(event_id=event_id)
+    def get_event_channels(self, event_id: str) -> ParsedCountryChannelsResponse:
+        raw = self._provider.get_event_channels(event_id=event_id)
         return ParsedCountryChannelsResponse.from_raw(raw)
 
     def get_h2h_history(self, event_custom_id: str) -> ParsedEventsResponse:
@@ -290,6 +291,10 @@ class ParsedSofascoreProvider:
         raw = self._provider.get_stage_drivers_performance(team_id=team_id, stage_id=stage_id)
         return [ParsedDriverPerformance.from_raw(item) for item in raw]
 
+    def get_stage_channels(self, stage_id: str) -> ParsedCountryChannelsResponse:
+        raw = self._provider.get_stage_channels(stage_id=stage_id)
+        return ParsedCountryChannelsResponse.from_raw(raw)
+
     # ---- TV Channels ---- #
 
     def get_country_channels(self, country_code: str) -> list[ParsedChannel]:
@@ -299,6 +304,11 @@ class ParsedSofascoreProvider:
     def get_channel_schedule(self, channel_id: str) -> ParsedChannelScheduleResponse:
         raw = self._provider.get_channel_schedule(channel_id=channel_id)
         return ParsedChannelScheduleResponse.from_raw(raw)
+
+    def get_channel_event_votes(self, channel_id: str, event_id: str) -> ParsedChannelEventVotesResponse:
+        """Fetch votes for a channel on a specific event."""
+        raw = self._provider.get_channel_event_votes(channel_id=channel_id, event_id=event_id)
+        return ParsedChannelEventVotesResponse.from_raw(raw)
 
     # ---- Search ---- #
 

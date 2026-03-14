@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from .models import (
         Category,
         Channel,
+        ChannelEventVotesResponse,
         ChannelScheduleResponse,
         CountryChannelsResponse,
         DriverCareerHistory,
@@ -303,13 +304,13 @@ class SofascoreProvider:
         data = self._fetch(url)
         return data.get("event", {})
 
-    def get_lineups(self, event_id: str) -> LineupsResponse:
+    def get_event_lineups(self, event_id: str) -> LineupsResponse:
         """Fetch lineups for an event."""
         url = self._format("event-lineups", event_id=event_id)
         data = self._fetch(url)
         return data.get("lineups", {})
 
-    def get_incidents(self, event_id: str) -> list[Incident]:
+    def get_event_incidents(self, event_id: str) -> list[Incident]:
         """Fetch raw incidents for an event."""
         url = self._format("event-incidents", event_id=event_id)
         data = self._fetch(url)
@@ -325,7 +326,7 @@ class SofascoreProvider:
         url = self._format("event-graph", event_id=event_id)
         return self._fetch(url)
 
-    def get_channels(self, event_id: str) -> CountryChannelsResponse:
+    def get_event_channels(self, event_id: str) -> CountryChannelsResponse:
         """Fetch country → channel mappings for an event."""
         url = self._format("event-channels", event_id=event_id)
         return self._fetch(url)
@@ -395,6 +396,11 @@ class SofascoreProvider:
         data = self._fetch(url)
         return data.get("driverPerformance", [])
 
+    def get_stage_channels(self, stage_id: str) -> CountryChannelsResponse:
+        """Fetch country → channel mappings for a stage."""
+        url = self._format("stage-channels", stage_id=stage_id)
+        return self._fetch(url)
+
     # ---- TV Channels ---- #
 
     def get_country_channels(self, country_code: str) -> list[Channel]:
@@ -406,6 +412,11 @@ class SofascoreProvider:
     def get_channel_schedule(self, channel_id: str) -> ChannelScheduleResponse:
         """Fetch schedule for a TV channel."""
         url = self._format("channel-schedule", channel_id=channel_id)
+        return self._fetch(url)
+
+    def get_channel_event_votes(self, channel_id: str, event_id: str) -> ChannelEventVotesResponse:
+        """Fetch votes for a channel on a specific event."""
+        url = self._format("channel-event-votes", channel_id=channel_id, event_id=event_id)
         return self._fetch(url)
 
     # ---- Search ---- #
