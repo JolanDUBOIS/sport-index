@@ -1,196 +1,218 @@
-"""
-Competition domain entity.
-
-A Competition wraps either a UniqueTournament (most sports) or a
-UniqueStage (motorsport, cycling). It provides lazy access to
-details, seasons, and the parent category.
-"""
-
 from __future__ import annotations
 
-import logging
-from dataclasses import dataclass
-from typing import Optional, Literal, TYPE_CHECKING
+from functools import cached_property
+from dataclasses import replace
+from datetime import datetime, date
+from typing import TYPE_CHECKING, Optional
 
+from . import logger
 from .base import BaseEntity
+from .core import Category, Sport
+from sportindex.core.provider.parsed import (
+    ParsedUniqueTournament, ParsedUniqueStage,
+    ParsedSeason, ParsedStage
+)
 
 if TYPE_CHECKING:
-    from .participant import Competitor
-    from .season import Season
+    from .event import Event
+    from .leaderboard import Standings
+    from sportindex.core.provider.parsed import ParsedSofascoreProvider
 
-logger = logging.getLogger(__name__)
 
+class Competition(BaseEntity[ParsedUniqueTournament | ParsedUniqueStage]):
+    """A competition, e.g. 'Ligue 1', 'Rolland Garros', etc."""
+    REPR_FIELDS = ("id", "name", "slug", "sport", "category")
 
-class Competition(BaseEntity):
-    """A competition (league, cup, grand prix series, etc.).
+    def __init__(self, data: ParsedUniqueTournament | ParsedUniqueStage, provider: ParsedSofascoreProvider | None = None, **kwargs) -> None:
+        super().__init__(data, provider)
 
-    Constructed via `_from_raw_unique_tournament()` or `_from_raw_unique_stage()`.
-    """
+        if not isinstance(data, (ParsedUniqueTournament, ParsedUniqueStage)):
+            raise ValueError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
 
-    def __init__(
-        self,
-        *,
-        id: int,
-        slug: str,
-        name: str,
-    ) -> None:
-        super().__init__()
-        self.id = id
-        self.slug = slug
-        self.name = name
-
-        self._kind: Literal["tournament", "stage"] = "tournament"  # set by classmethods
-        self._category: Optional[Category] = None
-        self._details: Optional[CompetitionDetails] = None
-        self._seasons: Optional[list[Season]] = None
-
-    # -- Constructors -------------------------------------------------- #
-
-    @classmethod
-    def _from_raw_unique_tournament(cls, raw: dict) -> Competition:
-        """Build from a RawUniqueTournament dict."""
-        comp = cls(
-            id=raw.get("id", 0),
-            slug=raw.get("slug", ""),
-            name=raw.get("name", ""),
-        )
-        comp._kind = "tournament"
-        comp._raw = raw
-
-        # Eagerly extract category if present (it's almost always there)
-        if "category" in raw and raw["category"]:
-            from .core import Category
-            comp._category = Category._from_raw(raw["category"])
-
-        return comp
-
-    @classmethod
-    def _from_raw_unique_stage(cls, raw: dict) -> Competition:
-        """Build from a RawUniqueStage dict."""
-        comp = cls(
-            id=raw.get("id", 0),
-            slug=raw.get("slug", ""),
-            name=raw.get("name", ""),
-        )
-        comp._kind = "stage"
-        comp._raw = raw
-
-        if "category" in raw and raw["category"]:
-            from .core import Category
-            comp._category = Category._from_raw(raw["category"])
-
-        return comp
-
-    # -- Properties ---------------------------------------------------- #
+        self._full_loaded = False
 
     @property
-    def category(self) -> Optional[Category]:
-        """The category this competition belongs to (lazy-loaded if needed)."""
-        if self._category is None:
-            from .core import Category
-            raw_cat = self._raw.get("category")
-            if not raw_cat and self._kind == "tournament":
-                self._load_full()
-                raw_cat = self._raw.get("category")
-            if raw_cat:
-                self._category = Category._from_raw(raw_cat)
-        return self._category
+    def name(self) -> str:
+        """The name of the competition."""
+        return self._data.name
 
     @property
-    def details(self) -> Optional[CompetitionDetails]:
-        """Extended details — only available for tournaments, not stages."""
-        if self._details is not None:
-            return self._details
-        if self._kind != "tournament":
-            return None
-
-        self._load_full()
-
-        from .participant import Competitor
-
-        # Build related competitions/teams from raw data
-        upper = [
-            Competition._from_raw_unique_tournament(t)
-            for t in self._raw.get("upperDivisions", [])
-        ]
-        lower = [
-            Competition._from_raw_unique_tournament(t)
-            for t in self._raw.get("lowerDivisions", [])
-        ]
-        linked = [
-            Competition._from_raw_unique_tournament(c)
-            for c in self._raw.get("linkedUniqueTournaments", [])
-        ]
-
-        title_holder = None
-        if self._raw.get("titleHolder"):
-            title_holder = Competitor._from_raw_team(self._raw["titleHolder"])
-
-        most_titles = [
-            Competitor._from_raw_team(t)
-            for t in self._raw.get("mostTitlesTeams", [])
-        ]
-
-        self._details = CompetitionDetails(
-            gender=self._raw.get("gender"),
-            tier=self._raw.get("tier"),
-            founded=self._raw.get("yearOfFoundation"),
-            upper_divisions=tuple(upper),
-            lower_divisions=tuple(lower),
-            title_holder=title_holder,
-            most_titles_teams=tuple(most_titles),
-            linked_competitions=tuple(linked),
-        )
-        return self._details
+    def slug(self) -> str:
+        """The slug of the competition."""
+        return self._data.slug
 
     @property
+    def sport(self) -> Sport:
+        """The sport this competition belongs to."""
+        return self.category.sport
+
+    @cached_property
+    def category(self) -> Category:
+        """The category this competition belongs to."""
+        return Category(self._data.category, self._provider)
+
+    @cached_property
     def seasons(self) -> list[Season]:
-        """Fetch all seasons for this competition (lazy)."""
-        if self._seasons is not None:
-            return self._seasons
-
-        from .season import Season
-
-        if self._kind == "tournament":
-            logger.debug("Fetching seasons for tournament '%s' (id=%s)", self.name, self.id)
-            raw_seasons = self._provider.get_unique_tournament_seasons(str(self.id))
-            self._seasons = [
-                Season._from_raw_season_tournament(s, competition=self)
-                for s in raw_seasons
+        """Fetch all seasons for this competition."""
+        if isinstance(self._data, ParsedUniqueTournament):
+            return [
+                Season(s, self._provider, competition=self)
+                for s in self._provider.get_unique_tournament_seasons(self.id)
+            ]
+        elif isinstance(self._data, ParsedUniqueStage):
+            return [
+                Season(s, self._provider, competition=self)
+                for s in self._provider.get_unique_stage_seasons(self.id)
             ]
         else:
-            logger.debug("Fetching seasons for stage '%s' (id=%s)", self.name, self.id)
-            raw_stages = self._provider.get_unique_stage_seasons(str(self.id))
-            self._seasons = [
-                Season._from_raw_season_stage(s, competition=self)
-                for s in raw_stages
-            ]
-        return self._seasons
+            raise ValueError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
 
-    # -- Internal ------------------------------------------------------ #
-
-    def _load_full(self) -> None:
+    def _full_load(self) -> None:
+        """TODO"""
         if self._full_loaded:
             return
-        if self._kind == "tournament":
-            logger.debug("Loading full data for tournament '%s' (id=%s)", self.name, self.id)
-            self._raw.update(self._provider.get_unique_tournament(str(self.id)))
-        # UniqueStage has no dedicated detail endpoint — _raw stays as-is
-        self._full_loaded = True
+        try:
+            if isinstance(self._data, ParsedUniqueTournament):
+                self._data = replace(self._data, **vars(self._provider.get_unique_tournament(self.id)))
+            elif isinstance(self._data, ParsedUniqueStage):
+                logger.debug(f"No endpoint available to fully load unique stage yet, skipping full load...")
+            assert isinstance(self._data, (ParsedUniqueTournament, ParsedUniqueStage))
+            self._full_loaded = True
+            self._clear_cache()
+        except Exception as e:
+            logger.debug(f"Failed to fully load competition with id {self.id}: {e}")
+
+    def _clear_cache(self) -> None:
+        """Clear cached properties."""
+        self.__dict__.pop("category", None)
+        self.__dict__.pop("seasons", None)
 
 
-# -- Avoid circular import for type used in this file ------------------ #
-from .core import Category  # noqa: E402
+class Season(BaseEntity[ParsedSeason | ParsedStage]):
+    """A season of a competition, e.g. '2023/24', '2024', etc."""
+    REPR_FIELDS = ("id", "name", "year", "start", "sport")
 
+    def __init__(self, data: ParsedSeason | ParsedStage, provider: ParsedSofascoreProvider | None = None, **kwargs) -> None:
+        super().__init__(data, provider, **kwargs)
 
-@dataclass(frozen=True)
-class CompetitionDetails:
-    """Extended information about a tournament-type competition."""
-    gender: Optional[Literal["M", "F", "X"]]
-    tier: Optional[str]
-    founded: Optional[int]
-    upper_divisions: tuple[Competition, ...]
-    lower_divisions: tuple[Competition, ...]
-    title_holder: Optional[Competitor]
-    most_titles_teams: tuple[Competitor, ...]
-    linked_competitions: tuple[Competition, ...]
+        if not isinstance(data, (ParsedSeason, ParsedStage)):
+            raise ValueError("Season data must be either ParsedSeason or ParsedStage")
+
+        if isinstance(data, ParsedStage) and data.type_.name != "Season":
+            logger.warning(
+                f"ParsedStage with id {data.id} has type '{data.type_.name}' "
+                "instead of 'Season', but is being used to create a Season entity. "
+                "This could lead to incorrect data being assigned to the Season entity. "
+                "Please check the data and consider using a different entity type if appropriate."
+            )
+
+    @property
+    def name(self) -> str:
+        """The name of the season."""
+        return self._data.name
+
+    @property
+    def year(self) -> str:
+        """The year of the season."""
+        return self._data.year
+
+    @property
+    def start(self) -> Optional[datetime]:
+        """The start date of the season, if available."""
+        return self._data.start
+
+    @property
+    def sport(self) -> Sport:
+        """The sport this season belongs to."""
+        return self.competition.sport
+
+    @cached_property
+    def competition(self) -> Competition:
+        """The competition this season belongs to."""
+        if "competition" in self._kwargs and isinstance(self._kwargs["competition"], Competition):
+            return self._kwargs["competition"]
+        else:
+            from sportindex.core.provider.parsed import ParsedSeason, ParsedStage
+            if isinstance(self._data, ParsedSeason):
+                # ParsedSeason doesn't contain any competition info, so it must be passed in via kwargs (either with competition key or uniqueTournament key)
+                if "uniqueTournament" not in self._kwargs:
+                    raise ValueError("ParsedSeason requires 'competition' or 'uniqueTournament' to be passed in via kwargs")
+                return Competition(self._kwargs["uniqueTournament"], self._provider)
+            elif isinstance(self._data, ParsedStage):
+                return Competition(self._data.uniqueStage, self._provider)
+            else:
+                raise ValueError("Season data must be either ParsedSeason or ParsedStage")
+
+    @property
+    def standings(self) -> list[Standings]:
+        """Fetch all standings for this season (only available for current seasons)."""
+        from .leaderboard import Standings
+        if isinstance(self._data, ParsedSeason):
+            standings = self._provider.get_unique_tournament_standings(self.competition.id, self.id, view="total")
+            try:
+                standings.extend(self._provider.get_unique_tournament_standings(self.competition.id, self.id, view="home"))
+            except Exception as e:
+                logger.debug(f"Failed to fetch home standings for season {self.id}: {e}")
+            try:
+                standings.extend(self._provider.get_unique_tournament_standings(self.competition.id, self.id, view="away"))
+            except Exception as e:
+                logger.debug(f"Failed to fetch away standings for season {self.id}: {e}")
+            return [Standings(s, self._provider) for s in standings]
+        elif isinstance(self._data, ParsedStage):
+            competitors_standings = self._provider.get_stage_standings_competitors(self.id)
+            teams_standings = self._provider.get_stage_standings_teams(self.id)
+            return [
+                Standings(competitors_standings, self._provider, name=f"Competitors {self.name}", kind="competitors"),
+                Standings(teams_standings, self._provider, name=f"Teams {self.name}", kind="teams")
+            ]
+
+    def get_fixtures(self) -> list[Event]:
+        """Fetch all fixtures for this season."""
+        from .event import Event
+        if isinstance(self._data, ParsedSeason):
+            parsed_events = []
+            for page in range(10):
+                events_response = self._provider.get_unique_tournament_fixtures(self.competition.id, self.id, page=page)
+                parsed_events.extend(events_response.events)
+                if not events_response.hasNextPage:
+                    break
+            return [Event(e, self._provider) for e in parsed_events]
+
+        elif isinstance(self._data, ParsedStage):
+            substages = self._provider.get_stage_substages(self.id)
+            future_substages = [s for s in substages if s.start >= datetime.now()]
+            return [Event(s, self._provider) for s in future_substages]
+
+    def get_results(self) -> list[Event]:
+        """Fetch all results for this season."""
+        from .event import Event
+        if isinstance(self._data, ParsedSeason):
+            parsed_events = []
+            for page in range(10):
+                events_response = self._provider.get_unique_tournament_results(self.competition.id, self.id, page=page)
+                parsed_events.extend(events_response.events)
+                if not events_response.hasNextPage:
+                    break
+            return [Event(e, self._provider) for e in parsed_events]
+        elif isinstance(self._data, ParsedStage):
+            substages = self._provider.get_stage_substages(self.id)
+            past_substages = [s for s in substages if s.end < datetime.now()]
+            return [Event(s, self._provider) for s in past_substages]
+
+    def get_events(self, *, max_events: Optional[int] = None, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> list[Event]:
+        """Fetch events for this season, optionally filtered by date range and/or max number of events."""
+        events = self.get_results() + self.get_fixtures()
+        if before is not None:
+            events = [e for e in events if e.start < before]
+            if max_events is not None:
+                events = events[-max_events:]
+        if after is not None:
+            events = [e for e in events if e.start > after]
+            if max_events is not None:
+                events = events[:max_events]
+        events.sort(key=lambda e: e.start)
+        return events
+
+    def _clear_cache(self) -> None:
+        """Clear cached properties."""
+        self.__dict__.pop("competition", None)

@@ -10,8 +10,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from sportindex.core.provider.parsed import ParsedSofascoreProvider
 if TYPE_CHECKING:
     from .core import Sport
+
 
 # (id, slug, name) — raw tuples, no Sport instantiation at import time.
 _SPORTS_DATA: tuple[tuple[int, str, str], ...] = (
@@ -41,20 +43,20 @@ _SPORTS_DATA: tuple[tuple[int, str, str], ...] = (
 
 _sports_cache: list[Sport] | None = None
 
-
 def get_sports() -> list[Sport]:
     """Return the list of known sports, building Sport objects on first call."""
     global _sports_cache
+    provider = ParsedSofascoreProvider()
     if _sports_cache is None:
         from .core import Sport
         _sports_cache = [
-            Sport(id=sid, slug=slug, name=name)
-            for sid, slug, name in _SPORTS_DATA
+            Sport._from_tuple(data, provider)
+            for data in _SPORTS_DATA
         ]
     return _sports_cache
 
 # Mapping: sport slug → list of (ranking_id, gender | None).
-# gender is None when the ranking is not gender-specific.
+# gender is "X" when the ranking is not gender-specific.
 SPORT_RANKINGS: dict[str, list[tuple[int, str | None]]] = {
     "football": [
         (1, "M"),          # UEFA Countries

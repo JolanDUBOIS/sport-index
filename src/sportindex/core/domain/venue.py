@@ -1,207 +1,128 @@
-"""
-Venue domain entity.
-
-Represents a physical location (stadium, arena, circuit) where events
-take place.
-"""
-
 from __future__ import annotations
 
-import logging
-from datetime import date, datetime
-from typing import Optional, TYPE_CHECKING
+from functools import cached_property
+from dataclasses import replace
+from datetime import datetime, date
+from typing import TYPE_CHECKING, Optional
 
-from .base import BaseEntity, _normalize_dt
-from .values import Coordinates, _coordinates_from_raw
+from . import logger
+from .base import BaseEntity
+from sportindex.core.provider.parsed import ParsedVenue, ParsedStage
 
 if TYPE_CHECKING:
     from .core import Country
     from .event import Event
-    from .participant import Competitor
+    from .competitor import Competitor
+    from sportindex.core.provider.parsed import ParsedSofascoreProvider
 
-logger = logging.getLogger(__name__)
 
+class Venue(BaseEntity[ParsedVenue]):
+    """A venue, e.g. a stadium, a tennis court, a race track, etc."""
+    REPR_FIELDS = ("id", "name")
 
-class Venue(BaseEntity):
-    """A physical venue (stadium, arena, circuit)."""
+    def __init__(self, data: ParsedVenue | ParsedStage, provider: ParsedSofascoreProvider | None = None, **kwargs) -> None:
+        super().__init__(data, provider, **kwargs)
 
-    def __init__(
-        self,
-        *,
-        id: int,
-        name: str,
-        slug: str = "",
-        city: Optional[str] = None,
-        country: Optional[Country] = None,
-        coordinates: Optional[Coordinates] = None,
-        capacity: Optional[int] = None,
-    ) -> None:
-        super().__init__()
-        self.id = id
-        self.name = name
-        self.slug = slug
-        self.city = city
-        self.country = country
-        self.coordinates = coordinates
-        self.capacity = capacity
-
-        self._teams: Optional[list[Competitor]] = None
-
-    # -- Constructor --------------------------------------------------- #
-
-    @classmethod
-    def _from_raw(cls, raw: dict | None) -> Optional[Venue]:
-        """Build from a RawVenue dict. Returns None if raw is empty."""
-        if not raw or "id" not in raw:
-            return None
-
-        from .core import Country
-
-        # Capacity can be on the venue directly, or nested under stadium
-        capacity = raw.get("capacity")
-        if capacity is None:
-            stadium = raw.get("stadium")
-            if isinstance(stadium, dict):
-                capacity = stadium.get("capacity")
-
-        return cls(
-            id=raw["id"],
-            name=raw.get("name", ""),
-            slug=raw.get("slug", ""),
-            city=raw.get("city"),
-            country=Country._from_raw(raw.get("country")),
-            coordinates=_coordinates_from_raw(raw.get("coordinates")),
-            capacity=capacity,
-        )
-
-    # -- Lazy properties ----------------------------------------------- #
+        if not isinstance(data, (ParsedVenue, ParsedStage)):
+            raise ValueError("Venue data must be either ParsedVenue or ParsedStage")
 
     @property
+    def name(self) -> str:
+        """The name of the venue."""
+        if isinstance(self._data, ParsedVenue):
+            return self._data.name or (self._data.stadium.name if self._data.stadium else "")
+        elif isinstance(self._data, ParsedStage):
+            return self._data.info.circuit if self._data.info else ""
+
+    @property
+    def city(self) -> Optional[str]:
+        """The city where the venue is located."""
+        self._full_load()
+        if isinstance(self._data, ParsedVenue):
+            return self._data.city
+        elif isinstance(self._data, ParsedStage):
+            return self._data.info.circuitCity if self._data.info else None
+
+    @property
+    def capacity(self) -> Optional[int]:
+        """The capacity of the venue, if available."""
+        if isinstance(self._data, ParsedVenue):
+            self._full_load()
+            return self._data.capacity or (self._data.stadium.capacity if self._data.stadium else None)
+        elif isinstance(self._data, ParsedStage):
+            return None
+
+    @cached_property
+    def country(self) -> Optional[Country]:
+        """The country where the venue is located, if available."""
+        self._full_load()
+        if isinstance(self._data, ParsedVenue):
+            return Country(self._data.country, self._provider)
+        elif isinstance(self._data, ParsedStage):
+            return Country.from_name(self._data.info.circuitCountry) if self._data.info and self._data.info.circuitCountry else None
+
+    @cached_property
     def teams(self) -> list[Competitor]:
-        """Teams that play at this venue (lazy)."""
-        if self._teams is not None:
-            return self._teams
+        self._full_load()
+        from .competitor import Competitor
+        if isinstance(self._data, ParsedVenue):
+            return [
+                Competitor(t, self._provider)
+                for t in self._data.mainTeams
+            ]
+        elif isinstance(self._data, ParsedStage):
+            logger.warning("Teams for stages are not available in the current provider implementation, returning empty list")
+            return []
 
-        from .participant import Competitor
+    def get_fixtures(self) -> list[Event]:
+        """Fetch all fixtures for this venue."""
+        from .event import Event
+        parsed_events = []
+        for page in range(10):
+            events_response = self._provider.get_venue_fixtures(self.id, page=page)
+            parsed_events.extend(events_response.events)
+            if not events_response.hasNextPage:
+                break
+        return [Event(e, self._provider) for e in parsed_events]
 
-        self._load_full()
-        raw_teams = self._raw.get("mainTeams", [])
-        self._teams = [
-            Competitor._from_raw_team(t)
-            for t in raw_teams
-        ]
-        return self._teams
+    def get_results(self) -> list[Event]:
+        """Fetch all results for this venue."""
+        from .event import Event
+        parsed_events = []
+        for page in range(10):
+            events_response = self._provider.get_venue_results(self.id, page=page)
+            parsed_events.extend(events_response.events)
+            if not events_response.hasNextPage:
+                break
+        return [Event(e, self._provider) for e in parsed_events]
 
-    # -- Event fetching ------------------------------------------------ #
+    def get_events(self, *, max_events: Optional[int] = None, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> list[Event]:
+        """Fetch events for this venue, optionally filtered by date range and/or max number of events."""
+        events = self.get_results() + self.get_fixtures()
+        if before is not None:
+            events = [e for e in events if e.start < before]
+            if max_events is not None:
+                events = events[-max_events:]
+        if after is not None:
+            events = [e for e in events if e.start > after]
+            if max_events is not None:
+                events = events[:max_events]
+        events.sort(key=lambda e: e.start)
+        return events
 
-    def events(
-        self,
-        *,
-        max_events: int | None = None,
-        before: date | datetime | None = None,
-        after: date | datetime | None = None,
-    ) -> list[Event]:
-        """Fetch all events at this venue (merges results + fixtures).
-
-        Args:
-            max_events: Stop after collecting this many events.
-            before: Only events starting strictly before this date/datetime.
-            after:  Only events starting strictly after this date/datetime.
-        """
-        before_dt = _normalize_dt(before)
-        after_dt = _normalize_dt(after)
-        vid = str(self.id)
-
-        logger.debug("Fetching all events for venue '%s' (id=%s)", self.name, self.id)
-        past = self._fetch_event_pages(
-            lambda p: self._provider.get_venue_results(vid, page=p),
-            before=before_dt,
-            after=after_dt,
-            ascending=False,
-            first_page=1,
-        )
-        future = self._fetch_event_pages(
-            lambda p: self._provider.get_venue_fixtures(vid, page=p),
-            before=before_dt,
-            after=after_dt,
-            ascending=True,
-            first_page=1,
-        )
-        all_events = past + future
-        all_events.sort(key=lambda e: e.start or datetime.min)
-        if max_events is not None:
-            all_events = all_events[:max_events]
-        return all_events
-
-    def fixtures(
-        self,
-        *,
-        max_events: int | None = None,
-        before: date | datetime | None = None,
-        after: date | datetime | None = None,
-    ) -> list[Event]:
-        """Fetch upcoming fixtures at this venue.
-
-        Defaults to events starting after *now*.
-
-        Args:
-            max_events: Stop after collecting this many events.
-            before: Only events starting strictly before this date/datetime.
-            after:  Only events starting strictly after this date/datetime.
-                    Defaults to now.
-        """
-        if after is None:
-            after = datetime.now()
-        vid = str(self.id)
-
-        logger.debug("Fetching fixtures for venue '%s' (id=%s)", self.name, self.id)
-        return self._fetch_event_pages(
-            lambda p: self._provider.get_venue_fixtures(vid, page=p),
-            max_events=max_events,
-            before=_normalize_dt(before),
-            after=_normalize_dt(after),
-            ascending=True,
-            first_page=1,
-        )
-
-    def results(
-        self,
-        *,
-        max_events: int | None = None,
-        before: date | datetime | None = None,
-        after: date | datetime | None = None,
-    ) -> list[Event]:
-        """Fetch results at this venue.
-
-        Defaults to events starting before *now*.
-
-        Args:
-            max_events: Stop after collecting this many events.
-            before: Only events starting strictly before this date/datetime.
-                    Defaults to now.
-            after:  Only events starting strictly after this date/datetime.
-        """
-        if before is None:
-            before = datetime.now()
-        vid = str(self.id)
-
-        logger.debug("Fetching results for venue '%s' (id=%s)", self.name, self.id)
-        return self._fetch_event_pages(
-            lambda p: self._provider.get_venue_results(vid, page=p),
-            max_events=max_events,
-            before=_normalize_dt(before),
-            after=_normalize_dt(after),
-            ascending=False,
-            first_page=1,
-        )
-
-    # -- Internal ------------------------------------------------------ #
-
-    def _load_full(self) -> None:
+    def _full_load(self) -> None:
+        """TODO"""
         if self._full_loaded:
             return
-        logger.debug("Loading full data for venue '%s' (id=%s)", self.name, self.id)
-        self._raw.update(self._provider.get_venue(str(self.id)))
-        self._full_loaded = True
+        try:
+            self._data = replace(self._data, **vars(self._provider.get_venue(self.id)))
+            assert isinstance(self._data, ParsedVenue)
+            self._full_loaded = True
+            self._clear_cache()
+        except Exception:
+            logger.exception(f"Failed to fully load venue with id {self.id}.")
 
-
+    def _clear_cache(self) -> None:
+        """Clear cached properties."""
+        self.__dict__.pop("country", None)
+        self.__dict__.pop("teams", None)

@@ -1,209 +1,205 @@
-"""
-Foundational domain entities: Sport, Country, Category.
-
-These are lightweight — they carry identifying info and provide
-navigation to related entities (categories, competitions).
-"""
-
 from __future__ import annotations
 
-import logging
-from typing import Optional, Literal, TYPE_CHECKING
+from enum import Enum
+from functools import cached_property
+from typing import TYPE_CHECKING, Optional
 
+import pycountry
+
+from . import logger
 from .base import BaseEntity
+from .static import SPORT_RANKINGS
+from sportindex.core.provider.raw import NotFoundError
+from sportindex.core.provider.parsed import (
+    ParsedSport,
+    ParsedCountry,
+    ParsedCategory
+)
 
 if TYPE_CHECKING:
-    from .competition import Competition
     from .leaderboard import Rankings
+    from .competition import Competition
+    from sportindex.core.provider.parsed import ParsedSofascoreProvider
 
-logger = logging.getLogger(__name__)
 
+class Sport(BaseEntity[ParsedSport]):
+    """A sport, e.g. football, tennis, motorsport, etc."""
+    REPR_FIELDS = ("id", "name", "slug")
 
-# =====================================================================
-# Sport
-# =====================================================================
+    def __init__(self, data: ParsedSport, provider: ParsedSofascoreProvider | None = None, **kwargs) -> None:
+        super().__init__(data, provider, **kwargs)
 
-class Sport(BaseEntity):
-    """A sport (football, tennis, basketball, etc.)."""
-
-    def __init__(
-        self,
-        *,
-        id: int,
-        slug: str,
-        name: str
-    ) -> None:
-        super().__init__()
-        self.id = id
-        self.slug = slug
-        self.name = name
-        self._categories: Optional[list[Category]] = None
-        self._rankings: Optional[list[Rankings]] = None
-
-    @classmethod
-    def _from_raw(cls, raw: dict) -> Sport:
-        """Build a Sport from a RawSport dict."""
-        sport = cls(
-            id=raw.get("id"),
-            slug=raw.get("slug", ""),
-            name=raw.get("name", ""),
-        )
-        sport._raw = raw
-        return sport
+        if not isinstance(data, ParsedSport):
+            raise ValueError("Sport data must be of type ParsedSport")
 
     @property
+    def name(self) -> str:
+        """The name of the sport."""
+        return self._data.name
+
+    @property
+    def slug(self) -> str:
+        """The slug of the sport (used in URLs)."""
+        return self._data.slug or self._data.name.lower().replace(" ", "-")
+
+    @cached_property
     def categories(self) -> list[Category]:
-        """Fetch all categories for this sport (lazy)."""
-        if self._categories is None:
-            logger.debug("Fetching categories for sport '%s'", self.slug)
-            raw_categories = self._provider.get_categories(self.slug)
-            self._categories = [
-                Category._from_raw(c)
-                for c in raw_categories
-            ]
-        return self._categories
+        """Fetch all categories for this sport."""
+        return [
+            Category(c, self._provider)
+            for c in self._provider.get_categories(self.slug)
+        ]
 
-    def rankings(self, *, gender: Literal["M", "F", "X"] | None = None) -> list[Rankings]:
-        """Fetch rankings for this sport (lazy, cached).
-
-        Args:
-            gender: Filter by ``"M"`` (male), ``"F"`` (female), or ``"X"`` (mixed).
-                    ``None`` returns all rankings for the sport.
-
-        Rankings are fetched once and cached.  When *gender* is given,
-        only the matching subset is returned (but the full set is still
-        cached for future calls without filter).
-        """
-        if self._rankings is None:
-            from .leaderboard import Rankings
-            from .static import SPORT_RANKINGS
-
-            entries = SPORT_RANKINGS.get(self.slug, [])
-            results: list[Rankings] = []
-            for ranking_id, _ in entries:
-                logger.debug("Fetching ranking %d for sport '%s'", ranking_id, self.slug)
-                raw = self._provider.get_ranking(str(ranking_id))
-                results.append(Rankings._from_raw(raw))
-            self._rankings = results
-
-        if gender is None:
-            return self._rankings
-        return [r for r in self._rankings if r.gender == gender]
-
-
-# ==============================================================
-# Country
-# =====================================================================
-
-class Country(BaseEntity):
-    """A country — used as a geographic anchor for categories, players, etc."""
-
-    def __init__(
-        self,
-        *,
-        name: str,
-        slug: str = "",
-        alpha2: Optional[str] = None,
-        alpha3: Optional[str] = None,
-    ) -> None:
-        super().__init__()
-        self.name = name
-        self.slug = slug
-        self.alpha2 = alpha2
-        self.alpha3 = alpha3
+    def get_rankings(self, gender: Optional[str] = None) -> list[Rankings]:
+        """Fetch all rankings for this sport."""
+        rankings = []
+        for ranking_id, ranking_gender in SPORT_RANKINGS.get(self.slug, []):
+            if gender is None or ranking_gender == gender:
+                rankings.append(Rankings(
+                    self._provider.get_ranking(ranking_id),
+                    provider=self._provider,
+                    gender=gender,
+                ))
+        return rankings
 
     @classmethod
-    def _from_raw(cls, raw: dict | None) -> Optional[Country]:
-        """Build a Country from a RawCountry dict. Returns None if raw is empty."""
-        if not raw or "name" not in raw:
-            return None
-        country = cls(
-            name=raw["name"],
-            slug=raw.get("slug", ""),
-            alpha2=raw.get("alpha2"),
-            alpha3=raw.get("alpha3"),
+    def _from_tuple(cls, data: tuple[int, str, str], provider: ParsedSofascoreProvider | None = None) -> Sport:
+        """Create a Sport instance from a raw tuple (id, slug, name). This is used to build the initial list of sports without needing to fetch categories or rankings."""
+        sid, slug, name = data
+        return cls(ParsedSport(id=sid, slug=slug, name=name), provider)
+
+    # Events ? 
+
+
+class Country(BaseEntity[ParsedCountry]):
+    """ A country, e.g. France, England, Spain, etc."""
+    REPR_FIELDS = ("id", "name", "slug", "alpha2", "alpha3")
+
+    def __init__(self, data: ParsedCountry, provider: ParsedSofascoreProvider | None = None, **kwargs) -> None:
+        super().__init__(data, provider, **kwargs)
+
+        if not isinstance(data, ParsedCountry):
+            raise ValueError("Country data must be of type ParsedCountry")
+
+        self._country = next(
+            (c for c in pycountry.countries if c.name.lower() == self.name.lower()), None
         )
-        country._raw = raw
-        return country
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Country):
-            return NotImplemented
-        if self.alpha2 and other.alpha2:
-            return self.alpha2 == other.alpha2
-        return self.name == other.name
+    @property
+    def name(self) -> str:
+        """The name of the country."""
+        return self._data.name.title() or self._data.slug.replace("-", " ").title()
 
-    def __hash__(self) -> int:
-        if self.alpha2:
-            return hash((type(self), self.alpha2))
-        return hash((type(self), self.name))
+    @property
+    def slug(self) -> str:
+        """The slug of the country (used in URLs)."""
+        return self._data.slug
 
+    @property
+    def alpha2(self) -> Optional[str]:
+        """The alpha-2 code of the country (e.g. 'FR' for France)."""
+        return self._data.alpha2 or (self._country.alpha_2 if self._country else None)
 
-# =====================================================================
-# Category
-# =====================================================================
-
-class Category(BaseEntity):
-    """A category within a sport (e.g. 'England', 'France', 'International').
-
-    Categories group competitions (unique tournaments / unique stages).
-    """
-
-    def __init__(
-        self,
-        *,
-        id: int,
-        name: str,
-        slug: str,
-        sport: Optional[Sport] = None,
-        country: Optional[Country] = None,
-    ) -> None:
-        super().__init__()
-        self.id = id
-        self.name = name
-        self.slug = slug
-        self._sport = sport
-        self._country = country
-        self._competitions: Optional[list[Competition]] = None
+    @property
+    def alpha3(self) -> Optional[str]:
+        """The alpha-3 code of the country (e.g. 'FRA' for France)."""
+        return self._data.alpha3 or (self._country.alpha_3 if self._country else None)
 
     @classmethod
-    def _from_raw(cls, raw: dict) -> Category:
-        """Build a Category from a RawCategory dict."""
-        sport = (
-            Sport._from_raw(raw["sport"])
-            if "sport" in raw and raw["sport"]
-            else None
+    def from_alpha(cls, alpha: str, provider: ParsedSofascoreProvider | None = None) -> Optional[Country]:
+        """Create a Country instance from an alpha-2 or alpha-3 code."""
+        country = next(
+            (c for c in pycountry.countries if c.alpha_2 == alpha.upper() or c.alpha_3 == alpha.upper()), None
         )
-        country = Country._from_raw(raw.get("country"))
-        cat = cls(
-            id=raw.get("id", 0),
-            name=raw.get("name", ""),
-            slug=raw.get("slug", ""),
-            sport=sport,
-            country=country,
-        )
-        cat._raw = raw
-        return cat
-
-    @property
-    def sport(self) -> Optional[Sport]:
-        return self._sport
-
-    @property
-    def country(self) -> Optional[Country]:
-        return self._country
-
-    @property
-    def competitions(self) -> list[Competition]:
-        """Fetch competitions (unique tournaments + unique stages) in this category (lazy)."""
-        from .competition import Competition
-
-        if self._competitions is None:
-            logger.debug("Fetching competitions for category '%s' (id=%s)", self.name, self.id)
-            raw_uts = self._provider.get_category_unique_tournaments(str(self.id))
-            raw_stages = self._provider.get_category_unique_stages(str(self.id))
-            self._competitions = (
-                [Competition._from_raw_unique_tournament(ut) for ut in raw_uts]
-                + [Competition._from_raw_unique_stage(s) for s in raw_stages]
+        if country:
+            return cls(
+                data=ParsedCountry(
+                    name=country.name,
+                    slug=country.name.lower().replace(" ", "-"),
+                    alpha2=country.alpha_2,
+                    alpha3=country.alpha_3
+                ),
+                provider=provider
             )
-        return self._competitions
+        return None
+
+    @classmethod
+    def from_name(cls, name: str, provider: ParsedSofascoreProvider | None = None) -> Optional[Country]:
+        """Create a Country instance from a country name."""
+        country = next(
+            (c for c in pycountry.countries if c.name.lower() == name.lower()), None
+        )
+        if country:
+            return cls(
+                data=ParsedCountry(
+                    name=country.name,
+                    slug=country.name.lower().replace(" ", "-"),
+                    alpha2=country.alpha_2,
+                    alpha3=country.alpha_3
+                ),
+                provider=provider
+            )
+        return None
+
+
+class Category(BaseEntity[ParsedCategory]):
+    """A category within a sport (e.g. 'France Amateur', 'Formula 1', 'International')."""
+    REPR_FIELDS = ("id", "name", "slug", "sport", "country")
+
+    def __init__(self, data: ParsedCategory, provider: ParsedSofascoreProvider | None = None, **kwargs) -> None:
+        super().__init__(data, provider, **kwargs)
+
+        if not isinstance(data, ParsedCategory):
+            raise ValueError("Category data must be of type ParsedCategory")
+
+    @property
+    def name(self) -> str:
+        """The name of the category."""
+        return self._data.name
+
+    @property
+    def slug(self) -> str:
+        """The slug of the category (used in URLs)."""
+        return self._data.slug or self._data.name.lower().replace(" ", "-")
+
+    @cached_property
+    def sport(self) -> Sport:
+        """The sport this category belongs to."""
+        return Sport(self._data.sport, self._provider)
+
+    @cached_property
+    def country(self) -> Optional[Country]:
+        """The country this category belongs to, or None if it's an international category."""
+        if self._data.country:
+            return Country(self._data.country, self._provider)
+        return None
+
+    @cached_property
+    def competitions(self) -> list[Competition]:
+        """Fetch all competitions (unique tournaments / unique stages) for this category."""
+        try:
+            unique_tournaments = self._provider.get_category_unique_tournaments(self.id)
+        except NotFoundError:
+            unique_tournaments = []
+        try:
+            unique_stages = self._provider.get_category_unique_stages(self.id)
+        except NotFoundError:
+            unique_stages = []
+
+        from .competition import Competition
+        return [
+            Competition(c, self._provider) for c in unique_tournaments
+        ] + [
+            Competition(s, self._provider) for s in unique_stages
+        ]
+
+class Gender(str, Enum):
+    UNSPECIFIED = "X"
+    MALE = "M"
+    FEMALE = "F"
+
+    @classmethod
+    def _missing_(cls, value):
+        # This triggers if 'value' is not "X", "M", or "F".
+        logger.debug(f"Received unknown gender value '{value}', defaulting to UNSPECIFIED")
+        return cls.UNSPECIFIED
