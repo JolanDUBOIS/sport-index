@@ -106,6 +106,7 @@ class StandingsEntry:
 
     @classmethod
     def _from_team_standings_entry(cls, data: ParsedTeamStandingsEntry, provider: ParsedSofascoreProvider | None = None) -> StandingsEntry:
+        from .competitor import Competitor
         return cls(
             position=data.position,
             competitor=Competitor(data.team, provider),
@@ -123,6 +124,7 @@ class StandingsEntry:
 
     @classmethod
     def _from_racing_standings_entry(cls, data: ParsedRacingStandingsEntry, provider: ParsedSofascoreProvider | None = None) -> StandingsEntry:
+        from .competitor import Competitor
         return cls(
             position=data.position,
             competitor=Competitor(data.team, provider),
@@ -185,6 +187,7 @@ class RankingsEntry:
 
     @classmethod
     def _from_ranking_entry(cls, data: ParsedRankingEntry, provider: ParsedSofascoreProvider | None = None) -> RankingsEntry:
+        from .competitor import Competitor
         return cls(
             position=data.position,
             competitor=Competitor(data.team, provider),

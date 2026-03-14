@@ -192,7 +192,7 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
     def h2h(self) -> Optional[EventCollection]:
         """Head-to-head history for the competitors in this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
-            return EventCollection([Event(e) for e in self._provider.get_h2h_history(self.id)])
+            return EventCollection([Event(e, self._provider) for e in self._provider.get_h2h_history(self.id)])
         return None
 
 
@@ -202,7 +202,7 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
     def substages(self) -> Optional[EventCollection]:
         """The substages for this event, if race and available."""
         if isinstance(self._data, ParsedStage):
-            return EventCollection([Event(s) for s in self._provider.get_stage_substages(self.id)])
+            return EventCollection([Event(s, self._provider) for s in self._provider.get_stage_substages(self.id)])
         return None
 
     @property
@@ -285,10 +285,18 @@ class EventCollection(EntityCollection[Event]):
     def filter_by_date(self, *, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> EventCollection:
         """Return a new EventCollection filtered by date."""
         results = self._entities
+
+        def to_dt(val: date | datetime) -> datetime:
+            if isinstance(val, datetime): return val
+            return datetime.combine(val, datetime.min.time())
+
         if before is not None:
-            results = [e for e in results if e.start < before]
+            before_dt = to_dt(before)
+            results = [e for e in results if e.start < before_dt]
         if after is not None:
-            results = [e for e in results if e.start > after]
+            after_dt = to_dt(after)
+            results = [e for e in results if e.start > after_dt]
+
         return self.__class__(results)
 
     def filter_by_competitors(self, competitor_ids: list[int]) -> EventCollection:
