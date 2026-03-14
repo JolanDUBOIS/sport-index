@@ -94,6 +94,7 @@ class ParsedTournament(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: Tournament) -> ParsedTournament:
+        from .core import ParsedCategory
         return cls(
             id=raw.get("id"),
             slug=raw.get("slug"),

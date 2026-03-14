@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from .details import ParsedLineup
     from .event import ParsedEvent
     from .leaderboard import ParsedRankingType, ParsedRankingEntry
+    from .primitives import ParsedChannel
     from .stage import ParsedStage
     from .team import ParsedTeam
     from .tournament import ParsedUniqueTournament, ParsedSeason
@@ -15,9 +16,9 @@ if TYPE_CHECKING:
         TeamResponse, UniqueTournamentSeasonsResponse,
         EventsResponse, RankingsResponse,
         ChannelScheduleResponse, LineupsResponse,
-        Channel, PeriodStatistics, MomentumPoint,
+        PeriodStatistics, MomentumPoint,
         CountryChannelsResponse, EventStatisticsResponse,
-        MomentumGraphResponse
+        MomentumGraphResponse, ChannelEventVotesResponse
     )
 
 
@@ -101,16 +102,17 @@ class ParsedRankingsResponse(BaseParsedModel):
 
 @dataclass
 class ParsedChannelScheduleResponse(BaseParsedModel):
-    channel: Channel
+    channel: ParsedChannel
     events: list[ParsedEvent]
     stages: list[ParsedStage]
 
     @classmethod
     def _parse(cls, raw: ChannelScheduleResponse) -> ParsedChannelScheduleResponse:
         from .event import ParsedEvent
+        from .primitives import ParsedChannel
         from .stage import ParsedStage
         return cls(
-            channel=raw.get("channel"),
+            channel=ParsedChannel.from_raw(raw.get("channel")),
             events=[ParsedEvent.from_raw(e) for e in raw.get("events", [])],
             stages=[ParsedStage.from_raw(s) for s in raw.get("stages", [])],
         )
@@ -123,6 +125,22 @@ class ParsedCountryChannelsResponse(BaseParsedModel):
     @classmethod
     def _parse(cls, raw: CountryChannelsResponse) -> ParsedCountryChannelsResponse:
         return cls(channels=raw.get("channels", {}))
+
+
+@dataclass
+class ParsedChannelEventVotesResponse(BaseParsedModel):
+    channel: ParsedChannel
+    upvotes: int
+    downvotes: int
+
+    @classmethod
+    def _parse(cls, raw: ChannelEventVotesResponse) -> ParsedChannelEventVotesResponse:
+        from .primitives import ParsedChannel
+        return cls(
+            channel=ParsedChannel.from_raw(raw.get("tvChannel")),
+            upvotes=raw.get("upvote", 0),
+            downvotes=raw.get("downvote", 0),
+        )
 
 
 # =====================================================================

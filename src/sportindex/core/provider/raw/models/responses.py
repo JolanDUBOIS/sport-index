@@ -64,6 +64,12 @@ class CountryChannelsResponse(TypedDict, total=False):
     channels: dict[str, list[int]]
 
 
+class ChannelEventVotesResponse(TypedDict, total=False):
+    tvChannel: Channel
+    upvote: int
+    downvote: int
+
+
 # =====================================================================
 # Event Details
 # =====================================================================

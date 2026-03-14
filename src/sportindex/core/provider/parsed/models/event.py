@@ -49,23 +49,27 @@ class ParsedEvent(BaseParsedModel):
     parsedPeriods: ParsedPeriods
 
     @classmethod
-    def _parse(cls, raw: Event) -> ParsedEvent:return cls(
+    def _parse(cls, raw: Event) -> ParsedEvent:
+        from .referee import ParsedReferee
+        from .tournament import ParsedSeason, ParsedTournament
+        from .venue import ParsedVenue
+        return cls(
             id=raw.get("id"),
             customId=raw.get("customId"),
             slug=raw.get("slug"),
             gender=raw.get("gender"),
             start=parse_timestamp(raw.get("startTimestamp")),
             roundInfo=raw.get("roundInfo"),
-            season=raw.get("season"),
-            tournament=raw.get("tournament"),
+            season=ParsedSeason.from_raw(raw.get("season")),
+            tournament=ParsedTournament.from_raw(raw.get("tournament")),
             attendance=raw.get("attendance"),
             status=raw.get("status"),
             previousLegEventId=raw.get("previousLegEventId"),
             winnerCode=raw.get("winnerCode"),
             home=EventTeam.from_raw(raw, "home"),
             away=EventTeam.from_raw(raw, "away"),
-            referee=raw.get("referee"),
-            venue=raw.get("venue"),
+            referee=ParsedReferee.from_raw(raw.get("referee")),
+            venue=ParsedVenue.from_raw(raw.get("venue")),
             extra=parse_extra(raw),
             parsedPeriods=ParsedPeriods.from_raw(raw)
         )
@@ -84,6 +88,7 @@ class EventTeam:
 
     @classmethod
     def from_raw(cls, raw: Event, side: str) -> EventTeam:
+        from .team import ParsedTeam
         return cls(
             team=ParsedTeam.from_raw(raw.get(f"{side}Team")),
             seed=raw.get(f"{side}TeamSeed"),
