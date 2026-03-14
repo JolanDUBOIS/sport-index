@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from functools import cached_property
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import datetime, date
 from typing import TYPE_CHECKING, Optional, Literal
 
 from . import logger
-from .base import BaseEntity
+from .base import BaseEntity, EntityCollection
 from .core import Sport
 from .competition import Season
 from sportindex.core.provider.parsed import ParsedEvent, ParsedStage
@@ -25,6 +25,14 @@ if TYPE_CHECKING:
     )
     from sportindex.core.provider.raw import Round
 
+    Period = ParsedPeriod
+    Lineups = ParsedLineupsResponse
+    Incident = ParsedIncident
+    EventStatistics = ParsedEventStatisticsResponse
+    MomentumGraph = ParsedMomentumGraphResponse
+
+
+# ====== Event entity =====
 
 class Event(BaseEntity[ParsedEvent | ParsedStage]):
     """An event, e.g. a football match, a tennis match, a formula one race, etc."""
@@ -92,7 +100,7 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
         return self.season.competition
 
     @cached_property
-    def venue(self) -> Venue | None:
+    def venue(self) -> Optional[Venue]:
         """The venue where this event takes place, if available."""
         from .venue import Venue
         if isinstance(self._data, ParsedEvent) and self._data.venue:
@@ -113,7 +121,7 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
     # Match specific properties
 
     @cached_property
-    def competitors(self) -> MatchCompetitors | None:
+    def competitors(self) -> Optional[MatchCompetitors]:
         """The competitors in this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
             try:
@@ -128,7 +136,7 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
         return None
 
     @property
-    def score(self) -> MatchScore | None:
+    def score(self) -> Optional[MatchScore]:
         """The score for this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
             try:
@@ -142,7 +150,7 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
         return None
 
     @property
-    def periods(self) -> list[ParsedPeriod] | None:
+    def periods(self) -> Optional[list[Period]]:
         """The periods for this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
             try:
@@ -153,52 +161,52 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
         return None
 
     @cached_property
-    def lineups(self) -> ParsedLineupsResponse | None:
+    def lineups(self) -> Optional[Lineups]:
         """The lineups for this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
             return self._provider.get_event_lineups(self.id)
         return None
 
     @property
-    def incidents(self) -> list[ParsedIncident] | None:
+    def incidents(self) -> Optional[list[Incident]]:
         """The incidents for this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
             return self._provider.get_event_incidents(self.id)
         return None
 
     @cached_property
-    def statistics(self) -> ParsedEventStatisticsResponse | None:
+    def statistics(self) -> Optional[EventStatistics]:
         """The statistics for this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
             return self._provider.get_event_statistics(self.id)
         return None
 
     @property
-    def momentum_graph(self) -> ParsedMomentumGraphResponse | None:
+    def momentum_graph(self) -> Optional[MomentumGraph]:
         """The momentum graph for this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
             return self._provider.get_event_graph(self.id)
         return None
 
     @cached_property
-    def h2h(self) -> list[Event] | None:
+    def h2h(self) -> Optional[EventCollection]:
         """Head-to-head history for the competitors in this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
-            return [Event(e) for e in self._provider.get_h2h_history(self.id)]
+            return EventCollection([Event(e) for e in self._provider.get_h2h_history(self.id)])
         return None
 
 
     # Race specific properties
 
     @cached_property
-    def substages(self) -> list[Event] | None:
+    def substages(self) -> Optional[EventCollection]:
         """The substages for this event, if race and available."""
         if isinstance(self._data, ParsedStage):
-            return [Event(s) for s in self._provider.get_stage_substages(self.id)]
+            return EventCollection([Event(s) for s in self._provider.get_stage_substages(self.id)])
         return None
 
     @property
-    def standings(self) -> list[Standings] | None:
+    def standings(self) -> Optional[list[Standings]]:
         """The standings for this event, if race and available."""
         if isinstance(self._data, ParsedStage):
             competitors_standings = self._provider.get_stage_standings_competitors(self.id)
@@ -213,7 +221,7 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
     # Post event properties (available for both matches and races)
 
     @cached_property
-    def winner(self) -> Competitor | None:
+    def winner(self) -> Optional[Competitor]:
         """The winner of this event, if available."""
         if isinstance(self._data, ParsedEvent):
             winner_code = self._data.winnerCode
@@ -227,7 +235,11 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
         return None
 
     def _full_load(self) -> None:
-        """TODO"""
+        """
+        Lazy-loads the complete event from the provider.
+        Called automatically when accessing properties that require full details
+        missing from the initial lightweight API response.
+        """
         if self._full_loaded:
             return
         try:
@@ -252,6 +264,8 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
         self.__dict__.pop("substages", None)
 
 
+# ===== Match-specific data classes =====
+
 @dataclass
 class MatchCompetitors:
     home: Competitor
@@ -261,3 +275,31 @@ class MatchCompetitors:
 class MatchScore:
     home: int
     away: int
+
+
+# ===== Event Collection =====
+
+class EventCollection(EntityCollection[Event]):
+    """A specialized collection for handling lists of events with common filtering and sorting needs."""
+
+    def filter_by_date(self, *, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> EventCollection:
+        """Return a new EventCollection filtered by date."""
+        results = self._entities
+        if before is not None:
+            results = [e for e in results if e.start < before]
+        if after is not None:
+            results = [e for e in results if e.start > after]
+        return self.__class__(results)
+
+    def filter_by_competitors(self, competitor_ids: list[int]) -> EventCollection:
+        """Return a new EventCollection filtered by competitor IDs."""
+        results = []
+        for event in self._entities:
+            if event.competitors:
+                if (event.competitors.home.id in competitor_ids) or (event.competitors.away.id in competitor_ids):
+                    results.append(event)
+        return self.__class__(results)
+
+    def sort_by_date(self, ascending: bool = True) -> EventCollection:
+        """Return a new EventCollection sorted by date."""
+        return self.__class__(sorted(self._entities, key=lambda e: e.start, reverse=not ascending))

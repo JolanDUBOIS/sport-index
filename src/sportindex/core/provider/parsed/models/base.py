@@ -12,7 +12,7 @@ class BaseParsedModel:
         Safely returns None if the raw input is None.
         Otherwise, passes arguments to the subclass's _parse method.
         """
-        if raw is None:
+        if not raw:
             return None
         return cls._parse(raw, *args, **kwargs)
 

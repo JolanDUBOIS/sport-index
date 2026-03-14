@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from functools import cached_property
 from dataclasses import replace
-from datetime import datetime, date
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import BaseEntity
+from .base import BaseEntity, EventAwareMixin, EntityCollection
 from .core import Category, Sport
 from sportindex.core.provider.parsed import (
     ParsedUniqueTournament, ParsedUniqueStage,
@@ -14,7 +14,7 @@ from sportindex.core.provider.parsed import (
 )
 
 if TYPE_CHECKING:
-    from .event import Event
+    from .event import EventCollection
     from .leaderboard import Standings
     from sportindex.core.provider.parsed import ParsedSofascoreProvider
 
@@ -52,23 +52,27 @@ class Competition(BaseEntity[ParsedUniqueTournament | ParsedUniqueStage]):
         return Category(self._data.category, self._provider)
 
     @cached_property
-    def seasons(self) -> list[Season]:
+    def seasons(self) -> EntityCollection[Season]:
         """Fetch all seasons for this competition."""
         if isinstance(self._data, ParsedUniqueTournament):
-            return [
+            return EntityCollection([
                 Season(s, self._provider, competition=self)
                 for s in self._provider.get_unique_tournament_seasons(self.id)
-            ]
+            ])
         elif isinstance(self._data, ParsedUniqueStage):
-            return [
+            return EntityCollection([
                 Season(s, self._provider, competition=self)
                 for s in self._provider.get_unique_stage_seasons(self.id)
-            ]
+            ])
         else:
             raise ValueError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
 
     def _full_load(self) -> None:
-        """TODO"""
+        """
+        Lazy-loads the complete competition from the provider.
+        Called automatically when accessing properties that require full details
+        missing from the initial lightweight API response.
+        """
         if self._full_loaded:
             return
         try:
@@ -88,7 +92,7 @@ class Competition(BaseEntity[ParsedUniqueTournament | ParsedUniqueStage]):
         self.__dict__.pop("seasons", None)
 
 
-class Season(BaseEntity[ParsedSeason | ParsedStage]):
+class Season(BaseEntity[ParsedSeason | ParsedStage], EventAwareMixin):
     """A season of a competition, e.g. '2023/24', '2024', etc."""
     REPR_FIELDS = ("id", "name", "year", "start", "sport")
 
@@ -166,52 +170,33 @@ class Season(BaseEntity[ParsedSeason | ParsedStage]):
                 Standings(teams_standings, self._provider, name=f"Teams {self.name}", kind="teams")
             ]
 
-    def get_fixtures(self) -> list[Event]:
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this season."""
-        from .event import Event
         if isinstance(self._data, ParsedSeason):
-            parsed_events = []
-            for page in range(10):
-                events_response = self._provider.get_unique_tournament_fixtures(self.competition.id, self.id, page=page)
-                parsed_events.extend(events_response.events)
-                if not events_response.hasNextPage:
-                    break
-            return [Event(e, self._provider) for e in parsed_events]
-
+            return self._fetch_paginated_events(
+                self._provider.get_unique_tournament_fixtures, 
+                self.competition.id, 
+                self.id
+            )
         elif isinstance(self._data, ParsedStage):
+            from .event import Event, EventCollection
             substages = self._provider.get_stage_substages(self.id)
             future_substages = [s for s in substages if s.start >= datetime.now()]
-            return [Event(s, self._provider) for s in future_substages]
+            return EventCollection([Event(s, self._provider) for s in future_substages])
 
-    def get_results(self) -> list[Event]:
+    def get_results(self, silent: bool = False) -> EventCollection:
         """Fetch all results for this season."""
-        from .event import Event
         if isinstance(self._data, ParsedSeason):
-            parsed_events = []
-            for page in range(10):
-                events_response = self._provider.get_unique_tournament_results(self.competition.id, self.id, page=page)
-                parsed_events.extend(events_response.events)
-                if not events_response.hasNextPage:
-                    break
-            return [Event(e, self._provider) for e in parsed_events]
+            return self._fetch_paginated_events(
+                self._provider.get_unique_tournament_results, 
+                self.competition.id, 
+                self.id
+            )
         elif isinstance(self._data, ParsedStage):
+            from .event import Event, EventCollection
             substages = self._provider.get_stage_substages(self.id)
             past_substages = [s for s in substages if s.end < datetime.now()]
-            return [Event(s, self._provider) for s in past_substages]
-
-    def get_events(self, *, max_events: Optional[int] = None, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> list[Event]:
-        """Fetch events for this season, optionally filtered by date range and/or max number of events."""
-        events = self.get_results() + self.get_fixtures()
-        if before is not None:
-            events = [e for e in events if e.start < before]
-            if max_events is not None:
-                events = events[-max_events:]
-        if after is not None:
-            events = [e for e in events if e.start > after]
-            if max_events is not None:
-                events = events[:max_events]
-        events.sort(key=lambda e: e.start)
-        return events
+            return EventCollection([Event(s, self._provider) for s in past_substages])
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""

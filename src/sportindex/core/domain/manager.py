@@ -2,24 +2,25 @@ from __future__ import annotations
 
 from functools import cached_property
 from dataclasses import replace
-from datetime import datetime, date
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import BaseEntity
+from .base import BaseEntity, EventAwareMixin, EntityCollection
 from sportindex.core.provider.parsed import ParsedManager
 
 if TYPE_CHECKING:
     from .competitor import Competitor
     from .core import Country, Sport
-    from .event import Event
+    from .event import EventCollection
     from sportindex.core.provider.parsed import (
         ParsedSofascoreProvider,
         ParsedManagerCareerHistoryItem
     )
 
+    ManagerCareerHistory = ParsedManagerCareerHistoryItem
 
-class Manager(BaseEntity[ParsedManager]):
+
+class Manager(BaseEntity[ParsedManager], EventAwareMixin):
     """A manager, e.g. 'Luis Enrique', 'Pep Guardiola', etc."""
     REPR_FIELDS = ("id", "name", "slug", "short_name", "sport", "country")
 
@@ -63,47 +64,32 @@ class Manager(BaseEntity[ParsedManager]):
         return Competitor(self._data.team, self._provider) if self._data.team else None
 
     @cached_property
-    def teams(self) -> list[Competitor]:
+    def teams(self) -> EntityCollection[Competitor]:
         self._full_load()
         from .competitor import Competitor
-        return [Competitor(t, self._provider) for t in self._data.teams] if self._data.teams else []
+        return EntityCollection([Competitor(t, self._provider) for t in self._data.teams]) if self._data.teams else EntityCollection([])
 
     @cached_property
-    def performances(self) -> list[ParsedManagerCareerHistoryItem]:
+    def performances(self) -> list[ManagerCareerHistory]:
         return self._provider.get_manager_career_history(self.id)
 
-    def get_fixtures(self) -> list[Event]:
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this manager."""
-        logger.warning("No fixtures endpoint available for managers, returning empty list")
-        return []
+        from .event import EventCollection
+        if not silent:
+            logger.warning("No fixtures endpoint available for managers, returning empty list")
+        return EventCollection([])
 
-    def get_results(self) -> list[Event]:
+    def get_results(self, silent: bool = False) -> EventCollection:
         """Fetch all results for this manager."""
-        from .event import Event
-        parsed_events = []
-        for page in range(10):
-            events_response = self._provider.get_manager_results(self.id, page=page)
-            parsed_events.extend(events_response.events)
-            if not events_response.hasNextPage:
-                break
-        return [Event(e, self._provider) for e in parsed_events]
-
-    def get_events(self, *, max_events: Optional[int] = None, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> list[Event]:
-        """Fetch events for this manager, optionally filtered by date range and/or max number of events."""
-        events = self.get_results()
-        if before is not None:
-            events = [e for e in events if e.start < before]
-            if max_events is not None:
-                events = events[-max_events:]
-        if after is not None:
-            events = [e for e in events if e.start > after]
-            if max_events is not None:
-                events = events[:max_events]
-        events.sort(key=lambda e: e.start)
-        return events
+        return self._fetch_paginated_events(self._provider.get_manager_results, self.id)
 
     def _full_load(self) -> None:
-        """TODO"""
+        """
+        Lazy-loads the complete manager from the provider.
+        Called automatically when accessing properties that require full details 
+        missing from the initial lightweight API response.
+        """
         if self._full_loaded:
             return
         try:

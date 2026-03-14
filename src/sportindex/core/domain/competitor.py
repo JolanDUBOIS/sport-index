@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from functools import cached_property
 from dataclasses import dataclass, replace
-from datetime import datetime, date
+from datetime import date
 from typing import TYPE_CHECKING, Optional, Literal
 
 from . import logger
-from .base import BaseEntity
+from .base import BaseEntity, EventAwareMixin, EntityCollection
 from sportindex.core.provider.raw import NotFoundError
 from sportindex.core.provider.parsed import ParsedTeam, ParsedPlayer
 
 if TYPE_CHECKING:
     from .core import Category, Country, Sport, Gender
-    from .event import Event
+    from .event import EventCollection
     from .manager import Manager
     from .venue import Venue
     from sportindex.core.provider.parsed import (
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from sportindex.core.provider.raw import Amount
 
 
-class Competitor(BaseEntity[ParsedTeam | ParsedPlayer]):
+class Competitor(BaseEntity[ParsedTeam | ParsedPlayer], EventAwareMixin):
     """A competitor, e.g. 'Paris Saint-Germain', 'Roger Federer', 'Lewis Hamilton', etc."""
     REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name", "name_code", "national", "gender", "sport", "country", "category", "kind")
 
@@ -128,15 +128,15 @@ class Competitor(BaseEntity[ParsedTeam | ParsedPlayer]):
             return None
 
     @cached_property
-    def players(self) -> Optional[list[Competitor]]:
+    def players(self) -> Optional[EntityCollection[Competitor]]:
         """The players belonging to this competitor, if this is a team."""
         if self.kind != "team":
             return None
         try:
-            return [Competitor(player, self._provider) for player in self._provider.get_team_players(self.id)]
+            return EntityCollection([Competitor(player, self._provider) for player in self._provider.get_team_players(self.id)])
         except NotFoundError:
             logger.debug(f"No players found for team with id {self.id}, returning empty list")
-            return []
+            return EntityCollection([])
         
     @cached_property
     def manager(self) -> Optional[Manager]:
@@ -167,60 +167,33 @@ class Competitor(BaseEntity[ParsedTeam | ParsedPlayer]):
 
     # --- Properties to be recomputed each time, as they might change regularly ---
 
-    def get_fixtures(self) -> list[Event]:
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this competitor."""
-        from .event import Event
         if isinstance(self._data, ParsedPlayer):
-            logger.warning(f"No fixtures endpoint for non individual sports players like {self.name}, returning empty list")
-            return []
+            if not silent:
+                logger.warning(f"No fixtures endpoint for non individual sports players like {self.name}, returning empty list")
+            from .event import EventCollection
+            return EventCollection([])
         elif isinstance(self._data, ParsedTeam):
-            parsed_events = []
-            for page in range(10):
-                events_response = self._provider.get_team_fixtures(self.id, page=page)
-                parsed_events.extend(events_response.events)
-                if not events_response.hasNextPage:
-                    break
-            return [Event(e, self._provider) for e in parsed_events]
+            return self._fetch_paginated_events(self._provider.get_team_fixtures, self.id)
+        from .event import EventCollection
+        return EventCollection([])
 
-    def get_results(self) -> list[Event]:
+    def get_results(self, silent: bool = False) -> EventCollection:
         """Fetch all results for this competitor."""
-        from .event import Event
         if isinstance(self._data, ParsedPlayer):
-            parsed_events = []
-            for page in range(10):
-                events_response = self._provider.get_player_results(self.id, page=page)
-                parsed_events.extend(events_response.events)
-                if not events_response.hasNextPage:
-                    break
-            return [Event(e, self._provider) for e in parsed_events]
-
+            return self._fetch_paginated_events(self._provider.get_player_results, self.id)
         elif isinstance(self._data, ParsedTeam):
-            parsed_events = []
-            for page in range(10):
-                events_response = self._provider.get_team_results(self.id, page=page)
-                parsed_events.extend(events_response.events)
-                if not events_response.hasNextPage:
-                    break
-            return [Event(e, self._provider) for e in parsed_events]
-
-    def get_events(self, *, max_events: Optional[int] = None, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> list[Event]:
-        """Fetch events for this competitor, optionally filtered by date range and/or max number of events."""
-        if isinstance(self._data, ParsedPlayer):
-            events = self.get_results() # Avoid warning
-        else:
-            events = self.get_results() + self.get_fixtures()
-        if before is not None:
-            events = [e for e in events if e.start < before]
-            if max_events is not None:
-                events = events[-max_events:]
-        if after is not None:
-            events = [e for e in events if e.start > after]
-            if max_events is not None:
-                events = events[:max_events]
-        events.sort(key=lambda e: e.start)
-        return events
+            return self._fetch_paginated_events(self._provider.get_team_results, self.id)
+        from .event import EventCollection
+        return EventCollection([])
 
     def _full_load(self) -> None:
+        """
+        Lazy-loads the complete competitor from the provider.
+        Called automatically when accessing properties that require full details
+        missing from the initial lightweight API response.
+        """
         if self._full_loaded:
             return
         try:

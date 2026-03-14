@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING
 
 import pycountry
 
-from .base import BaseEntity
+from .base import BaseEntity, EntityCollection
 from sportindex.core.provider.parsed import ParsedChannel, ParsedCountryChannelsResponse
 
 if TYPE_CHECKING:
     from .core import Country
-    from .event import Event
+    from .event import EventCollection
     from sportindex.core.provider.parsed import ParsedSofascoreProvider
 
 
@@ -30,15 +30,15 @@ class Channel(BaseEntity[ParsedChannel]):
         return self._data.name
 
     @property
-    def events(self) -> list[Event]:
+    def events(self) -> EventCollection:
         """Fetch all scheduled events for this channel."""
-        from .event import Event
+        from .event import Event, EventCollection
         parsed_channel_events = self._provider.get_channel_schedule(self.id)
-        return [
+        return EventCollection([
             Event(e, self._provider) for e in parsed_channel_events.events
         ] + [
             Event(s, self._provider) for s in parsed_channel_events.stages
-        ]
+        ])
 
     @classmethod
     def from_id(cls, channel_id: int, provider: ParsedSofascoreProvider) -> Channel:
@@ -62,7 +62,7 @@ class EventChannels(BaseEntity[ParsedCountryChannelsResponse]):
         """A dictionary mapping country alpha-2 codes to lists of channel IDs broadcasting this event in that country."""
         return self._data.channels
 
-    def get_channels(self, *, country: Country | None = None, country_name: str | None = None, country_alpha: str | None = None) -> list[Channel]:
+    def get_channels(self, *, country: Country | None = None, country_name: str | None = None, country_alpha: str | None = None) -> EntityCollection[Channel]:
         """Get the channels broadcasting this event in a specific country (by object, name or alpha code)."""
         if country is not None:
             country_alpha2 = country.alpha2
@@ -83,7 +83,7 @@ class EventChannels(BaseEntity[ParsedCountryChannelsResponse]):
             country_alpha2 = country_obj.alpha_2
         else:
             raise ValueError("Must provide either country object, name or alpha code")
-        return [Channel.from_id(cid, self._provider) for cid in self.channels.get(country_alpha2, [])]
+        return EntityCollection([Channel.from_id(cid, self._provider) for cid in self.channels.get(country_alpha2, [])])
 
 
 # NOTE - Include votes for channels if available to improve potential recommendation system...²

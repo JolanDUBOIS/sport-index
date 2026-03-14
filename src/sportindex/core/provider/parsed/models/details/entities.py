@@ -235,8 +235,8 @@ class ParsedPlayerSeasonStats(BaseParsedModel):
 class ParsedManagerCareerHistoryItem(BaseParsedModel):
     performance: Performance
     team: ParsedTeam
-    startTimestamp: datetime
-    endTimestamp: datetime
+    start: datetime
+    end: datetime
 
     @classmethod
     def _parse(cls, raw: ManagerCareerHistoryItem) -> ParsedManagerCareerHistoryItem:
@@ -244,6 +244,6 @@ class ParsedManagerCareerHistoryItem(BaseParsedModel):
         return cls(
             performance=raw.get("performance"),
             team=ParsedTeam.from_raw(raw.get("team")),
-            startTimestamp=parse_timestamp(raw.get("startTimestamp")),
-            endTimestamp=parse_timestamp(raw.get("endTimestamp"))
+            start=parse_timestamp(raw.get("startTimestamp")),
+            end=parse_timestamp(raw.get("endTimestamp"))
         )

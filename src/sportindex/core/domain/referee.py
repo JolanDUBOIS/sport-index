@@ -2,20 +2,19 @@ from __future__ import annotations
 
 from functools import cached_property
 from dataclasses import dataclass, replace
-from datetime import datetime, date
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import BaseEntity
+from .base import BaseEntity, EventAwareMixin
 from sportindex.core.provider.parsed import ParsedReferee
 
 if TYPE_CHECKING:
     from .core import Country, Sport
-    from .event import Event
+    from .event import EventCollection
     from sportindex.core.provider.parsed import ParsedSofascoreProvider
 
 
-class Referee(BaseEntity[ParsedReferee]):
+class Referee(BaseEntity[ParsedReferee], EventAwareMixin):
     """A referee, e.g. 'Pierluigi Collina', 'Michael Masi', etc."""
     REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
@@ -63,38 +62,23 @@ class Referee(BaseEntity[ParsedReferee]):
             yellow_red=int(self._data.yellowRedCards)
         )
 
-    def get_fixtures(self) -> list[Event]:
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this referee."""
-        logger.warning("No fixtures endpoint available for referees, returning empty list")
-        return []
+        from .event import EventCollection
+        if not silent:
+            logger.warning("No fixtures endpoint available for referees, returning empty list")
+        return EventCollection([])
 
-    def get_results(self) -> list[Event]:
+    def get_results(self, silent: bool = False) -> EventCollection:
         """Fetch all results for this referee."""
-        from .event import Event
-        parsed_events = []
-        for page in range(10):
-            events_response = self._provider.get_referee_results(self.id, page=page)
-            parsed_events.extend(events_response.events)
-            if not events_response.hasNextPage:
-                break
-        return [Event(e, self._provider) for e in parsed_events]
-
-    def get_events(self, *, max_events: Optional[int] = None, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> list[Event]:
-        """Fetch events for this referee, optionally filtered by date range and/or max number of events."""
-        events = self.get_results()
-        if before is not None:
-            events = [e for e in events if e.start < before]
-            if max_events is not None:
-                events = events[-max_events:]
-        if after is not None:
-            events = [e for e in events if e.start > after]
-            if max_events is not None:
-                events = events[:max_events]
-        events.sort(key=lambda e: e.start)
-        return events
+        return self._fetch_paginated_events(self._provider.get_referee_results, self.id)
 
     def _full_load(self) -> None:
-        """TODO"""
+        """
+        Lazy-loads the complete referee from the provider.
+        Called automatically when accessing properties that require full details 
+        missing from the initial lightweight API response.
+        """
         if self._full_loaded:
             return
         try:

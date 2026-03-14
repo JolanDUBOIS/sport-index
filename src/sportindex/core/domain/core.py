@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional
 import pycountry
 
 from . import logger
-from .base import BaseEntity
+from .base import BaseEntity, EntityCollection
 from .static import SPORT_RANKINGS
 from sportindex.core.provider.raw import NotFoundError
 from sportindex.core.provider.parsed import (
@@ -43,12 +43,12 @@ class Sport(BaseEntity[ParsedSport]):
         return self._data.slug or self._data.name.lower().replace(" ", "-")
 
     @cached_property
-    def categories(self) -> list[Category]:
+    def categories(self) -> EntityCollection[Category]:
         """Fetch all categories for this sport."""
-        return [
+        return EntityCollection([
             Category(c, self._provider)
             for c in self._provider.get_categories(self.slug)
-        ]
+        ])
 
     def get_rankings(self, gender: Optional[str] = None) -> list[Rankings]:
         """Fetch all rankings for this sport."""
@@ -171,11 +171,12 @@ class Category(BaseEntity[ParsedCategory]):
     def country(self) -> Optional[Country]:
         """The country this category belongs to, or None if it's an international category."""
         if self._data.country:
+            print(self._data.country)
             return Country(self._data.country, self._provider)
         return None
 
     @cached_property
-    def competitions(self) -> list[Competition]:
+    def competitions(self) -> EntityCollection[Competition]:
         """Fetch all competitions (unique tournaments / unique stages) for this category."""
         try:
             unique_tournaments = self._provider.get_category_unique_tournaments(self.id)
@@ -187,11 +188,12 @@ class Category(BaseEntity[ParsedCategory]):
             unique_stages = []
 
         from .competition import Competition
-        return [
+        return EntityCollection([
             Competition(c, self._provider) for c in unique_tournaments
         ] + [
             Competition(s, self._provider) for s in unique_stages
-        ]
+        ])
+
 
 class Gender(str, Enum):
     UNSPECIFIED = "X"

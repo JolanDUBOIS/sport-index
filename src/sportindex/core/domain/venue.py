@@ -2,21 +2,20 @@ from __future__ import annotations
 
 from functools import cached_property
 from dataclasses import replace
-from datetime import datetime, date
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import BaseEntity
+from .base import BaseEntity, EventAwareMixin, EntityCollection
 from sportindex.core.provider.parsed import ParsedVenue, ParsedStage
 
 if TYPE_CHECKING:
     from .core import Country
-    from .event import Event
+    from .event import EventCollection
     from .competitor import Competitor
     from sportindex.core.provider.parsed import ParsedSofascoreProvider
 
 
-class Venue(BaseEntity[ParsedVenue]):
+class Venue(BaseEntity[ParsedVenue], EventAwareMixin):
     """A venue, e.g. a stadium, a tennis court, a race track, etc."""
     REPR_FIELDS = ("id", "name")
 
@@ -62,56 +61,32 @@ class Venue(BaseEntity[ParsedVenue]):
             return Country.from_name(self._data.info.circuitCountry) if self._data.info and self._data.info.circuitCountry else None
 
     @cached_property
-    def teams(self) -> list[Competitor]:
+    def teams(self) -> EntityCollection[Competitor]:
         self._full_load()
         from .competitor import Competitor
         if isinstance(self._data, ParsedVenue):
-            return [
+            return EntityCollection([
                 Competitor(t, self._provider)
                 for t in self._data.mainTeams
-            ]
+            ])
         elif isinstance(self._data, ParsedStage):
             logger.warning("Teams for stages are not available in the current provider implementation, returning empty list")
-            return []
+            return EntityCollection([])
 
-    def get_fixtures(self) -> list[Event]:
+    def get_fixtures(self) -> EventCollection:
         """Fetch all fixtures for this venue."""
-        from .event import Event
-        parsed_events = []
-        for page in range(10):
-            events_response = self._provider.get_venue_fixtures(self.id, page=page)
-            parsed_events.extend(events_response.events)
-            if not events_response.hasNextPage:
-                break
-        return [Event(e, self._provider) for e in parsed_events]
+        return self._fetch_paginated_events(self._provider.get_venue_fixtures, self.id)
 
-    def get_results(self) -> list[Event]:
+    def get_results(self) -> EventCollection:
         """Fetch all results for this venue."""
-        from .event import Event
-        parsed_events = []
-        for page in range(10):
-            events_response = self._provider.get_venue_results(self.id, page=page)
-            parsed_events.extend(events_response.events)
-            if not events_response.hasNextPage:
-                break
-        return [Event(e, self._provider) for e in parsed_events]
-
-    def get_events(self, *, max_events: Optional[int] = None, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> list[Event]:
-        """Fetch events for this venue, optionally filtered by date range and/or max number of events."""
-        events = self.get_results() + self.get_fixtures()
-        if before is not None:
-            events = [e for e in events if e.start < before]
-            if max_events is not None:
-                events = events[-max_events:]
-        if after is not None:
-            events = [e for e in events if e.start > after]
-            if max_events is not None:
-                events = events[:max_events]
-        events.sort(key=lambda e: e.start)
-        return events
+        return self._fetch_paginated_events(self._provider.get_venue_results, self.id)
 
     def _full_load(self) -> None:
-        """TODO"""
+        """
+        Lazy-loads the complete venue from the provider.
+        Called automatically when accessing properties that require full details 
+        missing from the initial lightweight API response.
+        """
         if self._full_loaded:
             return
         try:
