@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from sportindex.core.provider.parsed import ParsedSofascoreProvider
 if TYPE_CHECKING:
+    from .base import EntityCollection
     from .core import Sport
 
 
@@ -43,7 +44,7 @@ _SPORTS_DATA: tuple[tuple[int, str, str], ...] = (
 
 _sports_cache: list[Sport] | None = None
 
-def get_sports() -> list[Sport]:
+def get_sports() -> EntityCollection[Sport]:
     """Return the list of known sports, building Sport objects on first call."""
     global _sports_cache
     provider = ParsedSofascoreProvider()
@@ -53,7 +54,8 @@ def get_sports() -> list[Sport]:
             Sport._from_tuple(data, provider)
             for data in _SPORTS_DATA
         ]
-    return _sports_cache
+    from .base import EntityCollection
+    return EntityCollection(_sports_cache)
 
 # Mapping: sport slug → list of (ranking_id, gender | None).
 # gender is "X" when the ranking is not gender-specific.

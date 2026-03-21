@@ -192,12 +192,19 @@ class ParsedRankingEntry(BaseParsedModel):
     position: int         # For MMA, position starts at 0 instead of 1
     points: float
     country: ParsedCountry
+
     bestPosition: int
     previousPosition: int
     previousPoints: float
+
     tournamentsPlayed: int
     team: ParsedTeam
     lastEvent: ParsedEvent
+
+    uniqueTournament: ParsedUniqueTournament
+    playingTeams: int
+    totalTeams: int
+
     updatedAt: datetime
 
     @classmethod
@@ -205,6 +212,7 @@ class ParsedRankingEntry(BaseParsedModel):
         from .event import ParsedEvent
         from .core import ParsedCountry
         from .team import ParsedTeam
+        from .tournament import ParsedUniqueTournament
         return cls(
             id=raw.get("id"),
             name=raw.get("name"),
@@ -217,5 +225,8 @@ class ParsedRankingEntry(BaseParsedModel):
             tournamentsPlayed=raw.get("tournamentsPlayed"),
             team=ParsedTeam.from_raw(raw.get("team")),
             lastEvent=ParsedEvent.from_raw(raw.get("lastEvent")) if raw.get("lastEvent") else None,
+            uniqueTournament=ParsedUniqueTournament.from_raw(raw.get("uniqueTournament")) if raw.get("uniqueTournament") else None,
+            playingTeams=raw.get("playingTeams"),
+            totalTeams=raw.get("totalTeams"),
             updatedAt=parse_timestamp(raw.get("updatedAtTimestamp"))
         )

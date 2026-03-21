@@ -107,10 +107,19 @@ class RankingEntry(TypedDict, total=False):
     position: int         # For MMA, position starts at 0 instead of 1
     points: float
     country: Country
+
     bestPosition: int
     previousPosition: int
     previousPoints: float
+
+    # Specific to a team or a competitor ranking
     tournamentsPlayed: int
     team: Team
     lastEvent: Event
+
+    # Specific to a country ranking (e.g. UEFA football rankings)
+    uniqueTournament: UniqueTournament
+    playingTeams: int
+    totalTeams: int
+
     updatedAtTimestamp: Timestamp

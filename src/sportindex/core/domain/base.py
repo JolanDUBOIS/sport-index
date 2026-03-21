@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC
-from datetime import datetime, date
 from typing import Callable, Generic, TypeVar, Optional, Iterator, overload, TYPE_CHECKING
 
 from . import logger
@@ -154,15 +153,16 @@ class EntityCollection(Generic[E]):
         """Get an entity by its name."""
         return next((e for e in self._entities if getattr(e, "name", "").lower() == name.lower()), None)
 
-    def search(self, query: str) -> EntityCollection[E]:
+    def search(self, query: str, by: str = "name") -> EntityCollection[E]:
         """
         Smart search that handles case-insensitivity, ignores extra spaces, 
-        and allows for partial matches. Returns a new collection.
+        and allows for partial matches on a specified string attribute.
+        Returns a new collection.
         """
         clean_query = query.strip().lower()
         results = [
             e for e in self._entities 
-            if clean_query in getattr(e, "name", "").lower()
+            if clean_query in str(getattr(e, by, "")).lower()
         ]
         return self.__class__(results)
 

@@ -52,13 +52,13 @@ class Sport(BaseEntity[ParsedSport]):
 
     def get_rankings(self, gender: Optional[str] = None) -> list[Rankings]:
         """Fetch all rankings for this sport."""
+        from .leaderboard import Rankings
         rankings = []
         for ranking_id, ranking_gender in SPORT_RANKINGS.get(self.slug, []):
             if gender is None or ranking_gender == gender:
                 rankings.append(Rankings(
                     self._provider.get_ranking(ranking_id),
                     provider=self._provider,
-                    gender=gender,
                 ))
         return rankings
 
@@ -171,7 +171,6 @@ class Category(BaseEntity[ParsedCategory]):
     def country(self) -> Optional[Country]:
         """The country this category belongs to, or None if it's an international category."""
         if self._data.country:
-            print(self._data.country)
             return Country(self._data.country, self._provider)
         return None
 

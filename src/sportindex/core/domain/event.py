@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from .competition import Competition
     from .competitor import Competitor
     from .leaderboard import Standings
+    from .referee import Referee
     from .venue import Venue
     from sportindex.core.provider.parsed import (
         ParsedSofascoreProvider,
@@ -98,6 +99,13 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
     def competition(self) -> Competition:
         """The competition this event belongs to."""
         return self.season.competition
+
+    @cached_property
+    def referee(self) -> Optional[Referee]:
+        """The referee for this event, if available."""
+        from .referee import Referee
+        if isinstance(self._data, ParsedEvent) and self._data.referee:
+            return Referee(self._data.referee, self._provider)
 
     @cached_property
     def venue(self) -> Optional[Venue]:
@@ -206,15 +214,15 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
         return None
 
     @property
-    def standings(self) -> Optional[list[Standings]]:
+    def standings(self) -> Optional[EntityCollection[Standings]]:
         """The standings for this event, if race and available."""
         if isinstance(self._data, ParsedStage):
             competitors_standings = self._provider.get_stage_standings_competitors(self.id)
             teams_standings = self._provider.get_stage_standings_teams(self.id)
-            return [
+            return EntityCollection([
                 Standings(competitors_standings, self._provider, name=f"Competitors {self.name}", kind="competitors"),
                 Standings(teams_standings, self._provider, name=f"Teams {self.name}", kind="teams")
-            ]
+            ])
         return None
 
 

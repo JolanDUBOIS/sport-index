@@ -7,17 +7,18 @@ from typing import TYPE_CHECKING, Optional
 
 from . import logger
 from .base import BaseEntity
-from .core import Sport
 from sportindex.core.provider.parsed import (
-    ParsedTeamStandings, ParsedRacingStandingsEntry, ParsedRankingEntry
+    ParsedTeamStandings, ParsedRacingStandingsEntry, ParsedRankingsResponse
 )
 
 if TYPE_CHECKING:
-    from .core import Gender
+    from .core import Gender, Sport, Category
+    from .competition import Competition
     from .competitor import Competitor
     from sportindex.core.provider.parsed import (
         ParsedSofascoreProvider,
-        ParsedTeamStandingsEntry
+        ParsedTeamStandingsEntry,
+        ParsedRankingEntry
     )
     from sportindex.core.provider.raw import Promotion
 
@@ -61,14 +62,6 @@ class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry
             return self._data[0].updatedAt if self._data else None
 
     @cached_property
-    def entries(self) -> list[StandingsEntry]:
-        """The entries in the standings."""
-        if isinstance(self._data, ParsedTeamStandings):
-            return [StandingsEntry._from_team_standings_entry(e, self._provider) for e in self._data.rows]
-        else:
-            return [StandingsEntry._from_racing_standings_entry(e, self._provider) for e in self._data]
-
-    @cached_property
     def sport(self) -> Optional[Sport]:
         """The sport these standings belong to."""
         if self.entries:
@@ -76,6 +69,14 @@ class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry
         else:
             logger.warning(f"Standings {self.id} has no entries, cannot determine sport")
             return None
+
+    @cached_property
+    def entries(self) -> list[StandingsEntry]:
+        """The entries in the standings."""
+        if isinstance(self._data, ParsedTeamStandings):
+            return [StandingsEntry._from_team_standings_entry(e, self._provider) for e in self._data.rows]
+        else:
+            return [StandingsEntry._from_racing_standings_entry(e, self._provider) for e in self._data]
 
 @dataclass
 class StandingsEntry:
@@ -142,43 +143,67 @@ class StandingsEntry:
 # Rankings
 # =====================================================================
 
-class Rankings(BaseEntity[list[ParsedRankingEntry]]):
+class Rankings(BaseEntity[ParsedRankingsResponse]):
     """The rankings of a sport, e.g. ATP tennis rankings, FIFA football rankings, etc."""
-    REPR_FIELDS = ("id", "gender", "updated_at")
+    REPR_FIELDS = ("id", "name", "slug", "sport", "category", "gender", "updated_at")
 
-    def __init__(self, data: list[ParsedRankingEntry], provider: ParsedSofascoreProvider | None = None, **kwargs) -> None:
+    def __init__(self, data: ParsedRankingsResponse, provider: ParsedSofascoreProvider | None = None, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
+
+    @property
+    def id(self) -> Optional[int]:
+        """The unique ID of these rankings."""
+        return self._data.rankingType.id if self._data and self._data.rankingType else None
+
+    @property
+    def name(self) -> Optional[str]:
+        """The name of the rankings, e.g. "FIFA Rankings", "ATP Rankings", etc."""
+        return self._data.rankingType.name if self._data and self._data.rankingType else None
+
+    @property
+    def slug(self) -> Optional[str]:
+        """The slug of the rankings, e.g. "fifa", "atp", etc."""
+        return self._data.rankingType.slug if self._data and self._data.rankingType else None
+
+    @property
+    def updated_at(self) -> Optional[datetime]:
+        """The date and time when the rankings were last updated."""
+        return self._data.rankingType.lastUpdated if self._data and self._data.rankingType else None
 
     @cached_property
     def gender(self) -> Optional[Gender]:
         """The gender category of these rankings, e.g. "M", "F" or "X" (mixed/other)."""
         from .core import Gender
-        return Gender(self._kwargs.get("gender", "X"))
-
-    @property
-    def updated_at(self) -> Optional[datetime]:
-        """The date and time when the rankings were last updated."""
-        return self._data[0].updatedAt if self._data else None
+        return Gender(self._data.rankingType.gender) if self._data and self._data.rankingType and self._data.rankingType.gender else None
 
     @cached_property
     def entries(self) -> list[RankingsEntry]:
         """The entries in the rankings."""
-        return [RankingsEntry._from_ranking_entry(e, self._provider) for e in self._data]
+        return [RankingsEntry._from_ranking_entry(e, self._provider) for e in self._data.rankingRows]
 
     @cached_property
     def sport(self) -> Optional[Sport]:
         """The sport these rankings belong to."""
-        if self.entries:
-            return self.entries[0].competitor.sport
-        else:
-            logger.warning(f"Rankings {self.id} has no entries, cannot determine sport")
-            return None
+        from .core import Sport
+        return Sport(self._data.rankingType.sport, self._provider) if self._data and self._data.rankingType and self._data.rankingType.sport else None
+
+    @cached_property
+    def category(self) -> Optional[Category]:
+        """The category these rankings belong to, if any."""
+        from .core import Category
+        return Category(self._data.rankingType.category, self._provider) if self._data and self._data.rankingType and self._data.rankingType.category else None
+
+    @cached_property
+    def competition(self) -> Optional[Competition]:
+        """The competition these rankings belong to, if any."""
+        from .competition import Competition
+        raise NotImplementedError
 
 
 @dataclass
 class RankingsEntry:
     position: int
-    competitor: Competitor
+    entity: Competitor | Competition
     points: int
 
     previous_position: Optional[int] = None
@@ -188,9 +213,13 @@ class RankingsEntry:
     @classmethod
     def _from_ranking_entry(cls, data: ParsedRankingEntry, provider: ParsedSofascoreProvider | None = None) -> RankingsEntry:
         from .competitor import Competitor
+        from .competition import Competition
+        entity = Competitor(data.team, provider) if data.team else Competition(data.uniqueTournament, provider) if data.uniqueTournament else None
+        if not entity:
+            raise ValueError(f"Ranking entry {data.id} has neither team nor unique tournament, cannot determine entity")
         return cls(
             position=data.position,
-            competitor=Competitor(data.team, provider),
+            entity=entity,
             points=int(data.points),
             previous_position=int(data.previousPosition) if data.previousPosition is not None else None,
             previous_points=int(data.previousPoints) if data.previousPoints is not None else None,
