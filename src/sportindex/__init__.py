@@ -1,11 +1,13 @@
 """
-sport-index: Unified Python clients for sports data.
+sport-index: A unified Python SDK for sports data.
 
-Provides a Client class to access various sports data through a consistent interface.
-Supports multiple sports and data types, with models for structured access to results, standings, and more.
+Provides the `SportClient` as a clean entry point to access a rich, object-oriented 
+domain model of sports data (competitions, seasons, events, competitors, etc.). 
+Designed for intuitive navigation of relational sports data without the hassle of 
+manual API routing.
 
-Note: This library accesses unofficial APIs and may rely on scraping.
-Use responsibly and comply with provider terms of service.
+Note: This library accesses unofficial APIs and may rely on web scraping.
+Use responsibly and comply with the respective providers' terms of service.
 """
 
 import logging
@@ -18,44 +20,87 @@ try:
 except PackageNotFoundError:
     __version__ = "unknown"
 
-# from .core import SofascoreClient
-# from .core.models import (
-#     Category,
-#     Event,
-#     Incident,
-#     Lineup,
-#     Manager,
-#     Player,
-#     Referee,
-#     RacingStandings,
-#     Rankings,
-#     RoundStage,
-#     Season,
-#     SeasonStage,
-#     Team,
-#     TeamStandings,
-#     UniqueTournament,
-#     Venue
-# )
+from .client import SportClient
+
+from .domain import (
+    Amount,
+    BaseEntity,
+    Cards,
+    Category,
+    Channel,
+    Competition,
+    Competitor,
+    Country,
+    EntityCollection,
+    Event,
+    EventCollection,
+    EventChannels,
+    EventStatistics,
+    Gender,
+    Incident,
+    Lineups,
+    Manager,
+    ManagerCareerHistory,
+    MatchCompetitors,
+    MatchScore,
+    MomentumGraph,
+    Period,
+    PlayerInfo,
+    Promotion,
+    Rankings,
+    Referee,
+    Round,
+    Season,
+    Sport,
+    Standings,
+    Venue,
+)
+
+from .provider import (
+    FetchError,
+    NotFoundError,
+    RateLimitError,
+)
 
 __all__ = [
-    "__version__",
-    # "SofascoreClient",
-    # # Public models
-    # "Category",
-    # "Event",
-    # "Incident",
-    # "Lineup",
-    # "Manager",
-    # "Player",
-    # "Referee",
-    # "RacingStandings",
-    # "Rankings",
-    # "RoundStage",
-    # "Season",
-    # "SeasonStage",
-    # "Team",
-    # "TeamStandings",
-    # "UniqueTournament",
-    # "Venue",
+    # Core
+    "SportClient",
+    
+    # Domain Models
+    "Amount",
+    "BaseEntity",
+    "Cards",
+    "Category",
+    "Channel",
+    "Competition",
+    "Competitor",
+    "Country",
+    "EntityCollection",
+    "Event",
+    "EventCollection",
+    "EventChannels",
+    "EventStatistics",
+    "Gender",
+    "Incident",
+    "Lineups",
+    "Manager",
+    "ManagerCareerHistory",
+    "MatchCompetitors",
+    "MatchScore",
+    "MomentumGraph",
+    "Period",
+    "PlayerInfo",
+    "Promotion",
+    "Rankings",
+    "Referee",
+    "Round",
+    "Season",
+    "Sport",
+    "Standings",
+    "Venue",
+    
+    # Exceptions
+    "FetchError",
+    "NotFoundError",
+    "RateLimitError",
 ]
