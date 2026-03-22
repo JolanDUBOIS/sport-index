@@ -179,4 +179,4 @@ class ParsedMomentumGraphResponse(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: MomentumGraphResponse) -> ParsedMomentumGraphResponse:
-        return cls(**raw.values())
+        return cls(**raw)

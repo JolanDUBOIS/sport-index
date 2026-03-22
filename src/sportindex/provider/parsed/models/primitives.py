@@ -15,4 +15,4 @@ class ParsedChannel(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: Channel) -> ParsedChannel:
-        return cls(**raw.values())
+        return cls(**raw)

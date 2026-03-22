@@ -248,6 +248,7 @@ def parse_extra(raw: Event) -> ParsedExtra | None:
             weightClass=raw.get("weightClass"),
             winType=raw.get("winType"),
             finalRound=raw.get("finalRound"),
+            order=raw.get("order", []),
         )
     # Racket sports
     if raw.get("firstToServe") is not None:

@@ -182,7 +182,7 @@ class ParsedTeamSeasonStats(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: TeamSeasonStats) -> ParsedTeamSeasonStats:
-        return cls(**raw.values())
+        return cls(**raw)
 
 
 # =====================================================================

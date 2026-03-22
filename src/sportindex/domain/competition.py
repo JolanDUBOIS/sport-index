@@ -12,7 +12,7 @@ from sportindex.provider.parsed import (
     ParsedSeason, ParsedStage
 )
 from .utils import merge_dataclasses
-from sportindex.provider import NotFoundError
+from sportindex.provider import NotFoundError, FetchError
 
 if TYPE_CHECKING:
     from .event import EventCollection
@@ -91,8 +91,11 @@ class Competition(BaseEntity[ParsedUniqueTournament | ParsedUniqueStage]):
             assert isinstance(self._data, (ParsedUniqueTournament, ParsedUniqueStage))
             self._full_loaded = True
             self._clear_cache()
-        except Exception as e:
-            logger.debug(f"Failed to fully load competition with id {self.id}: {e}")
+        except NotFoundError:
+            logger.debug(f"Competition with id {self._data.id} not found during full load.")
+            self._full_loaded = True
+        except FetchError as e:
+            logger.debug(f"Network error while fully loading competition with id {self._data.id}: {e}")
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""
@@ -276,8 +279,11 @@ class Season(BaseEntity[ParsedSeason | ParsedStage], EventAwareMixin):
             assert isinstance(self._data, (ParsedSeason, ParsedStage))
             self._full_loaded = True
             self._clear_cache()
-        except Exception as e:
-            logger.debug(f"Failed to fully load season with id {self._data.id}: {e}")
+        except NotFoundError:
+            logger.debug(f"Season with id {self._data.id} not found during full load.")
+            self._full_loaded = True
+        except FetchError as e:
+            logger.debug(f"Network error while fully loading season with id {self._data.id}: {e}")
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""

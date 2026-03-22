@@ -15,7 +15,7 @@ from sportindex.provider.parsed import (
     ParsedLineupsResponse, ParsedIncident,
     ParsedEventStatisticsResponse, ParsedMomentumGraphResponse
 )
-from sportindex.provider import NotFoundError
+from sportindex.provider import NotFoundError, FetchError
 from sportindex.provider.raw import Round as Round
 
 if TYPE_CHECKING:
@@ -140,40 +140,28 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
     def competitors(self) -> Optional[MatchCompetitors]:
         """The competitors in this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
-            try:
-                from .competitor import Competitor
-                return MatchCompetitors(
-                    home=Competitor(self._data.home.team, self._provider),
-                    away=Competitor(self._data.away.team, self._provider)
-                )
-            except Exception:
-                logger.exception(f"Failed to parse competitors for event {self.id}.")
-                raise
+            from .competitor import Competitor
+            return MatchCompetitors(
+                home=Competitor(self._data.home.team, self._provider),
+                away=Competitor(self._data.away.team, self._provider)
+            )
         return None
 
     @property
     def score(self) -> Optional[MatchScore]:
         """The score for this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
-            try:
-                return MatchScore(
-                    home=self._data.home.score,
-                    away=self._data.away.score
-                )
-            except Exception:
-                logger.exception(f"Failed to parse score for event {self.id}.")
-                return None
+            return MatchScore(
+                home=self._data.home.score,
+                away=self._data.away.score
+            )
         return None
 
     @property
     def periods(self) -> Optional[list[Period]]:
         """The periods for this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
-            try:
-                return self._data.parsedPeriods.periods
-            except Exception:
-                logger.exception(f"Failed to parse periods for event {self.id}.")
-                return None
+            return self._data.parsedPeriods.periods
         return None
 
     @cached_property
@@ -225,7 +213,7 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
         """Head-to-head history for the competitors in this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
             try:
-                return EventCollection([Event(e, self._provider) for e in self._provider.get_h2h_history(self._data.id)])
+                return EventCollection([Event(e, self._provider) for e in self._provider.get_h2h_history(self._data.customId)])
             except NotFoundError:
                 logger.debug(f"H2H history not found for event {self.id}.")
                 return None
@@ -298,8 +286,11 @@ class Event(BaseEntity[ParsedEvent | ParsedStage]):
             assert isinstance(self._data, (ParsedEvent, ParsedStage))
             self._full_loaded = True
             self._clear_cache()
-        except Exception:
-            logger.exception(f"Failed to fully load event {self.id}.")
+        except NotFoundError:
+            logger.debug(f"Event with id {self._data.id} not found during full load.")
+            self._full_loaded = True
+        except FetchError as e:
+            logger.debug(f"Network error while fully loading event with id {self._data.id}: {e}")
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""

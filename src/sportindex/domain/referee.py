@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Optional
 from . import logger
 from .base import BaseEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
+from sportindex.provider import NotFoundError, FetchError
 from sportindex.provider.parsed import ParsedReferee
 
 if TYPE_CHECKING:
@@ -92,8 +93,11 @@ class Referee(BaseEntity[ParsedReferee], EventAwareMixin):
             assert isinstance(self._data, ParsedReferee)
             self._full_loaded = True
             self._clear_cache()
-        except Exception:
-            logger.exception(f"Failed to fully load referee with id {self.id}.")
+        except NotFoundError:
+            logger.debug(f"Referee with id {self._data.id} not found during full load.")
+            self._full_loaded = True
+        except FetchError as e:
+            logger.debug(f"Network error while fully loading referee with id {self._data.id}: {e}")
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""

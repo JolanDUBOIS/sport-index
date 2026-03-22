@@ -21,7 +21,7 @@ class Fetcher:
 
     def fetch_url(
         self, url: str, *, params: dict = None, max_retries: int = 3,
-        retry_delay: int = 5, initial_delay: int = 5
+        retry_delay: int = 5, initial_delay: float = 5.0
     ) -> Response:
         """ Fetch a URL with retries, backoff, and bot-mitigation. """
         last_status = None

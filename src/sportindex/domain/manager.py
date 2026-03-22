@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional
 from . import logger
 from .base import BaseEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
+from sportindex.provider import NotFoundError, FetchError
 from sportindex.provider.parsed import ParsedManager, ParsedManagerCareerHistoryItem
 
 if TYPE_CHECKING:
@@ -99,8 +100,11 @@ class Manager(BaseEntity[ParsedManager], EventAwareMixin):
             assert isinstance(self._data, ParsedManager)
             self._full_loaded = True
             self._clear_cache()
-        except Exception:
-            logger.exception(f"Failed to fully load manager with id {self.id}.")
+        except NotFoundError:
+            logger.debug(f"Manager with id {self._data.id} not found during full load.")
+            self._full_loaded = True
+        except FetchError as e:
+            logger.debug(f"Network error while fully loading manager with id {self._data.id}: {e}")
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""

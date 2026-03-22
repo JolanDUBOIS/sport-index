@@ -223,8 +223,11 @@ class Competitor(BaseEntity[ParsedTeam | ParsedPlayer], EventAwareMixin):
             assert isinstance(self._data, (ParsedPlayer, ParsedTeam))
             self._full_loaded = True
             self._clear_cache()
-        except Exception:
-            logger.exception(f"Failed to fully load competitor with id {self.id}.")
+        except NotFoundError:
+            logger.debug(f"Competitor with id {self._data.id} not found during full load.")
+            self._full_loaded = True
+        except FetchError as e:
+            logger.debug(f"Network error while fully loading competitor with id {self._data.id}: {e}")
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""
