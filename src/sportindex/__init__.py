@@ -1,11 +1,13 @@
 """
-sport-index: Unified Python clients for sports data.
+sport-index: A unified Python SDK for sports data.
 
-Provides a factory (`Client`) to create sport-specific clients, an interface
-(`SportClient`) for typing, and concrete clients (`FootballClient`, `F1Client`).
+Provides the `SportClient` as a clean entry point to access a rich, object-oriented 
+domain model of sports data (competitions, seasons, events, competitors, etc.). 
+Designed for intuitive navigation of relational sports data without the hassle of 
+manual API routing.
 
-Note: This library accesses unofficial APIs and may rely on scraping.
-Use responsibly and comply with provider terms of service.
+Note: This library accesses unofficial APIs and may rely on web scraping.
+Use responsibly and comply with the respective providers' terms of service.
 """
 
 import logging
@@ -18,15 +20,87 @@ try:
 except PackageNotFoundError:
     __version__ = "unknown"
 
-from .client import Client
-from .core import SportClient
-from .f1 import F1Client
-from .football import FootballClient
+from .client import SportClient
+
+from .domain import (
+    Amount,
+    BaseEntity,
+    Cards,
+    Category,
+    Channel,
+    Competition,
+    Competitor,
+    Country,
+    EntityCollection,
+    Event,
+    EventCollection,
+    EventChannels,
+    EventStatistics,
+    Gender,
+    Incident,
+    Lineups,
+    Manager,
+    ManagerCareerHistory,
+    MatchCompetitors,
+    MatchScore,
+    MomentumGraph,
+    Period,
+    PlayerInfo,
+    Promotion,
+    Rankings,
+    Referee,
+    Round,
+    Season,
+    Sport,
+    Standings,
+    Venue,
+)
+
+from .provider import (
+    FetchError,
+    NotFoundError,
+    RateLimitError,
+)
 
 __all__ = [
-    "__version__",
+    # Core
     "SportClient",
-    "Client",
-    "FootballClient",
-    "F1Client",
+    
+    # Domain Models
+    "Amount",
+    "BaseEntity",
+    "Cards",
+    "Category",
+    "Channel",
+    "Competition",
+    "Competitor",
+    "Country",
+    "EntityCollection",
+    "Event",
+    "EventCollection",
+    "EventChannels",
+    "EventStatistics",
+    "Gender",
+    "Incident",
+    "Lineups",
+    "Manager",
+    "ManagerCareerHistory",
+    "MatchCompetitors",
+    "MatchScore",
+    "MomentumGraph",
+    "Period",
+    "PlayerInfo",
+    "Promotion",
+    "Rankings",
+    "Referee",
+    "Round",
+    "Season",
+    "Sport",
+    "Standings",
+    "Venue",
+    
+    # Exceptions
+    "FetchError",
+    "NotFoundError",
+    "RateLimitError",
 ]

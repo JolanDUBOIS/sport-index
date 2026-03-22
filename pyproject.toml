@@ -10,7 +10,8 @@ requires-python = ">=3.10"
 dependencies = [
     "requests (>=2.32.5,<3.0.0)",
     "beautifulsoup4 (>=4.14.3,<5.0.0)",
-    "cloudscraper (>=1.2.71,<2.0.0)"
+    "cloudscraper (>=1.2.71,<2.0.0)",
+    "pycountry (>=26.2.16,<27.0.0)"
 ]
 
 [tool.poetry]
@@ -20,5 +21,7 @@ packages = [{ include = "sportindex", from = "src" }]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry.scripts]
-collect-samples = "scripts.collect_samples:main"
+[dependency-groups]
+dev = [
+    "ipykernel (>=7.1.0,<8.0.0)"
+]
