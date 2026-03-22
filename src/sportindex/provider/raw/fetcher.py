@@ -1,6 +1,6 @@
 import time
 import random
-from requests import Response, RequestException
+from requests import Response, RequestException, ConnectionError
 
 import cloudscraper
 
