@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pycountry
 
-from .base import BaseEntity, EntityCollection
+from .base import BaseEntity, IdentifiableEntity, EntityCollection
 from sportindex.provider.parsed import ParsedChannel, ParsedCountryChannelsResponse
 
 if TYPE_CHECKING:
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 
-class Channel(BaseEntity[ParsedChannel]):
+class Channel(IdentifiableEntity[ParsedChannel]):
     """A TV channel broadcasting sports events."""
     REPR_FIELDS = ("id", "name")
 

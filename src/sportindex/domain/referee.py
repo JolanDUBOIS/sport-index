@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import BaseEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
 from sportindex.provider import NotFoundError, FetchError
 from sportindex.provider.parsed import ParsedReferee
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from sportindex.provider.parsed import ParsedSofascoreProvider
 
 
-class Referee(BaseEntity[ParsedReferee], EventAwareMixin):
+class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
     """A referee, e.g. 'Pierluigi Collina', 'Michael Masi', etc."""
     REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 

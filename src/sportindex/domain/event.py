@@ -6,7 +6,7 @@ from datetime import datetime, date
 from typing import TYPE_CHECKING, Optional, Literal
 
 from . import logger
-from .base import BaseEntity, EntityCollection
+from .base import IdentifiableEntity, EntityCollection
 from .core import Sport
 from .competition import Season
 from .utils import merge_dataclasses
@@ -36,7 +36,7 @@ MomentumGraph = ParsedMomentumGraphResponse
 
 # ====== Event entity =====
 
-class Event(BaseEntity[ParsedEvent | ParsedStage]):
+class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
     """An event, e.g. a football match, a tennis match, a formula one race, etc."""
     REPR_FIELDS = ("id", "name", "slug", "start", "kind", "end", "round", "competitors")
     _TYPE_MAP = {ParsedEvent: 1, ParsedStage: 2}

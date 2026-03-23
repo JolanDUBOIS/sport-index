@@ -6,7 +6,7 @@ from datetime import date
 from typing import TYPE_CHECKING, Optional, Literal
 
 from . import logger
-from .base import BaseEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
 from sportindex.provider import NotFoundError, FetchError
 from sportindex.provider.parsed import ParsedTeam, ParsedPlayer
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     )
 
 
-class Competitor(BaseEntity[ParsedTeam | ParsedPlayer], EventAwareMixin):
+class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin):
     """A competitor, e.g. 'Paris Saint-Germain', 'Roger Federer', 'Lewis Hamilton', etc."""
     REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name", "name_code", "national", "gender", "sport", "country", "category", "kind")
     _TYPE_MAP = {ParsedTeam: 1, ParsedPlayer: 2}

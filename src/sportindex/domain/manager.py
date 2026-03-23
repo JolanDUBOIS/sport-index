@@ -4,7 +4,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import BaseEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
 from sportindex.provider import NotFoundError, FetchError
 from sportindex.provider.parsed import ParsedManager, ParsedManagerCareerHistoryItem
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 ManagerCareerHistory = ParsedManagerCareerHistoryItem
 
 
-class Manager(BaseEntity[ParsedManager], EventAwareMixin):
+class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
     """A manager, e.g. 'Luis Enrique', 'Pep Guardiola', etc."""
     REPR_FIELDS = ("id", "name", "slug", "short_name", "sport", "country")
 

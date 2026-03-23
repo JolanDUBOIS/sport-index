@@ -1,7 +1,7 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from .base import BaseEntity, EntityCollection
+from .base import BaseEntity, IdentifiableEntity, EntityCollection
 from .channel import EventChannels, Channel
 from .competition import Competition, Season
 from .competitor import Competitor, PlayerInfo, Amount

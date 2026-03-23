@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional
 import pycountry
 
 from . import logger
-from .base import BaseEntity, EntityCollection
+from .base import BaseEntity, IdentifiableEntity, EntityCollection
 from .static import SPORT_RANKINGS
 from sportindex.provider.raw import NotFoundError
 from sportindex.provider.parsed import (
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from sportindex.provider.parsed import ParsedSofascoreProvider
 
 
-class Sport(BaseEntity[ParsedSport]):
+class Sport(IdentifiableEntity[ParsedSport]):
     """A sport, e.g. football, tennis, motorsport, etc."""
     REPR_FIELDS = ("id", "name", "slug")
 
@@ -147,7 +147,7 @@ class Country(BaseEntity[ParsedCountry]):
         return None
 
 
-class Category(BaseEntity[ParsedCategory]):
+class Category(IdentifiableEntity[ParsedCategory]):
     """A category within a sport (e.g. 'France Amateur', 'Formula 1', 'International')."""
     REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
