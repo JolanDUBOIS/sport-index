@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional, Literal
 from . import logger
 from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
-from sportindex.provider import NotFoundError, FetchError
+from sportindex.exceptions import ValidationError, NotFoundError, FetchError
 from sportindex.provider.parsed import ParsedTeam, ParsedPlayer
 from sportindex.provider.raw import Amount as Amount
 
@@ -31,7 +31,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, (ParsedTeam, ParsedPlayer)):
-            raise ValueError("Competitor data must be either ParsedTeam or ParsedPlayer")
+            raise ValidationError("Competitor data must be either ParsedTeam or ParsedPlayer")
 
         self._full_loaded = False
 
@@ -223,11 +223,12 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
             assert isinstance(self._data, (ParsedPlayer, ParsedTeam))
             self._full_loaded = True
             self._clear_cache()
-        except NotFoundError:
-            logger.debug(f"Competitor with id {self._data.id} not found during full load.")
-            self._full_loaded = True
+        except NotFoundError as e:
+            from sportindex.exceptions import EntityNotFoundError
+            raise EntityNotFoundError(f"Competitor with id {self._data.id} not found during full load") from e
         except FetchError as e:
-            logger.debug(f"Network error while fully loading competitor with id {self._data.id}: {e}")
+            from sportindex.exceptions import DomainError
+            raise DomainError(f"Network error while fully loading competitor with id {self._data.id}") from e
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""
@@ -248,17 +249,23 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
         """Fetch a competitor by its ID."""
         raw_id, type_idx = cls.decode_id(competitor_id)
         type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
+        from sportindex.exceptions import EntityNotFoundError, DomainError
 
         if type_idx not in type_map_reverse:
-            raise ValueError(f"Invalid competitor ID {competitor_id}: unknown type index {type_idx}")
+            raise ValidationError(f"Invalid competitor ID {competitor_id}: unknown type index {type_idx}")
 
         data_cls = type_map_reverse[type_idx]
-        if data_cls == ParsedTeam:
-            parsed_data = provider.get_team(raw_id).team
-        elif data_cls == ParsedPlayer:
-            parsed_data = provider.get_player(raw_id)
-        else:
-            raise ValueError(f"Unsupported competitor type index {type_idx} in ID {competitor_id}")
+        try:
+            if data_cls == ParsedTeam:
+                parsed_data = provider.get_team(raw_id).team
+            elif data_cls == ParsedPlayer:
+                parsed_data = provider.get_player(raw_id)
+            else:
+                raise ValidationError(f"Unsupported competitor type index {type_idx} in ID {competitor_id}")
+        except NotFoundError as e:
+            raise EntityNotFoundError(f"Competitor with id {competitor_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Network error while fetching competitor {competitor_id}") from e
 
         return cls(parsed_data, provider)
 

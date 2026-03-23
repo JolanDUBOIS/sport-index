@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, TYPE_CHECKING
 
 from .fetcher import Fetcher
+from sportindex.exceptions import ValidationError
 from .endpoints import ENDPOINTS
 
 if TYPE_CHECKING:
@@ -336,7 +337,7 @@ class SofascoreProvider:
         try:
             datetime.strptime(date, "%Y-%m-%d")
         except ValueError:
-            raise ValueError(f"Invalid date format: {date}. Expected YYYY-MM-DD.")
+            raise ValidationError(f"Invalid date format: {date}. Expected YYYY-MM-DD.")
         url = self._format("scheduled-events", sport=sport, date=date)
         return self._fetch(url)
 
@@ -460,7 +461,7 @@ class SofascoreProvider:
     def _format(self, endpoint_name: str, **kwargs: Any) -> str:
         """Format an endpoint URL from the endpoint registry."""
         if endpoint_name not in ENDPOINTS:
-            raise ValueError(f"Endpoint '{endpoint_name}' is not defined.")
+            raise ValidationError(f"Endpoint '{endpoint_name}' is not defined.")
         return ENDPOINTS[endpoint_name].format(**kwargs)
 
     def _fetch(self, url: str, *, params: dict | None = None, fetch_delay: float | None = None) -> dict:

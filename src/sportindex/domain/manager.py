@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Optional
 from . import logger
 from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
-from sportindex.provider import NotFoundError, FetchError
 from sportindex.provider.parsed import ParsedManager, ParsedManagerCareerHistoryItem
+from sportindex.exceptions import EntityNotFoundError, DomainError, ValidationError, NotFoundError, FetchError
 
 if TYPE_CHECKING:
     from .competitor import Competitor
@@ -26,7 +26,7 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedManager):
-            raise ValueError("Manager data must be of type ParsedManager")
+            raise ValidationError("Manager data must be of type ParsedManager")
 
         self._full_loaded = False
 
@@ -100,11 +100,12 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
             assert isinstance(self._data, ParsedManager)
             self._full_loaded = True
             self._clear_cache()
-        except NotFoundError:
-            logger.debug(f"Manager with id {self._data.id} not found during full load.")
-            self._full_loaded = True
+        except NotFoundError as e:
+            from sportindex.exceptions import EntityNotFoundError
+            raise EntityNotFoundError(f"Manager with id {self._data.id} not found during full load") from e
         except FetchError as e:
-            logger.debug(f"Network error while fully loading manager with id {self._data.id}: {e}")
+            from sportindex.exceptions import DomainError
+            raise DomainError(f"Network error while fully loading manager with id {self._data.id}") from e
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""
@@ -117,7 +118,12 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
     @classmethod
     def from_id(cls, manager_id: int, provider: ParsedSofascoreProvider) -> Manager:
         """Fetch a manager by its ID."""
-        parsed_data = provider.get_manager(manager_id)
+        try:
+            parsed_data = provider.get_manager(manager_id)
+        except NotFoundError as e:
+            raise EntityNotFoundError(f"Manager with id {manager_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Network error while fetching manager {manager_id}") from e
         return cls(parsed_data, provider)
 
     @classmethod

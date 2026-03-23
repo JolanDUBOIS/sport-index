@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional
 from . import logger
 from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
-from sportindex.provider import NotFoundError, FetchError
+from sportindex.exceptions import ValidationError, NotFoundError, FetchError
 from sportindex.provider.parsed import ParsedReferee
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedReferee):
-            raise ValueError("Referee data must be of type ParsedReferee")
+            raise ValidationError("Referee data must be of type ParsedReferee")
 
         self._full_loaded = False
 
@@ -93,11 +93,12 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
             assert isinstance(self._data, ParsedReferee)
             self._full_loaded = True
             self._clear_cache()
-        except NotFoundError:
-            logger.debug(f"Referee with id {self._data.id} not found during full load.")
-            self._full_loaded = True
+        except NotFoundError as e:
+            from sportindex.exceptions import EntityNotFoundError
+            raise EntityNotFoundError(f"Referee with id {self._data.id} not found during full load") from e
         except FetchError as e:
-            logger.debug(f"Network error while fully loading referee with id {self._data.id}: {e}")
+            from sportindex.exceptions import DomainError
+            raise DomainError(f"Network error while fully loading referee with id {self._data.id}") from e
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""
@@ -109,7 +110,13 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
     @classmethod
     def from_id(cls, referee_id: int, provider: ParsedSofascoreProvider) -> Referee:
         """Fetch a referee by its ID."""
-        parsed_data = provider.get_referee(referee_id)
+        from sportindex.exceptions import EntityNotFoundError, DomainError
+        try:
+            parsed_data = provider.get_referee(referee_id)
+        except NotFoundError as e:
+            raise EntityNotFoundError(f"Referee with id {referee_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Network error while fetching referee {referee_id}") from e
         return cls(parsed_data, provider)
 
     @classmethod

@@ -5,7 +5,7 @@ from requests import Response, RequestException, ConnectionError
 import cloudscraper
 
 from . import logger
-from .exceptions import RateLimitError, NotFoundError, FetchError
+from sportindex.exceptions import RateLimitError, NotFoundError, FetchError
 
 
 class Fetcher:

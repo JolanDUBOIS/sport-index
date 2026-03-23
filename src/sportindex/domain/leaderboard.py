@@ -11,6 +11,7 @@ from sportindex.provider.parsed import (
     ParsedTeamStandings, ParsedRacingStandingsEntry, ParsedRankingsResponse
 )
 from sportindex.provider.raw import Promotion as Promotion
+from sportindex.exceptions import ValidationError, InsufficientDataError
 
 if TYPE_CHECKING:
     from .core import Gender, Sport, Category
@@ -35,7 +36,7 @@ class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry
         super().__init__(data, provider, **kwargs)
 
         if not (isinstance(data, ParsedTeamStandings) or (isinstance(data, list) and all(isinstance(e, ParsedRacingStandingsEntry) for e in data))):
-            raise ValueError("Standings data must be either ParsedTeamStandings or list[ParsedRacingStandingsEntry]")
+            raise ValidationError("Standings data must be either ParsedTeamStandings or list[ParsedRacingStandingsEntry]")
 
     @property
     def name(self) -> Optional[str]:
@@ -216,7 +217,7 @@ class RankingsEntry:
         from .competition import Competition
         entity = Competitor(data.team, provider) if data.team else Competition(data.uniqueTournament, provider) if data.uniqueTournament else None
         if not entity:
-            raise ValueError(f"Ranking entry {data.id} has neither team nor unique tournament, cannot determine entity")
+            raise InsufficientDataError(f"Ranking entry {data.id} has neither team nor unique tournament, cannot determine entity")
         return cls(
             position=data.position,
             entity=entity,

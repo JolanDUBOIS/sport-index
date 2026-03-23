@@ -38,7 +38,8 @@ from .models import (
     ParsedUniqueTournamentSeasonsResponse,
     ParsedVenue,
 )
-from ..raw import SofascoreProvider, NotFoundError, RateLimitError, FetchError
+from ..raw import SofascoreProvider
+from sportindex.exceptions import NotFoundError, RateLimitError, FetchError
 
 
 class ParsedSofascoreProvider:

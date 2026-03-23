@@ -15,7 +15,7 @@ from sportindex.provider.parsed import (
     ParsedLineupsResponse, ParsedIncident,
     ParsedEventStatisticsResponse, ParsedMomentumGraphResponse
 )
-from sportindex.provider import NotFoundError, FetchError
+from sportindex.exceptions import ValidationError, NotFoundError, FetchError
 from sportindex.provider.raw import Round as Round
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, (ParsedEvent, ParsedStage)):
-            raise ValueError("Event data must be either ParsedEvent or ParsedStage")
+            raise ValidationError("Event data must be either ParsedEvent or ParsedStage")
 
         self._full_loaded = False
 
@@ -101,7 +101,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
             parent_stage = self._provider.get_stage(parent_stage_id)
             return Season(parent_stage, self._provider)
         else:
-            raise ValueError("Event data must be either ParsedEvent or ParsedStage to determine season")
+            raise ValidationError("Event data must be either ParsedEvent or ParsedStage to determine season")
 
     @property
     def competition(self) -> Competition:
@@ -286,11 +286,12 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
             assert isinstance(self._data, (ParsedEvent, ParsedStage))
             self._full_loaded = True
             self._clear_cache()
-        except NotFoundError:
-            logger.debug(f"Event with id {self._data.id} not found during full load.")
-            self._full_loaded = True
+        except NotFoundError as e:
+            from sportindex.exceptions import EntityNotFoundError
+            raise EntityNotFoundError(f"Event with id {self._data.id} not found during full load") from e
         except FetchError as e:
-            logger.debug(f"Network error while fully loading event with id {self._data.id}: {e}")
+            from sportindex.exceptions import DomainError
+            raise DomainError(f"Network error while fully loading event with id {self._data.id}") from e
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""
@@ -307,17 +308,23 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         """Fetch an event by its ID."""
         raw_id, type_idx = cls.decode_id(event_id)
         type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
+        from sportindex.exceptions import EntityNotFoundError, DomainError
 
         if type_idx not in type_map_reverse:
-            raise ValueError(f"Invalid event ID {event_id}: unknown type index {type_idx}")
+            raise ValidationError(f"Invalid event ID {event_id}: unknown type index {type_idx}")
 
         data_cls = type_map_reverse[type_idx]
-        if data_cls == ParsedEvent:
-            parsed_data = provider.get_event(raw_id)
-        elif data_cls == ParsedStage:
-            parsed_data = provider.get_stage(raw_id)
-        else:
-            raise ValueError(f"Unsupported event type index {type_idx} in ID {event_id}")
+        try:
+            if data_cls == ParsedEvent:
+                parsed_data = provider.get_event(raw_id)
+            elif data_cls == ParsedStage:
+                parsed_data = provider.get_stage(raw_id)
+            else:
+                raise ValidationError(f"Unsupported event type index {type_idx} in ID {event_id}")
+        except NotFoundError as e:
+            raise EntityNotFoundError(f"Event with id {event_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Network error while fetching event {event_id}") from e
 
         return cls(parsed_data, provider)
 
