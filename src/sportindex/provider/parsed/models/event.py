@@ -17,6 +17,21 @@ if TYPE_CHECKING:
 
 
 # =====================================================================
+# Primitives
+# =====================================================================
+
+@dataclass
+class ParsedRound(BaseParsedModel):
+    name: str
+    slug: str
+    round: int
+
+    @classmethod
+    def _parse(cls, raw: RawRound) -> ParsedRound:
+        return cls(**raw)
+
+
+# =====================================================================
 # Event
 # =====================================================================
 
@@ -27,7 +42,7 @@ class ParsedEvent(BaseParsedModel):
     slug: str
     gender: str
     start: datetime
-    roundInfo: RawRound
+    roundInfo: ParsedRound
     season: ParsedSeason
     tournament: ParsedTournament
 
@@ -59,7 +74,7 @@ class ParsedEvent(BaseParsedModel):
             slug=raw.get("slug"),
             gender=raw.get("gender"),
             start=parse_timestamp(raw.get("startTimestamp")),
-            roundInfo=raw.get("roundInfo"),
+            roundInfo=ParsedRound.from_raw(raw.get("roundInfo")),
             season=ParsedSeason.from_raw(raw.get("season")),
             tournament=ParsedTournament.from_raw(raw.get("tournament")),
             attendance=raw.get("attendance"),
