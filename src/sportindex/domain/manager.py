@@ -7,7 +7,7 @@ from . import logger
 from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
 from sportindex.provider.parsed import ParsedManager, ParsedManagerCareerHistoryItem
-from sportindex.exceptions import EntityNotFoundError, DomainError, ValidationError, NotFoundError, FetchError
+from sportindex.exceptions import EntityNotFoundError, DomainError, ProviderNotFoundError, FetchError
 
 if TYPE_CHECKING:
     from .competitor import Competitor
@@ -26,7 +26,7 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedManager):
-            raise ValidationError("Manager data must be of type ParsedManager")
+            raise TypeError("Manager data must be of type ParsedManager")
 
         self._full_loaded = False
 
@@ -97,14 +97,13 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
             return
         try:
             self._data = merge_dataclasses(self._data, self._provider.get_manager(self._data.id))
-            assert isinstance(self._data, ParsedManager)
+            if not isinstance(self._data, ParsedManager):
+                raise TypeError("Manager data must be of type ParsedManager after full load")
             self._full_loaded = True
             self._clear_cache()
-        except NotFoundError as e:
-            from sportindex.exceptions import EntityNotFoundError
+        except ProviderNotFoundError as e:
             raise EntityNotFoundError(f"Manager with id {self._data.id} not found during full load") from e
         except FetchError as e:
-            from sportindex.exceptions import DomainError
             raise DomainError(f"Network error while fully loading manager with id {self._data.id}") from e
 
     def _clear_cache(self) -> None:
@@ -120,7 +119,7 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
         """Fetch a manager by its ID."""
         try:
             parsed_data = provider.get_manager(manager_id)
-        except NotFoundError as e:
+        except ProviderNotFoundError as e:
             raise EntityNotFoundError(f"Manager with id {manager_id} not found") from e
         except FetchError as e:
             raise DomainError(f"Network error while fetching manager {manager_id}") from e

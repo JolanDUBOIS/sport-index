@@ -11,7 +11,7 @@ from sportindex.provider.parsed import (
     ParsedTeamStandings, ParsedRacingStandingsEntry, ParsedRankingsResponse
 )
 from sportindex.provider.raw import Promotion as Promotion
-from sportindex.exceptions import ValidationError, InsufficientDataError
+from sportindex.exceptions import InsufficientDataError
 
 if TYPE_CHECKING:
     from .core import Gender, Sport, Category
@@ -36,7 +36,7 @@ class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry
         super().__init__(data, provider, **kwargs)
 
         if not (isinstance(data, ParsedTeamStandings) or (isinstance(data, list) and all(isinstance(e, ParsedRacingStandingsEntry) for e in data))):
-            raise ValidationError("Standings data must be either ParsedTeamStandings or list[ParsedRacingStandingsEntry]")
+            raise TypeError("Standings data must be either ParsedTeamStandings or list[ParsedRacingStandingsEntry]")
 
     @property
     def name(self) -> Optional[str]:
@@ -192,13 +192,19 @@ class Rankings(BaseEntity[ParsedRankingsResponse]):
     def category(self) -> Optional[Category]:
         """The category these rankings belong to, if any."""
         from .core import Category
-        return Category(self._data.rankingType.category, self._provider) if self._data and self._data.rankingType and self._data.rankingType.category else None
+        try:
+            return Category(self._data.rankingType.category, self._provider) if self._data and self._data.rankingType and self._data.rankingType.category else None
+        except TypeError:
+            return None
 
     @cached_property
     def competition(self) -> Optional[Competition]:
         """The competition these rankings belong to, if any."""
         from .competition import Competition
-        raise NotImplementedError
+        try:
+            return Competition(self._data.rankingType.uniqueTournament, self._provider) if self._data and self._data.rankingType and self._data.rankingType.uniqueTournament else None
+        except TypeError:
+            return None
 
 
 @dataclass

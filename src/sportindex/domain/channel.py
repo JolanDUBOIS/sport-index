@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pycountry
 
 from .base import BaseEntity, IdentifiableEntity, EntityCollection
-from sportindex.exceptions import ValidationError, EntityNotFoundError, NotFoundError, FetchError
+from sportindex.exceptions import EntityNotFoundError, ProviderNotFoundError, FetchError, DomainError
 from sportindex.provider.parsed import ParsedChannel, ParsedCountryChannelsResponse
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ class Channel(IdentifiableEntity[ParsedChannel]):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedChannel):
-            raise ValidationError("Channel data must be of type ParsedChannel")
+            raise TypeError("Channel data must be of type ParsedChannel")
 
     @property
     def id(self) -> int:
@@ -49,10 +49,9 @@ class Channel(IdentifiableEntity[ParsedChannel]):
     @classmethod
     def from_id(cls, channel_id: int, provider: ParsedSofascoreProvider) -> Channel:
         """Fetch a channel by its ID."""
-        from sportindex.exceptions import EntityNotFoundError, DomainError
         try:
             parsed_channel_events = provider.get_channel_schedule(channel_id)
-        except NotFoundError as e:
+        except ProviderNotFoundError as e:
             raise EntityNotFoundError(f"Channel with id {channel_id} not found") from e
         except FetchError as e:
             raise DomainError(f"Network error while fetching channel {channel_id}") from e
@@ -67,7 +66,7 @@ class EventChannels(BaseEntity[ParsedCountryChannelsResponse]):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedCountryChannelsResponse):
-            raise ValidationError("EventChannels data must be of type ParsedCountryChannelsResponse")
+            raise TypeError("EventChannels data must be of type ParsedCountryChannelsResponse")
 
     @property
     def channels(self) -> dict[str, list[int]]:
@@ -94,7 +93,7 @@ class EventChannels(BaseEntity[ParsedCountryChannelsResponse]):
                 raise EntityNotFoundError(f"Country with alpha code '{country_alpha}' not found")
             country_alpha2 = country_obj.alpha_2
         else:
-            raise ValidationError("Must provide either country object, name or alpha code")
+            raise TypeError("Must provide either country object, name or alpha code")
         return EntityCollection([Channel.from_id(cid, self._provider) for cid in self.channels.get(country_alpha2, [])])
 
 

@@ -12,7 +12,7 @@ from sportindex.provider.parsed import (
     ParsedSeason, ParsedStage
 )
 from .utils import merge_dataclasses
-from sportindex.exceptions import ValidationError, InsufficientDataError, NotFoundError, FetchError
+from sportindex.exceptions import InsufficientDataError, ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 
 if TYPE_CHECKING:
     from .event import EventCollection
@@ -29,7 +29,7 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
         super().__init__(data, provider)
 
         if not isinstance(data, (ParsedUniqueTournament, ParsedUniqueStage)):
-            raise ValidationError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
+            raise TypeError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
 
         self._full_loaded = False
 
@@ -73,7 +73,7 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
                 for s in self._provider.get_unique_stage_seasons(self._data.id)
             ])
         else:
-            raise ValidationError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
+            raise TypeError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
 
     def _full_load(self) -> None:
         """
@@ -88,14 +88,13 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
                 self._data = merge_dataclasses(self._data, self._provider.get_unique_tournament(self._data.id))
             elif isinstance(self._data, ParsedUniqueStage):
                 logger.debug(f"No endpoint available to fully load unique stage yet, skipping full load...")
-            assert isinstance(self._data, (ParsedUniqueTournament, ParsedUniqueStage))
+            if not isinstance(self._data, (ParsedUniqueTournament, ParsedUniqueStage)):
+                raise TypeError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
             self._full_loaded = True
             self._clear_cache()
-        except NotFoundError as e:
-            from sportindex.exceptions import EntityNotFoundError
+        except ProviderNotFoundError as e:
             raise EntityNotFoundError(f"Competition with id {self._data.id} not found during full load") from e
         except FetchError as e:
-            from sportindex.exceptions import DomainError
             raise DomainError(f"Network error while fully loading competition with id {self._data.id}") from e
 
     def _clear_cache(self) -> None:
@@ -108,10 +107,10 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
         """Fetch a competition by its ID."""
         raw_id, type_idx = cls.decode_id(competition_id)
         type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
-        from sportindex.exceptions import EntityNotFoundError, DomainError
+        # exceptions imported at module level
 
         if type_idx not in type_map_reverse:
-            raise ValidationError(f"Invalid competition ID {competition_id}: unknown type index {type_idx}")
+            raise TypeError(f"Invalid competition ID {competition_id}: unknown type index {type_idx}")
 
         data_cls = type_map_reverse[type_idx]
         try:
@@ -124,8 +123,8 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
                 else:
                     raise InsufficientDataError(f"Could not find any seasons for unique stage with ID {raw_id}, cannot construct competition")
             else:
-                raise ValidationError(f"Unsupported data class {data_cls} for competition ID {competition_id}")
-        except NotFoundError as e:
+                raise TypeError(f"Unsupported data class {data_cls} for competition ID {competition_id}")
+        except ProviderNotFoundError as e:
             raise EntityNotFoundError(f"Competition with id {competition_id} not found") from e
         except FetchError as e:
             raise DomainError(f"Network error while fetching competition {competition_id}") from e
@@ -157,7 +156,7 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, (ParsedSeason, ParsedStage)):
-            raise ValidationError("Season data must be either ParsedSeason or ParsedStage")
+            raise TypeError("Season data must be either ParsedSeason or ParsedStage")
 
         self._full_loaded = False
 
@@ -202,7 +201,7 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
             elif isinstance(self._data, ParsedStage):
                 return Competition(self._data.uniqueStage, self._provider)
             else:
-                raise ValidationError("Season data must be either ParsedSeason or ParsedStage")
+                raise TypeError("Season data must be either ParsedSeason or ParsedStage")
 
     @property
     def standings(self) -> EntityCollection[Standings]:
@@ -212,22 +211,22 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
             standings = self._provider.get_unique_tournament_standings(self.competition._data.id, self._data.id, view="total")
             try:
                 standings.extend(self._provider.get_unique_tournament_standings(self.competition._data.id, self._data.id, view="home"))
-            except NotFoundError as e:
+            except ProviderNotFoundError as e:
                 logger.debug(f"Failed to fetch home standings for season {self.id}: {e}")
             try:
                 standings.extend(self._provider.get_unique_tournament_standings(self.competition._data.id, self._data.id, view="away"))
-            except NotFoundError as e:
+            except ProviderNotFoundError as e:
                 logger.debug(f"Failed to fetch away standings for season {self.id}: {e}")
             return EntityCollection([Standings(s, self._provider) for s in standings])
         elif isinstance(self._data, ParsedStage):
             try:
                 competitors_standings = self._provider.get_stage_standings_competitors(self._data.id)
-            except NotFoundError as e:
+            except ProviderNotFoundError as e:
                 logger.debug(f"Failed to fetch competitors standings for stage {self.id}: {e}")
                 competitors_standings = []
             try:
                 teams_standings = self._provider.get_stage_standings_teams(self._data.id)
-            except NotFoundError as e:
+            except ProviderNotFoundError as e:
                 logger.debug(f"Failed to fetch teams standings for stage {self.id}: {e}")
                 teams_standings = []
             return EntityCollection([
@@ -283,14 +282,13 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
                         "This could lead to incorrect data being assigned to the Season entity. "
                         "Please check the data and consider using a different entity type if appropriate."
                     )
-            assert isinstance(self._data, (ParsedSeason, ParsedStage))
+            if not isinstance(self._data, (ParsedSeason, ParsedStage)):
+                raise TypeError("Season data must be either ParsedSeason or ParsedStage")
             self._full_loaded = True
             self._clear_cache()
-        except NotFoundError as e:
-            from sportindex.exceptions import EntityNotFoundError
+        except ProviderNotFoundError as e:
             raise EntityNotFoundError(f"Season with id {self._data.id} not found during full load") from e
         except FetchError as e:
-            from sportindex.exceptions import DomainError
             raise DomainError(f"Network error while fully loading season with id {self._data.id}") from e
 
     def _clear_cache(self) -> None:

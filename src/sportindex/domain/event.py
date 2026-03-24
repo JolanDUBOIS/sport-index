@@ -10,12 +10,12 @@ from .base import IdentifiableEntity, EntityCollection
 from .core import Sport
 from .competition import Season
 from .utils import merge_dataclasses
+from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.parsed import (
     ParsedEvent, ParsedStage, ParsedPeriod,
     ParsedLineupsResponse, ParsedIncident,
     ParsedEventStatisticsResponse, ParsedMomentumGraphResponse
 )
-from sportindex.exceptions import ValidationError, NotFoundError, FetchError
 from sportindex.provider.raw import Round as Round
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, (ParsedEvent, ParsedStage)):
-            raise ValidationError("Event data must be either ParsedEvent or ParsedStage")
+            raise TypeError("Event data must be either ParsedEvent or ParsedStage")
 
         self._full_loaded = False
 
@@ -101,7 +101,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
             parent_stage = self._provider.get_stage(parent_stage_id)
             return Season(parent_stage, self._provider)
         else:
-            raise ValidationError("Event data must be either ParsedEvent or ParsedStage to determine season")
+            raise TypeError("Event data must be either ParsedEvent or ParsedStage to determine season")
 
     @property
     def competition(self) -> Competition:
@@ -170,7 +170,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         if isinstance(self._data, ParsedEvent):
             try:
                 return self._provider.get_event_lineups(self._data.id)
-            except NotFoundError:
+            except ProviderNotFoundError:
                 logger.debug(f"Lineups not found for event {self.id}.")
                 return None
         return None
@@ -181,7 +181,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         if isinstance(self._data, ParsedEvent):
             try:
                 return self._provider.get_event_incidents(self._data.id)
-            except NotFoundError:
+            except ProviderNotFoundError:
                 logger.debug(f"Incidents not found for event {self.id}.")
                 return None
         return None
@@ -192,7 +192,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         if isinstance(self._data, ParsedEvent):
             try:
                 return self._provider.get_event_statistics(self._data.id)
-            except NotFoundError:
+            except ProviderNotFoundError:
                 logger.debug(f"Statistics not found for event {self.id}.")
                 return None
         return None
@@ -203,7 +203,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         if isinstance(self._data, ParsedEvent):
             try:
                 return self._provider.get_event_graph(self._data.id)
-            except NotFoundError:
+            except ProviderNotFoundError:
                 logger.debug(f"Momentum graph not found for event {self.id}.")
                 return None
         return None
@@ -214,7 +214,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         if isinstance(self._data, ParsedEvent):
             try:
                 return EventCollection([Event(e, self._provider) for e in self._provider.get_h2h_history(self._data.customId)])
-            except NotFoundError:
+            except ProviderNotFoundError:
                 logger.debug(f"H2H history not found for event {self.id}.")
                 return None
         return None
@@ -228,7 +228,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         if isinstance(self._data, ParsedStage):
             try:
                 return EventCollection([Event(s, self._provider) for s in self._provider.get_stage_substages(self._data.id)])
-            except NotFoundError:
+            except ProviderNotFoundError:
                 logger.debug(f"Substages not found for event {self.id}.")
                 return None
         return None
@@ -239,12 +239,12 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         if isinstance(self._data, ParsedStage):
             try:
                 competitors_standings = self._provider.get_stage_standings_competitors(self._data.id)
-            except NotFoundError as e:
+            except ProviderNotFoundError as e:
                 logger.debug(f"Failed to fetch competitors standings for event {self.id}: {e}")
                 competitors_standings = []
             try:
                 teams_standings = self._provider.get_stage_standings_teams(self._data.id)
-            except NotFoundError as e:
+            except ProviderNotFoundError as e:
                 logger.debug(f"Failed to fetch teams standings for event {self.id}: {e}")
                 teams_standings = []
             return EntityCollection([
@@ -283,14 +283,13 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
                 self._data = merge_dataclasses(self._data, self._provider.get_event(self._data.id))
             elif isinstance(self._data, ParsedStage):
                 self._data = merge_dataclasses(self._data, self._provider.get_stage_details(self._data.id))
-            assert isinstance(self._data, (ParsedEvent, ParsedStage))
+            if not isinstance(self._data, (ParsedEvent, ParsedStage)):
+                raise TypeError("Event data must be either ParsedEvent or ParsedStage")
             self._full_loaded = True
             self._clear_cache()
-        except NotFoundError as e:
-            from sportindex.exceptions import EntityNotFoundError
+        except ProviderNotFoundError as e:
             raise EntityNotFoundError(f"Event with id {self._data.id} not found during full load") from e
         except FetchError as e:
-            from sportindex.exceptions import DomainError
             raise DomainError(f"Network error while fully loading event with id {self._data.id}") from e
 
     def _clear_cache(self) -> None:
@@ -308,19 +307,18 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         """Fetch an event by its ID."""
         raw_id, type_idx = cls.decode_id(event_id)
         type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
-        from sportindex.exceptions import EntityNotFoundError, DomainError
-
-        if type_idx not in type_map_reverse:
-            raise ValidationError(f"Invalid event ID {event_id}: unknown type index {type_idx}")
-
-        data_cls = type_map_reverse[type_idx]
         try:
             if data_cls == ParsedEvent:
                 parsed_data = provider.get_event(raw_id)
             elif data_cls == ParsedStage:
                 parsed_data = provider.get_stage(raw_id)
             else:
-                raise ValidationError(f"Unsupported event type index {type_idx} in ID {event_id}")
+                raise TypeError(f"Unsupported event type index {type_idx} in ID {event_id}")
+        except ProviderNotFoundError as e:
+            raise EntityNotFoundError(f"Event with id {event_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Network error while fetching event {event_id}") from e
+                raise TypeError(f"Unsupported event type index {type_idx} in ID {event_id}")
         except NotFoundError as e:
             raise EntityNotFoundError(f"Event with id {event_id} not found") from e
         except FetchError as e:

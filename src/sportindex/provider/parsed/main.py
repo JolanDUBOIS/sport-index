@@ -39,7 +39,7 @@ from .models import (
     ParsedVenue,
 )
 from ..raw import SofascoreProvider
-from sportindex.exceptions import NotFoundError, RateLimitError, FetchError
+from sportindex.exceptions import ProviderNotFoundError, RateLimitError, FetchError
 
 
 class ParsedSofascoreProvider:

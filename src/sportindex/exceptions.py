@@ -7,10 +7,6 @@ class SportIndexError(Exception):
     """Base class for all errors raised by sportindex."""
 
 
-class ValidationError(SportIndexError):
-    """Raised when user input/arguments are invalid."""
-
-
 class ParseError(SportIndexError):
     """Raised when provider data cannot be parsed or mapped."""
 
@@ -27,8 +23,13 @@ class RateLimitError(ProviderError):
     """Raised when an upstream service rate-limits requests (e.g. HTTP 429)."""
 
 
-class NotFoundError(ProviderError):
-    """Raised when a requested remote resource is not found (HTTP 404)."""
+class ProviderNotFoundError(ProviderError):
+    """Raised when a requested remote resource is not found (HTTP 404).
+
+    Named `ProviderNotFoundError` to avoid confusion with domain-level
+    `EntityNotFoundError` and make it clear this originates from upstream
+    provider/network layer.
+    """
 
 
 class FetchError(ProviderError):
@@ -56,12 +57,11 @@ class BusinessRuleViolation(DomainError):
 
 __all__ = [
     "SportIndexError",
-    "ValidationError",
     "ParseError",
     "ProviderError",
     "NetworkError",
     "RateLimitError",
-    "NotFoundError",
+    "ProviderNotFoundError",
     "FetchError",
     "DomainError",
     "EntityNotFoundError",
