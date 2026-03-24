@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class SofascoreProvider:
+class RawSofascoreProvider:
     """Provider class for Sofascore API fetching."""
 
     def __init__(self, fetch_delay: float = 0.5):
