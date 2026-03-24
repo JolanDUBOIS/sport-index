@@ -38,12 +38,12 @@ from .models import (
     ParsedUniqueTournamentSeasonsResponse,
     ParsedVenue,
 )
-from ..raw import SofascoreProvider
+from ..raw import RawSofascoreProvider
 
 
-class ParsedSofascoreProvider:
+class SofascoreProvider:
     """
-    A wrapper around the low-level `SofascoreProvider` that parses raw API
+    A wrapper around the low-level `RawSofascoreProvider` that parses raw API
     responses into typed Parsed* models. Provides methods grouped by
     entity type (categories, tournaments, teams, players, managers, referees,
     venues, events, rankings, motorsport, TV channels, and search).
@@ -57,7 +57,7 @@ class ParsedSofascoreProvider:
     """
 
     def __init__(self, fetch_delay: float = 0.5):
-        self._provider = SofascoreProvider(fetch_delay=fetch_delay)
+        self._provider = RawSofascoreProvider(fetch_delay=fetch_delay)
 
     # ---- Categories ---- #
 

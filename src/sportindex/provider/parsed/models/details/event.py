@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from ..base import BaseParsedModel
 if TYPE_CHECKING:
     from ..player import ParsedPlayer
-    from sportindex.provider.raw.models import Lineup
+    from sportindex.provider.raw.models import RawLineup
 
 
 # =====================================================================
@@ -20,7 +20,7 @@ class ParsedLineup(BaseParsedModel):
     missingPlayers: list[ParsedPlayer]
 
     @classmethod
-    def _parse(cls, raw: Lineup) -> ParsedLineup:
+    def _parse(cls, raw: RawLineup) -> ParsedLineup:
         from ..player import ParsedPlayer
         return cls(
             formation=raw.get("formation"),

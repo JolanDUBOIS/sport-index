@@ -8,7 +8,7 @@ from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .core import ParsedCountry
-    from .primitives import Amount
+    from .primitives import ParsedAmount
     from .team import ParsedTeam
     from sportindex.provider.raw.models import RawPlayer
 
@@ -31,8 +31,8 @@ class ParsedPlayer(BaseParsedModel):
     deceased: bool
     preferredFoot: str
     preferredHand: str
-    salaryRaw: Amount
-    proposedMarketValueRaw: Amount
+    salaryRaw: ParsedAmount
+    proposedMarketValueRaw: ParsedAmount
     position: str                # e.g. "G", "D", "M", "F"
     positionsDetailed: list[str] # e.g. ["RW", "ST"]
     primaryPosition: str
@@ -61,8 +61,8 @@ class ParsedPlayer(BaseParsedModel):
             deceased=raw.get("deceased"),
             preferredFoot=raw.get("preferredFoot"),
             preferredHand=raw.get("preferredHand"),
-            salaryRaw=Amount.from_raw(raw.get("salaryRaw")),
-            proposedMarketValueRaw=Amount.from_raw(raw.get("proposedMarketValueRaw")),
+            salaryRaw=ParsedAmount.from_raw(raw.get("salaryRaw")),
+            proposedMarketValueRaw=ParsedAmount.from_raw(raw.get("proposedMarketValueRaw")),
             position=raw.get("position"),
             positionsDetailed=raw.get("positionsDetailed"),
             primaryPosition=raw.get("primaryPosition"),

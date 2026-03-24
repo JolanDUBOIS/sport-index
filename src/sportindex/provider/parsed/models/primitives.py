@@ -9,27 +9,27 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Amount(BaseParsedModel):
+class ParsedAmount(BaseParsedModel):
     value: float
     currency: str
 
     @classmethod
-    def _parse(cls, raw: RawAmount) -> Amount:
+    def _parse(cls, raw: RawAmount) -> ParsedAmount:
         return cls(**raw)
 
 
 @dataclass
-class Channel(BaseParsedModel):
+class ParsedChannel(BaseParsedModel):
     id: int
     name: str
 
     @classmethod
-    def _parse(cls, raw: RawChannel) -> Channel:
+    def _parse(cls, raw: RawChannel) -> ParsedChannel:
         return cls(**raw)
 
 
 @dataclass
-class Performance(BaseParsedModel):
+class ParsedPerformance(BaseParsedModel):
     total: int
     wins: int
     draws: int
@@ -39,5 +39,5 @@ class Performance(BaseParsedModel):
     totalPoints: int
 
     @classmethod
-    def _parse(cls, raw: RawPerformance) -> Performance:
+    def _parse(cls, raw: RawPerformance) -> ParsedPerformance:
         return cls(**raw)

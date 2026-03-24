@@ -2,19 +2,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING
 
 from ..base import BaseParsedModel
 from ..parsers import parse_timestamp, parse_iso
 if TYPE_CHECKING:
     from ..team import ParsedTeam
     from ..player import ParsedPlayer
+    from ..primitives import ParsedPerformance
     from ..tournament import ParsedUniqueTournament, ParsedSeason
     from sportindex.provider.raw.models import (
-        PlayerPreviousTeam, TeamPlayers,
-        PlayerSeasonStats, ManagerCareerHistoryItem,
-        PlayerSeasonStatsItem, Performance, 
-        TeamSeasonStats, TeamYearSurfaceStats, TeamYearStats
+        RawPlayerPreviousTeam, RawTeamPlayers,
+        RawPlayerSeasonStats, RawManagerCareerHistoryItem,
+        RawPlayerSeasonStatsItem, RawTeamSeasonStats,
+        RawTeamYearSurfaceStats, RawTeamYearStats
     )
 
 
@@ -29,7 +30,7 @@ class ParsedPlayerPreviousTeam(BaseParsedModel):
     transferDate: datetime
 
     @classmethod
-    def _parse(cls, raw: PlayerPreviousTeam) -> ParsedPlayerPreviousTeam:
+    def _parse(cls, raw: RawPlayerPreviousTeam) -> ParsedPlayerPreviousTeam:
         from ..player import ParsedPlayer
         from ..team import ParsedTeam
         return cls(
@@ -47,7 +48,7 @@ class ParsedTeamPlayers(BaseParsedModel):
     playerPreviousTeams: list[ParsedPlayerPreviousTeam]
 
     @classmethod
-    def _parse(cls, raw: TeamPlayers) -> ParsedTeamPlayers:
+    def _parse(cls, raw: RawTeamPlayers) -> ParsedTeamPlayers:
         from ..player import ParsedPlayer
         return cls(
             players=[ParsedPlayer.from_raw(p) for p in raw.get("players", [])],
@@ -181,7 +182,7 @@ class ParsedTeamSeasonStats(BaseParsedModel):
     awardedMatches: int
 
     @classmethod
-    def _parse(cls, raw: TeamSeasonStats) -> ParsedTeamSeasonStats:
+    def _parse(cls, raw: RawTeamSeasonStats) -> ParsedTeamSeasonStats:
         return cls(**raw)
 
 
@@ -191,10 +192,10 @@ class ParsedTeamSeasonStats(BaseParsedModel):
 
 @dataclass
 class ParsedTeamYearStats(BaseParsedModel):
-    statistics: list[TeamYearSurfaceStats]
+    statistics: list[RawTeamYearSurfaceStats]
 
     @classmethod
-    def _parse(cls, raw: TeamYearStats) -> ParsedTeamYearStats:
+    def _parse(cls, raw: RawTeamYearStats) -> ParsedTeamYearStats:
         return cls(statistics=raw.get("statistics", []))
 
 
@@ -207,13 +208,13 @@ class ParsedPlayerSeasonStats(BaseParsedModel):
     year: str
     startYear: int
     endYear: int
-    statistics: PlayerSeasonStatsItem
+    statistics: RawPlayerSeasonStatsItem
     team: ParsedTeam
     uniqueTournament: ParsedUniqueTournament
     season: ParsedSeason
 
     @classmethod
-    def _parse(cls, raw: PlayerSeasonStats) -> ParsedPlayerSeasonStats:
+    def _parse(cls, raw: RawPlayerSeasonStats) -> ParsedPlayerSeasonStats:
         from ..team import ParsedTeam
         from ..tournament import ParsedUniqueTournament, ParsedSeason
         return cls(
@@ -233,16 +234,17 @@ class ParsedPlayerSeasonStats(BaseParsedModel):
 
 @dataclass
 class ParsedManagerCareerHistoryItem(BaseParsedModel):
-    performance: Performance
+    performance: ParsedPerformance
     team: ParsedTeam
     start: datetime
     end: datetime
 
     @classmethod
-    def _parse(cls, raw: ManagerCareerHistoryItem) -> ParsedManagerCareerHistoryItem:
+    def _parse(cls, raw: RawManagerCareerHistoryItem) -> ParsedManagerCareerHistoryItem:
+        from ..primitives import ParsedPerformance
         from ..team import ParsedTeam
         return cls(
-            performance=raw.get("performance"),
+            performance=ParsedPerformance.from_raw(raw.get("performance")),
             team=ParsedTeam.from_raw(raw.get("team")),
             start=parse_timestamp(raw.get("startTimestamp")),
             end=parse_timestamp(raw.get("endTimestamp"))

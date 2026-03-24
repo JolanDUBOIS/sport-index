@@ -3,4 +3,4 @@
 Exports key provider interfaces used across the package.
 """
 
-from .parsed import ParsedSofascoreProvider
+from .parsed import SofascoreProvider

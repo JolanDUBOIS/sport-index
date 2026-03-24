@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from ..manager import ParsedManager
     from ..player import ParsedPlayer
     from ..event import ParsedScore
-    from sportindex.provider.raw.models import Incident
+    from sportindex.provider.raw.models import RawIncident
 
 
 # =====================================================================
@@ -21,7 +21,7 @@ class ParsedIncident(BaseParsedModel):
     incidentType: str
 
     @classmethod
-    def _parse(cls, raw: Incident) -> ParsedIncident:
+    def _parse(cls, raw: RawIncident) -> ParsedIncident:
         incident_type = raw.get("incidentType")
         if incident_type in _INCIDENT_TYPE_MAPPING:
             return _INCIDENT_TYPE_MAPPING[incident_type].from_raw(raw)
@@ -41,7 +41,7 @@ class ParsedGoalIncident(ParsedIncident):
     kind: str                  # "regular", "ownGoal", "penalty" (football); "try", "twoPoints"... (rugby)
 
     @classmethod
-    def _parse(cls, raw: Incident) -> ParsedGoalIncident:
+    def _parse(cls, raw: RawIncident) -> ParsedGoalIncident:
         from ..player import ParsedPlayer
         return cls(
             incidentType="goal",
@@ -68,7 +68,7 @@ class ParsedPenaltyIncident(ParsedIncident):
     kind: str                  # "missed", etc.
 
     @classmethod
-    def _parse(cls, raw: Incident) -> ParsedPenaltyIncident:
+    def _parse(cls, raw: RawIncident) -> ParsedPenaltyIncident:
         from ..player import ParsedPlayer
         return cls(
             incidentType="penalty",
@@ -91,7 +91,7 @@ class ParsedPenaltyShootoutIncident(ParsedIncident):
     kind: str                  # "scored", "missed"
 
     @classmethod
-    def _parse(cls, raw: Incident) -> ParsedPenaltyShootoutIncident:
+    def _parse(cls, raw: RawIncident) -> ParsedPenaltyShootoutIncident:
         from ..player import ParsedPlayer
         return cls(
             incidentType="penaltyShootout",
@@ -115,7 +115,7 @@ class ParsedCardIncident(ParsedIncident):
     kind: str                         # "yellow", "red", "yellowRed"
 
     @classmethod
-    def _parse(cls, raw: Incident) -> ParsedCardIncident:
+    def _parse(cls, raw: RawIncident) -> ParsedCardIncident:
         if raw.get("player"):
             from ..player import ParsedPlayer
             recipient = ParsedPlayer.from_raw(raw.get("player"))
@@ -143,7 +143,7 @@ class ParsedPeriodIncident(ParsedIncident):
     kind: str                  # "HT", "FT", "PEN", etc.
 
     @classmethod
-    def _parse(cls, raw: Incident) -> ParsedPeriodIncident:
+    def _parse(cls, raw: RawIncident) -> ParsedPeriodIncident:
         time = raw.get("time")
         if time == 999:
             time = None
@@ -167,7 +167,7 @@ class ParsedVarDecisionIncident(ParsedIncident):
     confirmed: bool
 
     @classmethod
-    def _parse(cls, raw: Incident) -> ParsedVarDecisionIncident:
+    def _parse(cls, raw: RawIncident) -> ParsedVarDecisionIncident:
         return cls(
             incidentType="varDecision",
             id=raw.get("id"),
@@ -192,7 +192,7 @@ class ParsedSubstitutionIncident(ParsedIncident):
 
 
     @classmethod
-    def _parse(cls, raw: Incident) -> ParsedSubstitutionIncident:
+    def _parse(cls, raw: RawIncident) -> ParsedSubstitutionIncident:
         from ..player import ParsedPlayer
         return cls(
             incidentType="substitution",
@@ -213,7 +213,7 @@ class ParsedExtraTimeIncident(ParsedIncident):
     addedTime: int             # minutes of added time
 
     @classmethod
-    def _parse(cls, raw: Incident) -> ParsedExtraTimeIncident:
+    def _parse(cls, raw: RawIncident) -> ParsedExtraTimeIncident:
         return cls(
             incidentType="injuryTime",
             time=raw.get("time"),
@@ -241,13 +241,13 @@ _INCIDENT_TYPE_MAPPING: dict[str, type[ParsedIncident]] = {
 # Helpers
 # =====================================================================
 
-def _get_side(raw: Incident) -> str:
+def _get_side(raw: RawIncident) -> str:
     """Convert `isHome` boolean to "home" / "away" / None."""
     if "isHome" not in raw:
         return None
     return "home" if raw["isHome"] else "away"
 
-def _get_score(raw: Incident) -> ParsedScore:
+def _get_score(raw: RawIncident) -> ParsedScore:
     """Extract running score from an incident (flat homeScore/awayScore ints)."""
     if "homeScore" in raw and "awayScore" in raw:
         return {"home": raw["homeScore"], "away": raw["awayScore"]}
