@@ -29,7 +29,18 @@ if TYPE_CHECKING:
 # =====================================================================
 
 class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry]]):
-    """The standings of a competition, e.g. Ligue 1 table, Formula 1 driver standings, etc."""
+    """Represents the standings (ranked table) of a competition or sport.
+
+    Can handle both team/match standings (e.g., football league tables) and racing/cycling standings 
+    (e.g., Formula 1 driver standings).
+
+    Attributes:
+        name (str | None): Name of the standings, e.g., "Ligue 1 table".
+        kind (str | None): Type of standings, e.g., "home", "away", "competitors", "teams".
+        updated_at (datetime | None): Last update timestamp.
+        sport (Sport | None): Sport associated with these standings.
+        entries (list[StandingsEntry]): Ordered list of entries in the standings.
+    """
     REPR_FIELDS = ("name", "kind", "updated_at")
 
     def __init__(self, data: ParsedTeamStandings | list[ParsedRacingStandingsEntry], provider: ParsedSofascoreProvider, **kwargs) -> None:
@@ -81,6 +92,19 @@ class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry
 
 @dataclass
 class StandingsEntry:
+    """A single entry in a Standings table.
+
+    Attributes:
+        position (int): Rank/position in the standings.
+        competitor (Competitor): Competitor (team, driver, or rider).
+        points (int): Points accumulated.
+        matches, wins, draws, losses, scores_for, scores_against, score_formatted, games_behind, promotion:
+            Match-specific fields.
+        victories, podiums, races_with_points, races_started:
+            Racing-specific fields.
+        time, gap_to_leader:
+            Cycling-specific fields.
+    """
     position: int
     competitor: Competitor
     points: int
@@ -145,7 +169,19 @@ class StandingsEntry:
 # =====================================================================
 
 class Rankings(BaseEntity[ParsedRankingsResponse]):
-    """The rankings of a sport, e.g. ATP tennis rankings, FIFA football rankings, etc."""
+    """Represents the rankings of a sport, e.g., FIFA, ATP, or Olympic rankings.
+
+    Attributes:
+        id (int | None): Unique ID of the ranking type.
+        name (str | None): Name of the rankings.
+        slug (str | None): URL-friendly slug of the ranking.
+        updated_at (datetime | None): Last updated timestamp.
+        gender (Gender | None): Gender category of the ranking (M/F/X).
+        sport (Sport | None): Sport associated with the ranking.
+        category (Category | None): Category, if applicable.
+        competition (Competition | None): Competition associated, if applicable.
+        entries (list[RankingsEntry]): Ordered list of ranking entries.
+    """
     REPR_FIELDS = ("id", "name", "slug", "sport", "category", "gender", "updated_at")
 
     def __init__(self, data: ParsedRankingsResponse, provider: ParsedSofascoreProvider, **kwargs) -> None:
@@ -209,6 +245,16 @@ class Rankings(BaseEntity[ParsedRankingsResponse]):
 
 @dataclass
 class RankingsEntry:
+    """A single entry in a Rankings table.
+
+    Attributes:
+        position (int): Current position.
+        entity (Competitor | Competition): Entity being ranked.
+        points (int): Points in the ranking.
+        previous_position (int | None): Previous ranking position.
+        previous_points (int | None): Previous points.
+        best_position (int | None): Best historical position.
+    """
     position: int
     entity: Competitor | Competition
     points: int

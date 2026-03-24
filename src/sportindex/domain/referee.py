@@ -17,7 +17,31 @@ if TYPE_CHECKING:
 
 
 class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
-    """A referee, e.g. 'Pierluigi Collina', 'Michael Masi', etc."""
+    """Represents a sports referee/officiator (e.g., football referee, Formula 1 race director).
+
+    Handles basic information, associated sport and country, games officiated,
+    and cards issued. Supports lazy full-loading for properties requiring
+    detailed API responses.
+
+    Attributes:
+        id (int): Unique identifier of the referee.
+        name (str): Full name of the referee.
+        slug (str): URL-friendly slug of the referee.
+        sport (Sport): Sport associated with the referee.
+        country (Country | None): Country associated with the referee, if available.
+        games (int | None): Number of games officiated by the referee.
+        cards (Cards | None): Counts of yellow, red, and yellow-red cards issued.
+
+    Methods:
+        get_fixtures(silent: bool = False) -> EventCollection:
+            Returns fixtures for this referee. Currently returns empty, logs a warning.
+        get_results(silent: bool = False) -> EventCollection:
+            Returns results for this referee.
+        from_id(referee_id: int, provider: ParsedSofascoreProvider) -> Referee:
+            Fetch a referee by its unique ID.
+        search(query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Referee]:
+            Search for referees matching a query string (up to 20 results).
+    """
     REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
     def __init__(self, data: ParsedReferee, provider: ParsedSofascoreProvider, **kwargs) -> None:
@@ -138,6 +162,13 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
 
 @dataclass(frozen=True)
 class Cards:
+    """Represents counts of disciplinary cards issued by a referee.
+
+    Attributes:
+        yellow (int): Number of yellow cards issued.
+        red (int): Number of red cards issued.
+        yellow_red (int): Number of yellow-red (second yellow resulting in red) cards issued.
+    """
     yellow: int
     red: int
     yellow_red: int

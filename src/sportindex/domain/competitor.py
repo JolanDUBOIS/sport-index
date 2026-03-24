@@ -23,7 +23,36 @@ if TYPE_CHECKING:
 
 
 class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin):
-    """A competitor, e.g. 'Paris Saint-Germain', 'Roger Federer', 'Lewis Hamilton', etc."""
+    """A sports competitor, either an individual or a team.
+
+    Provides access to identity, affiliations, and related entities such as players, managers, and venues.
+    Supports fetching fixtures and results, and distinguishing between player and team competitors.
+
+    Attributes:
+        id (int): Unique competitor ID.
+        name (str): Official competitor name.
+        slug (str): URL-friendly slug.
+        short_name (str): Abbreviated name.
+        full_name (str): Full name or concatenation of first and last names for players.
+        kind (Literal['team','player']): Type of competitor.
+        sport (Sport | None): Sport this competitor belongs to.
+        country (Country | None): Competitor's country, if applicable.
+        category (Category | None): Competitor's category, if applicable.
+        manager (Manager | None): Manager, if applicable.
+        venue (Venue | None): Home venue, if applicable.
+        players (EntityCollection[Competitor] | None): Players of this team, if applicable.
+        parent (Competitor | None): Parent competitor for players or sub-teams.
+        player_info (PlayerInfo | None): Detailed player information, if applicable.
+
+    Methods:
+        get_fixtures(silent=False) -> EventCollection: Fetch all scheduled events for the competitor.
+        get_results(silent=False) -> EventCollection: Fetch all results for the competitor.
+
+    Raises:
+        TypeError: If initialized with invalid data type.
+        EntityNotFoundError: If the competitor does not exist in the provider.
+        DomainError: If a network or provider error occurs during fetch.
+    """
     REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name", "name_code", "national", "gender", "sport", "country", "category", "kind")
     _TYPE_MAP = {ParsedTeam: 1, ParsedPlayer: 2}
 
@@ -293,7 +322,32 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
 
 @dataclass(frozen=True)
 class PlayerInfo:
-    """Comprehensive details covering a player's physical attributes, career status, and financial data."""
+    """Comprehensive details about an individual athlete.
+
+    Covers identity, physical attributes, career status, technical profile, and financial/contractual data.
+
+    Attributes:
+        first_name (str | None): Player's first name.
+        last_name (str | None): Player's last name.
+        weight (float | None): Player weight in kilograms.
+        height (int | None): Player height in centimeters.
+        date_of_birth (date | None): Birth date.
+        place_of_birth (str | None): Birthplace.
+        retired (bool | None): Whether the player is retired.
+        deceased (bool | None): Whether the player is deceased.
+        number (int | None): Shirt or squad number.
+        preferred_foot (str | None): Dominant foot (if applicable).
+        preferred_hand (str | None): Dominant hand (if applicable).
+        positions (list[str] | None): Positions played.
+        total_prizes (Amount | None): Career prize earnings.
+        salary (Amount | None): Current salary.
+        market_value (Amount | None): Market valuation.
+        contract_expiry (date | None): Contract end date.
+
+    Methods:
+        _from_parsed_player(data: ParsedPlayer) -> PlayerInfo: Create instance from ParsedPlayer data.
+        _from_parsed_player_team_info(data: ParsedPlayerTeamInfo) -> PlayerInfo: Create instance from ParsedPlayerTeamInfo data.
+    """
 
     # --- Identity & Physical Attributes ---
     first_name: Optional[str] = None

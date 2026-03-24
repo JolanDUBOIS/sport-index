@@ -16,7 +16,20 @@ if TYPE_CHECKING:
 
 
 class Channel(IdentifiableEntity[ParsedChannel]):
-    """A TV channel broadcasting sports events."""
+    """A TV channel broadcasting sports events.
+
+    Provides access to the channel’s name, ID, and scheduled events.
+
+    Attributes:
+        id (int): Unique channel ID.
+        name (str): Channel name.
+        events (EventCollection): Scheduled events broadcast on this channel.
+
+    Raises:
+        TypeError: If initialized with invalid data type.
+        EntityNotFoundError: If channel does not exist in the provider.
+        DomainError: If a network or provider error occurs during fetch.
+    """
     REPR_FIELDS = ("id", "name")
 
     def __init__(self, data: ParsedChannel, provider: ParsedSofascoreProvider, **kwargs) -> None:
@@ -59,7 +72,20 @@ class Channel(IdentifiableEntity[ParsedChannel]):
 
 
 class EventChannels(BaseEntity[ParsedCountryChannelsResponse]):
-    """A wrapper for channels broadcasting an event, grouped by country."""
+    """Channels broadcasting a specific event, organized by country.
+
+    Allows querying which channels broadcast the event in a given country.
+
+    Attributes:
+        channels (dict[str, list[int]]): Mapping from country alpha-2 codes to lists of channel IDs.
+
+    Methods:
+        get_channels(country, country_name, country_alpha): Return Channel entities broadcasting the event in a specific country.
+
+    Raises:
+        TypeError: If initialized with invalid data type.
+        EntityNotFoundError: If a specified country cannot be found.
+    """
     REPR_FIELDS = ("channels")
 
     def __init__(self, data: ParsedCountryChannelsResponse, provider: ParsedSofascoreProvider, **kwargs) -> None:

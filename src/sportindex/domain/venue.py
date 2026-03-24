@@ -17,7 +17,29 @@ if TYPE_CHECKING:
 
 
 class Venue(IdentifiableEntity[ParsedVenue], EventAwareMixin):
-    """A venue, e.g. a stadium, a tennis court, a race track, etc."""
+    """Represents a sports venue or race stage, e.g., a stadium, tennis court, or race track.
+
+    Handles basic information, location, capacity, associated teams, and provides
+    lazy full-loading for detailed API properties.
+
+    Attributes:
+        id (int): Unique identifier of the venue.
+        name (str): Name of the venue.
+        city (str | None): City where the venue is located.
+        capacity (int | None): Seating or attendance capacity of the venue.
+        country (Country | None): Country where the venue is located.
+        teams (EntityCollection[Competitor]): Main teams associated with the venue.
+
+    Methods:
+        get_fixtures() -> EventCollection:
+            Fetch all fixtures scheduled at this venue.
+        get_results() -> EventCollection:
+            Fetch all results played at this venue.
+        from_id(venue_id: int, provider: ParsedSofascoreProvider) -> Venue:
+            Fetch a venue by its unique ID.
+        search(query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Venue]:
+            Search for venues by query string (up to 20 results).
+    """
     REPR_FIELDS = ("id", "name")
 
     def __init__(self, data: ParsedVenue | ParsedStage, provider: ParsedSofascoreProvider, **kwargs) -> None:

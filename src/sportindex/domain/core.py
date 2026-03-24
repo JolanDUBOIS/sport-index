@@ -23,7 +23,19 @@ if TYPE_CHECKING:
 
 
 class Sport(IdentifiableEntity[ParsedSport]):
-    """A sport, e.g. football, tennis, motorsport, etc."""
+    """A sport (e.g., football, tennis, motorsport).
+
+    Provides access to its categories and official rankings, and can be instantiated from minimal raw data without fetching full details.
+
+    Attributes:
+        id (int): Unique sport ID.
+        name (str): Official sport name.
+        slug (str): URL-friendly identifier.
+        categories (EntityCollection[Category]): All categories associated with this sport.
+
+    Methods:
+        get_rankings(gender: Optional[str] = None) -> list[Rankings]: Fetch official rankings for the sport.
+    """
     REPR_FIELDS = ("id", "name", "slug")
 
     def __init__(self, data: ParsedSport, provider: ParsedSofascoreProvider, **kwargs) -> None:
@@ -77,7 +89,20 @@ class Sport(IdentifiableEntity[ParsedSport]):
 
 
 class Country(BaseEntity[ParsedCountry]):
-    """ A country, e.g. France, England, Spain, etc."""
+    """A country (e.g., France, England, Spain).
+
+    Provides standard identifiers (name, slug, alpha-2, alpha-3) and can be instantiated from a name or alpha code.
+
+    Attributes:
+        name (str): Official country name.
+        slug (str): URL-friendly identifier.
+        alpha2 (str | None): ISO alpha-2 code.
+        alpha3 (str | None): ISO alpha-3 code.
+
+    Methods:
+        from_alpha(alpha: str, provider) -> Optional[Country]: Create from alpha code.
+        from_name(name: str, provider) -> Optional[Country]: Create from country name.
+    """
     REPR_FIELDS = ("name", "slug", "alpha2", "alpha3")
 
     def __init__(self, data: ParsedCountry, provider: ParsedSofascoreProvider, **kwargs) -> None:
@@ -148,7 +173,18 @@ class Country(BaseEntity[ParsedCountry]):
 
 
 class Category(IdentifiableEntity[ParsedCategory]):
-    """A category within a sport (e.g. 'France Amateur', 'Formula 1', 'International')."""
+    """A category within a sport (e.g., 'France Amateur', 'Formula 1', 'International').
+
+    Provides access to its sport, country (if applicable), and competitions.
+
+    Attributes:
+        id (int): Unique category ID.
+        name (str): Category name.
+        slug (str): URL-friendly identifier.
+        sport (Sport): The sport this category belongs to.
+        country (Country | None): The country this category belongs to, or None if international.
+        competitions (EntityCollection[Competition]): All competitions under this category.
+    """
     REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
     def __init__(self, data: ParsedCategory, provider: ParsedSofascoreProvider, **kwargs) -> None:
@@ -205,6 +241,13 @@ class Category(IdentifiableEntity[ParsedCategory]):
 
 
 class Gender(str, Enum):
+    """Standardized representation of gender for competitors.
+
+    Values:
+        UNSPECIFIED ("X"): Unknown or not specified.
+        MALE ("M"): Male.
+        FEMALE ("F"): Female.
+    """
     UNSPECIFIED = "X"
     MALE = "M"
     FEMALE = "F"

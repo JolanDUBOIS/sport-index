@@ -19,7 +19,33 @@ ManagerCareerHistory = ParsedManagerCareerHistoryItem
 
 
 class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
-    """A manager, e.g. 'Luis Enrique', 'Pep Guardiola', etc."""
+    """Represents a sports manager/coach (e.g., football manager, Formula 1 team principal).
+
+    This entity handles basic information, associated sport and country, team affiliations,
+    career history, and provides access to fixtures and results. Supports lazy full-loading
+    for properties that require more detailed API responses.
+
+    Attributes:
+        id (int): Unique identifier of the manager.
+        name (str): Full name of the manager.
+        slug (str): URL-friendly slug of the manager.
+        short_name (str): Shortened name or abbreviation (e.g., "Z. Zidane").
+        sport (Sport): Sport associated with the manager.
+        country (Country | None): Country associated with the manager, if available.
+        team (Competitor | None): Current primary team, if assigned.
+        teams (EntityCollection[Competitor]): All teams associated with the manager.
+        performances (list[ManagerCareerHistory]): Career history and performance records.
+
+    Methods:
+        get_fixtures(silent: bool = False) -> EventCollection:
+            Returns fixtures for this manager. Currently returns empty, logs a warning.
+        get_results(silent: bool = False) -> EventCollection:
+            Returns results for this manager.
+        from_id(manager_id: int, provider: ParsedSofascoreProvider) -> Manager:
+            Fetch a manager by its unique ID.
+        search(query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Manager]:
+            Search for managers matching a query string (up to 20 results).
+    """
     REPR_FIELDS = ("id", "name", "slug", "short_name", "sport", "country")
 
     def __init__(self, data: ParsedManager, provider: ParsedSofascoreProvider, **kwargs) -> None:

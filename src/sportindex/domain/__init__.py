@@ -1,3 +1,20 @@
+"""Domain model package for sportindex — defines entities and collections
+representing sports data and their relationships (events, competitions, competitors, etc.).
+
+Main elements provided in this package:
+- Core entities: `Sport`, `Country`, `Category`, `Gender`.
+- Base types: `BaseEntity`, `IdentifiableEntity`, `EntityCollection`.
+- Competition models: `Competition`, `Season`.
+- Event models: `Event`, `EventCollection`, `Period`, `Lineups`, `Incident`,
+  `EventStatistics`, `MomentumGraph`, `MatchCompetitors`, `MatchScore`, `Round`.
+- Competitors: `Competitor`, `PlayerInfo`, `Amount`.
+- Leaderboards: `Standings`, `Rankings`, `StandingsEntry`, `RankingsEntry`,
+  `Promotion`.
+- Supporting models: `Manager`, `ManagerCareerHistory`, `Referee`, `Cards`,
+  `Venue`, `EventChannels`, `Channel`.
+- Utilities: `get_sports`.
+"""
+
 import logging
 logger = logging.getLogger(__name__)
 

@@ -21,7 +21,22 @@ if TYPE_CHECKING:
 
 
 class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]):
-    """A competition, e.g. 'Ligue 1', 'Rolland Garros', etc."""
+    """A competition, e.g., 'Ligue 1', 'Rolland Garros'.
+
+    Can represent either a unique tournament or a unique stage.
+    Provides access to its category, sport, and associated seasons.
+
+    Attributes:
+        id (int): Unique ID, encoded from source ID and type.
+        name (str): Competition name.
+        slug (str): URL-friendly slug.
+        sport (Sport): Parent sport.
+        category (Category): Parent category (lazy-loaded).
+        seasons (EntityCollection[Season]): Seasons of this competition (lazy-loaded).
+
+    Raises:
+        TypeError: If data is not ParsedUniqueTournament or ParsedUniqueStage.
+    """
     REPR_FIELDS = ("id", "name", "slug", "sport", "category")
     _TYPE_MAP = {ParsedUniqueTournament: 1, ParsedUniqueStage: 2}
 
@@ -152,7 +167,22 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
 
 
 class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
-    """A season of a competition, e.g. '2023/24', '2024', etc."""
+    """A season of a competition, e.g., '2023/24', '2024'.
+
+    Provides access to parent competition, sport, standings, fixtures, and results.
+
+    Attributes:
+        id (int): Unique ID, encoded from source ID and type.
+        name (str): Season name.
+        year (str): Season year.
+        start (Optional[datetime]): Start date of the season.
+        sport (Sport): Parent sport.
+        competition (Competition): Parent competition (lazy-loaded).
+        standings (EntityCollection[Standings]): Standings for this season.
+
+    Raises:
+        InsufficientDataError: If season data lacks required competition info.
+    """
     REPR_FIELDS = ("id", "name", "year", "start", "sport")
     _TYPE_MAP = {ParsedSeason: 1, ParsedStage: 2}
 

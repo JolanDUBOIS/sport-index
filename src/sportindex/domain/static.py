@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 
 # (id, slug, name) — raw tuples, no Sport instantiation at import time.
+# Used later to lazily build Sport objects when needed
 _SPORTS_DATA: tuple[tuple[int, str, str], ...] = (
     (1, "football", "Football"),
     (2, "basketball", "Basketball"),
@@ -57,8 +58,8 @@ def get_sports() -> EntityCollection[Sport]:
     from .base import EntityCollection
     return EntityCollection(_sports_cache)
 
-# Mapping: sport slug → list of (ranking_id, gender | None).
-# gender is "X" when the ranking is not gender-specific.
+# Mapping: sport slug → list of (ranking_id, gender | None)
+# Gender "X" denotes rankings that are not gender-specific
 SPORT_RANKINGS: dict[str, list[tuple[int, str | None]]] = {
     "football": [
         (1, "M"),          # UEFA Countries

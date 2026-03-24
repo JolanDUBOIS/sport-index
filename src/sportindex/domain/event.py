@@ -37,7 +37,47 @@ MomentumGraph = ParsedMomentumGraphResponse
 # ====== Event entity =====
 
 class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
-    """An event, e.g. a football match, a tennis match, a formula one race, etc."""
+    """An event in a sport, such as a football match, tennis match, or motorsport race.
+
+    Provides access to event metadata, competitors, scores, lineups, incidents, statistics, and associated entities
+    like venue, referee, season, and competition. Supports both match- and race-specific properties.
+
+    Attributes:
+        id (int): Unique event ID.
+        name (str): Event name.
+        slug (str): URL-friendly identifier.
+        start (datetime): Start time of the event.
+        end (datetime | None): End time, if available.
+        kind (Literal["match", "race"]): Type of event.
+        round (Round | None): Round information, if available.
+        sport (Sport): Sport associated with this event.
+        season (Season): Season this event belongs to.
+        competition (Competition): Competition this event belongs to.
+        referee (Referee | None): Referee for the event, if available.
+        venue (Venue | None): Venue where the event takes place.
+        channels (EventChannels): TV or streaming channels broadcasting the event.
+
+    Match-specific attributes:
+        competitors (MatchCompetitors | None): Competitors in the event.
+        score (MatchScore | None): Score of the match.
+        periods (list[Period] | None): Periods of the match.
+        lineups (Lineups | None): Player lineups.
+        incidents (list[Incident] | None): Notable incidents.
+        statistics (EventStatistics | None): Event statistics.
+        momentum_graph (MomentumGraph | None): Momentum graph.
+        h2h (EventCollection | None): Head-to-head history.
+
+    Race-specific attributes:
+        substages (EventCollection | None): Substages of the race.
+        standings (EntityCollection[Standings] | None): Standings of competitors and teams.
+
+    Post-event attributes:
+        winner (Competitor | None): Winner of the event.
+
+    Methods:
+        from_id(event_id: int, provider) -> Event: Fetch an event by its unique ID.
+        _full_load() -> None: Lazy-load full event details from the provider.
+    """
     REPR_FIELDS = ("id", "name", "slug", "start", "kind", "end", "round", "competitors")
     _TYPE_MAP = {ParsedEvent: 1, ParsedStage: 2}
 
