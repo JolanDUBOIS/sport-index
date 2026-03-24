@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import BaseEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .core import Category, Sport
 from sportindex.provider.parsed import (
     ParsedUniqueTournament, ParsedUniqueStage,
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from sportindex.provider.parsed import ParsedSofascoreProvider
 
 
-class Competition(BaseEntity[ParsedUniqueTournament | ParsedUniqueStage]):
+class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]):
     """A competition, e.g. 'Ligue 1', 'Rolland Garros', etc."""
     REPR_FIELDS = ("id", "name", "slug", "sport", "category")
     _TYPE_MAP = {ParsedUniqueTournament: 1, ParsedUniqueStage: 2}
@@ -141,7 +141,7 @@ class Competition(BaseEntity[ParsedUniqueTournament | ParsedUniqueStage]):
         return EntityCollection(entities[:20])
 
 
-class Season(BaseEntity[ParsedSeason | ParsedStage], EventAwareMixin):
+class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
     """A season of a competition, e.g. '2023/24', '2024', etc."""
     REPR_FIELDS = ("id", "name", "year", "start", "sport")
     _TYPE_MAP = {ParsedSeason: 1, ParsedStage: 2}

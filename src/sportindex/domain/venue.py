@@ -4,7 +4,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import BaseEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
 from sportindex.provider import NotFoundError, FetchError
 from sportindex.provider.parsed import ParsedVenue, ParsedStage
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from sportindex.provider.parsed import ParsedSofascoreProvider
 
 
-class Venue(BaseEntity[ParsedVenue], EventAwareMixin):
+class Venue(IdentifiableEntity[ParsedVenue], EventAwareMixin):
     """A venue, e.g. a stadium, a tennis court, a race track, etc."""
     REPR_FIELDS = ("id", "name")
 

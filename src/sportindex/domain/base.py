@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from abc import ABC
-from typing import TYPE_CHECKING, Callable, Generic, TypeVar, Optional, Iterator, overload
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Callable, Generic, TypeVar, Optional, Iterator, Iterable, overload
 
 from . import logger
 from sportindex.provider.parsed import BaseParsedModel
@@ -45,6 +45,24 @@ class BaseEntity(ABC, Generic[T]):
         return f"<{self.__class__.__name__} {field_str}>"
 
 
+class IdentifiableEntity(BaseEntity[T]):
+    """Base class for entities that have a unique identifier."""
+
+    @property
+    @abstractmethod
+    def id(self) -> int:
+        """The unique ID of the entity, encoded as a globally unique SDK ID."""
+        raise NotImplementedError("Subclasses of IdentifiableEntity must implement the id property")
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
+
 class EventAwareMixin:
     """
     Toolkit for entities that fetch fixtures and results.
@@ -85,8 +103,8 @@ E = TypeVar("E", bound=BaseEntity)
 class EntityCollection(Generic[E]):
     """A generic collection of entities for any BaseEntity subclass."""
 
-    def __init__(self, entities: list[E]) -> None:
-        self._entities = entities
+    def __init__(self, entities: Iterable[E] | None = None) -> None:
+        self._entities = list(entities) if entities is not None else []
 
     def __iter__(self) -> Iterator[E]:
         return iter(self._entities)
@@ -97,19 +115,14 @@ class EntityCollection(Generic[E]):
     def __add__(self, other: EntityCollection[E] | list[E]) -> EntityCollection[E]:
         if not isinstance(other, (EntityCollection, list)):
             return NotImplemented
-        if isinstance(other, EntityCollection):
-            combined_entities = self._entities + other._entities
-        else:
-            combined_entities = self._entities + other
-        return self.__class__(combined_entities)
+        other_items = other._entities if isinstance(other, EntityCollection) else other
+        return self.__class__(self._entities + other_items)
 
     def __iadd__(self, other: EntityCollection[E] | list[E]) -> EntityCollection[E]:
         if not isinstance(other, (EntityCollection, list)):
             return NotImplemented
-        if isinstance(other, EntityCollection):
-            self._entities.extend(other._entities)
-        else:
-            self._entities.extend(other)
+        other_items = other._entities if isinstance(other, EntityCollection) else other
+        self.extend(other_items)
         return self
 
     def __contains__(self, item: E) -> bool:
@@ -121,10 +134,8 @@ class EntityCollection(Generic[E]):
 
     def extend(self, collection: EntityCollection[E] | list[E]) -> None:
         """Add all entities from another collection."""
-        if isinstance(collection, EntityCollection):
-            self._entities.extend(collection._entities)
-        else:
-            self._entities.extend(collection)
+        items = collection._entities if isinstance(collection, EntityCollection) else collection
+        self._entities.extend(items)
 
     @overload
     def __getitem__(self, key: int) -> E: ...
@@ -160,6 +171,47 @@ class EntityCollection(Generic[E]):
     def to_list(self) -> list[E]:
         """Return the entities as a list."""
         return list(self._entities)
+
+    def copy(self) -> EntityCollection[E]:
+        """Return a shallow copy of the collection."""
+        return self.__class__(self._entities.copy())
+
+    def __or__(self, other: EntityCollection[E]) -> EntityCollection[E]:
+        """Union (|): Returns a new collection with unique entities from both collections."""
+        if not isinstance(other, EntityCollection):
+            return NotImplemented
+            
+        if not self._entities and not other._entities:
+            return self.__class__([])
+
+        merged = list(dict.fromkeys(self._entities + other._entities))
+        return self.__class__(merged)
+
+    def __and__(self, other: EntityCollection[E]) -> EntityCollection[E]:
+        """Intersection (&): Returns a new collection with entities common to both collections."""
+        if not isinstance(other, EntityCollection):
+            return NotImplemented
+            
+        if not self._entities or not other._entities:
+            return self.__class__([])
+
+        other_set = set(other._entities)
+        common = list(dict.fromkeys(e for e in self._entities if e in other_set))
+        return self.__class__(common)
+
+    def __sub__(self, other: EntityCollection[E]) -> EntityCollection[E]:
+        """Difference (-): Returns a new collection with entities in self but not in other."""
+        if not isinstance(other, EntityCollection):
+            return NotImplemented
+            
+        if not self._entities:
+            return self.__class__([])
+        if not other._entities:
+            return self.copy()
+
+        other_set = set(other._entities)
+        diff = list(dict.fromkeys(e for e in self._entities if e not in other_set))
+        return self.__class__(diff)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} count={len(self._entities)}>"
