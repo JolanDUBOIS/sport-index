@@ -17,28 +17,28 @@ class ISODate(str):
     pass
 
 
-class Amount(TypedDict, total=False):
+class RawAmount(TypedDict, total=False):
     """Monetary amount (transfer fees, salaries, prize money)."""
     value: float
     currency: str  # e.g. "EUR", "USD"
 
 
-class Status(TypedDict, total=False):
+class RawStatus(TypedDict, total=False):
     code: int
     type: str         # e.g. "finished", "inprogress", "notstarted"
     description: str
 
 
-class Coordinates(TypedDict, total=False):
+class RawCoordinates(TypedDict, total=False):
     latitude: float
     longitude: float
 
 
-class City(TypedDict, total=False):
+class RawCity(TypedDict, total=False):
     name: str
 
 
-class Performance(TypedDict, total=False):
+class RawPerformance(TypedDict, total=False):
     total: int
     wins: int
     draws: int
@@ -48,7 +48,7 @@ class Performance(TypedDict, total=False):
     totalPoints: int
 
 
-class Promotion(TypedDict, total=False):
+class RawPromotion(TypedDict, total=False):
     id: int
     text: str  # Display name, e.g. "Champions League"
 
@@ -57,6 +57,6 @@ class Promotion(TypedDict, total=False):
 # Channel / TV
 # =====================================================================
 
-class Channel(TypedDict, total=False):
+class RawChannel(TypedDict, total=False):
     id: int
     name: str

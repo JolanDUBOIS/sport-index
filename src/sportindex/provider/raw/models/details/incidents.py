@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..manager import Manager
-    from ..player import Player
+    from ..manager import RawManager
+    from ..player import RawPlayer
 
 
-class Incident(TypedDict, total=False):
+class RawIncident(TypedDict, total=False):
     incidentType: str
     id: int
     time: int
@@ -15,9 +15,9 @@ class Incident(TypedDict, total=False):
     homeScore: int
     awayScore: int
     isHome: bool
-    player: Player
-    assist: Player
-    manager: Manager
+    player: RawPlayer
+    assist: RawPlayer
+    manager: RawManager
     addedTime: int
     incidentClass: str
     description: str
@@ -25,6 +25,6 @@ class Incident(TypedDict, total=False):
     reason: str
     text: str
     confirmed: bool
-    playerIn: Player
-    playerOut: Player
+    playerIn: RawPlayer
+    playerOut: RawPlayer
     length: int

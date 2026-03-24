@@ -4,12 +4,12 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .core import Country
-    from .primitives import Timestamp, Amount
-    from .team import Team
+    from .core import RawCountry
+    from .primitives import Timestamp, RawAmount
+    from .team import RawTeam
 
 
-class Player(TypedDict, total=False):
+class RawPlayer(TypedDict, total=False):
     id: int
     slug: str
     name: str
@@ -17,7 +17,7 @@ class Player(TypedDict, total=False):
     lastName: str
     shortName: str
     gender: str                  # "M", "F", "X"
-    country: Country
+    country: RawCountry
     weight: int                  # in kg
     height: int                  # in cm
     shirtNumber: int
@@ -26,11 +26,11 @@ class Player(TypedDict, total=False):
     deceased: bool
     preferredFoot: str
     preferredHand: str           # Never seen this field populated, but it might exist...
-    salaryRaw: Amount
-    proposedMarketValueRaw: Amount
+    salaryRaw: RawAmount
+    proposedMarketValueRaw: RawAmount
     position: str                # e.g. "G", "D", "M", "F"
     positionsDetailed: list[str] # e.g. ["RW", "ST"]
     primaryPosition: str
-    team: Team
+    team: RawTeam
     dateOfBirthTimestamp: Timestamp
     contractUntilTimestamp: Timestamp

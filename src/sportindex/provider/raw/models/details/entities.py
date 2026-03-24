@@ -4,34 +4,34 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from ..player import Player
-    from ..primitives import Performance, Timestamp, ISODate
-    from ..team import Team
-    from ..tournament import Season, UniqueTournament
+    from ..player import RawPlayer
+    from ..primitives import RawPerformance, Timestamp, ISODate
+    from ..team import RawTeam
+    from ..tournament import RawSeason, RawUniqueTournament
 
 
 # =====================================================================
 # Team Players
 # =====================================================================
 
-class PlayerPreviousTeam(TypedDict, total=False):
-    player: Player
-    previousTeam: Team
+class RawPlayerPreviousTeam(TypedDict, total=False):
+    player: RawPlayer
+    previousTeam: RawTeam
     transferDate: ISODate
 
 
-class TeamPlayers(TypedDict, total=False):
-    players: list[Player]
-    foreignPlayers: list[Player]
-    nationalPlayers: list[Player]
-    playerPreviousTeams: list[PlayerPreviousTeam]
+class RawTeamPlayers(TypedDict, total=False):
+    players: list[RawPlayer]
+    foreignPlayers: list[RawPlayer]
+    nationalPlayers: list[RawPlayer]
+    playerPreviousTeams: list[RawPlayerPreviousTeam]
 
 
 # =====================================================================
 # Team Season Stats
 # =====================================================================
 
-class TeamSeasonStats(TypedDict, total=False):
+class RawTeamSeasonStats(TypedDict, total=False):
     id: int
     goalsScored: int
     goalsConceded: int
@@ -154,7 +154,7 @@ class TeamSeasonStats(TypedDict, total=False):
 # Team Year Stats (Tennis)
 # =====================================================================
 
-class TeamYearSurfaceStats(TypedDict, total=False):
+class RawTeamYearSurfaceStats(TypedDict, total=False):
     matches: int
     groundType: str        # e.g. "Hardcourt indoor", "Red clay", "Grass"
     totalServeAttempts: int
@@ -179,15 +179,15 @@ class TeamYearSurfaceStats(TypedDict, total=False):
     doubleFaults: int
 
 
-class TeamYearStats(TypedDict, total=False):
-    statistics: list[TeamYearSurfaceStats]
+class RawTeamYearStats(TypedDict, total=False):
+    statistics: list[RawTeamYearSurfaceStats]
 
 
 # =====================================================================
 # Player Statistics
 # =====================================================================
 
-class PlayerSeasonStatsItem(TypedDict, total=False):
+class RawPlayerSeasonStatsItem(TypedDict, total=False):
     id: int
     accurateCrosses: int
     accurateCrossesPercentage: float
@@ -228,23 +228,23 @@ class PlayerSeasonStatsItem(TypedDict, total=False):
     appearances: int
 
 
-class PlayerSeasonStats(TypedDict, total=False):
+class RawPlayerSeasonStats(TypedDict, total=False):
     year: str
     startYear: int
     endYear: int
-    statistics: PlayerSeasonStatsItem
-    team: Team
-    uniqueTournament: UniqueTournament
-    season: Season
+    statistics: RawPlayerSeasonStatsItem
+    team: RawTeam
+    uniqueTournament: RawUniqueTournament
+    season: RawSeason
 
 
 # =====================================================================
 # Manager Career History
 # =====================================================================
 
-class ManagerCareerHistoryItem(TypedDict, total=False):
-    performance: Performance
-    team: Team
+class RawManagerCareerHistoryItem(TypedDict, total=False):
+    performance: RawPerformance
+    team: RawTeam
     startTimestamp: Timestamp
     endTimestamp: Timestamp
 
@@ -253,7 +253,7 @@ class ManagerCareerHistoryItem(TypedDict, total=False):
 # Venue Statistics
 # =====================================================================
 
-class VenueStatistics(TypedDict, total=False):
+class RawVenueStatistics(TypedDict, total=False):
     totalMatches: int
     homeTeamGoalsScored: int
     awayTeamGoalsScored: int

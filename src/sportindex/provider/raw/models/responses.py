@@ -4,68 +4,68 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .details import Lineup, MomentumPoint, PeriodStatistics
-    from .event import Event
-    from .leaderboard import RankingEntry, RankingType
-    from .primitives import Channel
-    from .stage import Stage
-    from .team import Team
-    from .tournament import Season, UniqueTournament
+    from .details import RawLineup, RawMomentumPoint, RawPeriodStatistics
+    from .event import RawEvent
+    from .leaderboard import RawRankingEntry, RawRankingType
+    from .primitives import RawChannel
+    from .stage import RawStage
+    from .team import RawTeam
+    from .tournament import RawSeason, RawUniqueTournament
 
 
 # =====================================================================
 # Team
 # =====================================================================
 
-class TeamResponse(TypedDict, total=False):
-    team: Team
-    relatedTeams: list[Team]
-    drivers: list[Team]
+class RawTeamResponse(TypedDict, total=False):
+    team: RawTeam
+    relatedTeams: list[RawTeam]
+    drivers: list[RawTeam]
 
 
 # =====================================================================
 # Tournament
 # =====================================================================
 
-class UniqueTournamentSeasonsResponse(TypedDict, total=False):
-    uniqueTournament: UniqueTournament
-    seasons: list[Season]
+class RawUniqueTournamentSeasonsResponse(TypedDict, total=False):
+    uniqueTournament: RawUniqueTournament
+    seasons: list[RawSeason]
 
 
 # =====================================================================
 # Event
 # =====================================================================
 
-class EventsResponse(TypedDict, total=False):
+class RawEventsResponse(TypedDict, total=False):
     hasNextPage: bool
-    events: list[Event]
+    events: list[RawEvent]
 
 
 # =====================================================================
 # Leaderboard
 # =====================================================================
 
-class RankingsResponse(TypedDict, total=False):
-    rankingType: RankingType
-    rankingRows: list[RankingEntry]
+class RawRankingsResponse(TypedDict, total=False):
+    rankingType: RawRankingType
+    rankingRows: list[RawRankingEntry]
 
 
 # =====================================================================
 # Channel / TV
 # =====================================================================
 
-class ChannelScheduleResponse(TypedDict, total=False):
-    channel: Channel
-    events: list[Event]
-    stages: list[Stage]
+class RawChannelScheduleResponse(TypedDict, total=False):
+    channel: RawChannel
+    events: list[RawEvent]
+    stages: list[RawStage]
 
 
-class CountryChannelsResponse(TypedDict, total=False):
+class RawCountryChannelsResponse(TypedDict, total=False):
     channels: dict[str, list[int]]
 
 
-class ChannelEventVotesResponse(TypedDict, total=False):
-    tvChannel: Channel
+class RawChannelEventVotesResponse(TypedDict, total=False):
+    tvChannel: RawChannel
     upvote: int
     downvote: int
 
@@ -74,17 +74,17 @@ class ChannelEventVotesResponse(TypedDict, total=False):
 # Event Details
 # =====================================================================
 
-class LineupsResponse(TypedDict, total=False):
-    home: Lineup
-    away: Lineup
+class RawLineupsResponse(TypedDict, total=False):
+    home: RawLineup
+    away: RawLineup
 
 
-class EventStatisticsResponse(TypedDict, total=False):
-    statistics: list[PeriodStatistics]
+class RawEventStatisticsResponse(TypedDict, total=False):
+    statistics: list[RawPeriodStatistics]
 
 
-class MomentumGraphResponse(TypedDict, total=False):
-    graphPoints: list[MomentumPoint]
+class RawMomentumGraphResponse(TypedDict, total=False):
+    graphPoints: list[RawMomentumPoint]
     periodTime: int
     periodCount: int
     overtimeLength: int

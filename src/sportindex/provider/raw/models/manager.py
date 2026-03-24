@@ -4,24 +4,24 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .core import Sport, Country
-    from .primitives import Timestamp, Performance
-    from .team import Team
+    from .core import RawSport, RawCountry
+    from .primitives import Timestamp, RawPerformance
+    from .team import RawTeam
 
 
-class Manager(TypedDict, total=False):
+class RawManager(TypedDict, total=False):
     id: int
     slug: str
     name: str
     shortName: str
-    sport: Sport
-    country: Country
+    sport: RawSport
+    country: RawCountry
     nationality: str              # ISO3
     nationalityISO2: str          # ISO2
     deceased: bool
-    performance: Performance
+    performance: RawPerformance
     preferredFormation: str       # e.g. "4-3-3"
     formerPlayerId: int
-    team: Team
-    teams: list[Team]
+    team: RawTeam
+    teams: list[RawTeam]
     dateOfBirthTimestamp: Timestamp
