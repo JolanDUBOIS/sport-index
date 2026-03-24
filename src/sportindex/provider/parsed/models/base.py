@@ -5,6 +5,11 @@ from typing import TypeVar, Dict, Any
 T = TypeVar("T", bound="BaseParsedModel")
 
 class BaseParsedModel:
+    """
+    Base class for all parsed models. 
+    Provides a common interface for parsing raw data into structured dataclasses.
+    """
+
     @classmethod
     def from_raw(cls: type[T], raw: Dict | None, *args: Any, **kwargs: Any) -> T | None:
         """
