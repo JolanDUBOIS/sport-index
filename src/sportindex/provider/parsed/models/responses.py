@@ -8,17 +8,17 @@ if TYPE_CHECKING:
     from .details import ParsedLineup
     from .event import ParsedEvent
     from .leaderboard import ParsedRankingType, ParsedRankingEntry
-    from .primitives import ParsedChannel
+    from .primitives import Channel
     from .stage import ParsedStage
     from .team import ParsedTeam
     from .tournament import ParsedUniqueTournament, ParsedSeason
     from sportindex.provider.raw.models import (
-        TeamResponse, UniqueTournamentSeasonsResponse,
-        EventsResponse, RankingsResponse,
-        ChannelScheduleResponse, LineupsResponse,
-        PeriodStatistics, MomentumPoint,
-        CountryChannelsResponse, EventStatisticsResponse,
-        MomentumGraphResponse, ChannelEventVotesResponse
+        RawTeamResponse, RawUniqueTournamentSeasonsResponse,
+        RawEventsResponse, RawRankingsResponse,
+        RawChannelScheduleResponse, RawLineupsResponse,
+        RawPeriodStatistics, RawMomentumPoint,
+        RawCountryChannelsResponse, RawEventStatisticsResponse,
+        RawMomentumGraphResponse, RawChannelEventVotesResponse
     )
 
 
@@ -33,7 +33,7 @@ class ParsedTeamResponse(BaseParsedModel):
     drivers: list[ParsedTeam]
 
     @classmethod
-    def _parse(cls, raw: TeamResponse) -> ParsedTeamResponse:
+    def _parse(cls, raw: RawTeamResponse) -> ParsedTeamResponse:
         from .team import ParsedTeam
         return cls(
             team=ParsedTeam.from_raw(raw.get("team")),
@@ -52,7 +52,7 @@ class ParsedUniqueTournamentSeasonsResponse(BaseParsedModel):
     seasons: list[ParsedSeason]
 
     @classmethod
-    def _parse(cls, raw: UniqueTournamentSeasonsResponse) -> ParsedUniqueTournamentSeasonsResponse:
+    def _parse(cls, raw: RawUniqueTournamentSeasonsResponse) -> ParsedUniqueTournamentSeasonsResponse:
         from .tournament import ParsedUniqueTournament, ParsedSeason
         return cls(
             uniqueTournament=ParsedUniqueTournament.from_raw(raw.get("uniqueTournament")),
@@ -70,7 +70,7 @@ class ParsedEventsResponse(BaseParsedModel):
     events: list[ParsedEvent]
 
     @classmethod
-    def _parse(cls, raw: EventsResponse) -> ParsedEventsResponse:
+    def _parse(cls, raw: RawEventsResponse) -> ParsedEventsResponse:
         from .event import ParsedEvent
         return cls(
             hasNextPage=raw.get("hasNextPage"),
@@ -88,7 +88,7 @@ class ParsedRankingsResponse(BaseParsedModel):
     rankingRows: list[ParsedRankingEntry]
 
     @classmethod
-    def _parse(cls, raw: RankingsResponse) -> ParsedRankingsResponse:
+    def _parse(cls, raw: RawRankingsResponse) -> ParsedRankingsResponse:
         from .leaderboard import ParsedRankingType, ParsedRankingEntry
         return cls(
             rankingType=ParsedRankingType.from_raw(raw.get("rankingType")),
@@ -102,17 +102,17 @@ class ParsedRankingsResponse(BaseParsedModel):
 
 @dataclass
 class ParsedChannelScheduleResponse(BaseParsedModel):
-    channel: ParsedChannel
+    channel: Channel
     events: list[ParsedEvent]
     stages: list[ParsedStage]
 
     @classmethod
-    def _parse(cls, raw: ChannelScheduleResponse) -> ParsedChannelScheduleResponse:
+    def _parse(cls, raw: RawChannelScheduleResponse) -> ParsedChannelScheduleResponse:
         from .event import ParsedEvent
         from .primitives import ParsedChannel
         from .stage import ParsedStage
         return cls(
-            channel=ParsedChannel.from_raw(raw.get("channel")),
+            channel=Channel.from_raw(raw.get("channel")),
             events=[ParsedEvent.from_raw(e) for e in raw.get("events", [])],
             stages=[ParsedStage.from_raw(s) for s in raw.get("stages", [])],
         )
@@ -123,21 +123,21 @@ class ParsedCountryChannelsResponse(BaseParsedModel):
     channels: dict[str, list[int]]
 
     @classmethod
-    def _parse(cls, raw: CountryChannelsResponse) -> ParsedCountryChannelsResponse:
+    def _parse(cls, raw: RawCountryChannelsResponse) -> ParsedCountryChannelsResponse:
         return cls(channels=raw.get("channels", {}))
 
 
 @dataclass
 class ParsedChannelEventVotesResponse(BaseParsedModel):
-    channel: ParsedChannel
+    channel: Channel
     upvotes: int
     downvotes: int
 
     @classmethod
-    def _parse(cls, raw: ChannelEventVotesResponse) -> ParsedChannelEventVotesResponse:
+    def _parse(cls, raw: RawChannelEventVotesResponse) -> ParsedChannelEventVotesResponse:
         from .primitives import ParsedChannel
         return cls(
-            channel=ParsedChannel.from_raw(raw.get("tvChannel")),
+            channel=Channel.from_raw(raw.get("tvChannel")),
             upvotes=raw.get("upvote", 0),
             downvotes=raw.get("downvote", 0),
         )
@@ -153,7 +153,7 @@ class ParsedLineupsResponse(BaseParsedModel):
     away: ParsedLineup
 
     @classmethod
-    def _parse(cls, raw: LineupsResponse) -> ParsedLineupsResponse:
+    def _parse(cls, raw: RawLineupsResponse) -> ParsedLineupsResponse:
         from .details import ParsedLineup
         return cls(
             home=ParsedLineup.from_raw(raw.get("home")),
@@ -163,20 +163,20 @@ class ParsedLineupsResponse(BaseParsedModel):
 
 @dataclass
 class ParsedEventStatisticsResponse(BaseParsedModel):
-    statistics: list[PeriodStatistics]
+    statistics: list[RawPeriodStatistics]
 
     @classmethod
-    def _parse(cls, raw: EventStatisticsResponse) -> ParsedEventStatisticsResponse:
+    def _parse(cls, raw: RawEventStatisticsResponse) -> ParsedEventStatisticsResponse:
         return cls(statistics=raw.get("statistics", []))
 
 
 @dataclass
 class ParsedMomentumGraphResponse(BaseParsedModel):
-    graphPoints: list[MomentumPoint]
+    graphPoints: list[RawMomentumPoint]
     periodTime: int
     periodCount: int
     overtimeLength: int
 
     @classmethod
-    def _parse(cls, raw: MomentumGraphResponse) -> ParsedMomentumGraphResponse:
+    def _parse(cls, raw: RawMomentumGraphResponse) -> ParsedMomentumGraphResponse:
         return cls(**raw)

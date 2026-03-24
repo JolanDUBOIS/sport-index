@@ -1,5 +1,5 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from .models import Round, Amount, Promotion
+from .models import RawRound, RawAmount, RawPromotion
 from .main import SofascoreProvider

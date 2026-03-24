@@ -10,9 +10,9 @@ if TYPE_CHECKING:
     from .core import ParsedCountry, ParsedCategory
     from .team import ParsedTeam
     from sportindex.provider.raw.models import (
-        StageParent, UniqueStage,
-        StageType, Status, Stage,
-        StageInfo
+        RawStageParent, RawUniqueStage,
+        RawStageType, RawStatus, RawStage,
+        RawStageInfo
     )
 
 
@@ -29,7 +29,7 @@ class ParsedUniqueStage(BaseParsedModel):
     description: str
 
     @classmethod
-    def _parse(cls, raw: UniqueStage) -> ParsedUniqueStage:
+    def _parse(cls, raw: RawUniqueStage) -> ParsedUniqueStage:
         from .core import ParsedCategory
         return cls(
             id=raw.get("id"),
@@ -53,11 +53,11 @@ class ParsedStage(BaseParsedModel):
     year: str
     seasonStageName: str
     uniqueStage: ParsedUniqueStage
-    type_: StageType
-    status: Status
+    type_: RawStageType
+    status: RawStatus
     flag: str
     country: ParsedCountry
-    info: StageInfo
+    info: RawStageInfo
     start: datetime
     end: datetime
     stageParent: ParsedStageParent
@@ -65,7 +65,7 @@ class ParsedStage(BaseParsedModel):
     substages: list[ParsedStage]
 
     @classmethod
-    def _parse(cls, raw: Stage) -> ParsedStage:
+    def _parse(cls, raw: RawStage) -> ParsedStage:
         from .core import ParsedCountry
         from .team import ParsedTeam
         return cls(
@@ -101,7 +101,7 @@ class ParsedStageParent(BaseParsedModel):
     start: datetime
 
     @classmethod
-    def _parse(cls, raw: StageParent) -> ParsedStageParent:
+    def _parse(cls, raw: RawStageParent) -> ParsedStageParent:
         return cls(
             id=raw.get("id"),
             slug=raw.get("slug"),

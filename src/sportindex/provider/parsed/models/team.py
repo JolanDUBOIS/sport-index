@@ -9,10 +9,11 @@ from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .core import ParsedSport, ParsedCountry, ParsedCategory
     from .manager import ParsedManager
+    from .primitives import Amount
     from .tournament import ParsedTournament, ParsedUniqueTournament
     from .venue import ParsedVenue
     from sportindex.provider.raw.models import (
-        Team, Amount, PlayerTeamInfo
+        RawTeam, RawPlayerTeamInfo
     )
 
 
@@ -40,7 +41,7 @@ class ParsedTeam(BaseParsedModel):
     playerTeamInfo: ParsedPlayerTeamInfo
 
     @classmethod
-    def _parse(cls, raw: Team) -> ParsedTeam:
+    def _parse(cls, raw: RawTeam) -> ParsedTeam:
         from .core import ParsedSport, ParsedCountry, ParsedCategory
         from .manager import ParsedManager
         from .tournament import ParsedTournament, ParsedUniqueTournament
@@ -85,7 +86,7 @@ class ParsedPlayerTeamInfo(BaseParsedModel):
     birthDate: datetime
 
     @classmethod
-    def _parse(cls, raw: PlayerTeamInfo) -> ParsedPlayerTeamInfo:
+    def _parse(cls, raw: RawPlayerTeamInfo) -> ParsedPlayerTeamInfo:
         return cls(
             id=raw.get("id"),
             residence=raw.get("residence"),
@@ -96,8 +97,8 @@ class ParsedPlayerTeamInfo(BaseParsedModel):
             plays=raw.get("plays"),
             mainDriver=raw.get("mainDriver"),
             turnedPro=raw.get("turnedPro"),
-            prizeCurrentRaw=raw.get("prizeCurrentRaw"),
-            prizeTotalRaw=raw.get("prizeTotalRaw"),
+            prizeCurrentRaw=Amount.from_raw(raw.get("prizeCurrentRaw")),
+            prizeTotalRaw=Amount.from_raw(raw.get("prizeTotalRaw")),
             currentRanking=raw.get("currentRanking"),
             birthDate=parse_timestamp(raw.get("birthDateTimestamp")),
         )

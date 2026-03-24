@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from .tournament import ParsedSeason, ParsedTournament
     from .venue import ParsedVenue
     from sportindex.provider.raw.models import (
-        Round, Status, Event
+        RawRound, RawStatus, RawEvent
     )
 
 
@@ -27,12 +27,12 @@ class ParsedEvent(BaseParsedModel):
     slug: str
     gender: str
     start: datetime
-    roundInfo: Round
+    roundInfo: RawRound
     season: ParsedSeason
     tournament: ParsedTournament
 
     attendance: int
-    status: Status
+    status: RawStatus
     previousLegEventId: int
     winnerCode: int  # 1=home, 2=away, 3=draw 
 
@@ -49,7 +49,7 @@ class ParsedEvent(BaseParsedModel):
     parsedPeriods: ParsedPeriods
 
     @classmethod
-    def _parse(cls, raw: Event) -> ParsedEvent:
+    def _parse(cls, raw: RawEvent) -> ParsedEvent:
         from .referee import ParsedReferee
         from .tournament import ParsedSeason, ParsedTournament
         from .venue import ParsedVenue
@@ -87,7 +87,7 @@ class EventTeam:
     score: int
 
     @classmethod
-    def from_raw(cls, raw: Event, side: str) -> EventTeam:
+    def from_raw(cls, raw: RawEvent, side: str) -> EventTeam:
         from .team import ParsedTeam
         return cls(
             team=ParsedTeam.from_raw(raw.get(f"{side}Team")),
@@ -121,7 +121,7 @@ class ParsedPeriods(BaseParsedModel):
     periods: list[ParsedPeriod]
 
     @classmethod
-    def _parse(cls, raw: Event) -> ParsedPeriods | None:
+    def _parse(cls, raw: RawEvent) -> ParsedPeriods | None:
         if "defaultPeriodCount" not in raw:
             return None
 
@@ -239,7 +239,7 @@ class ParsedRacketExtra(BaseParsedModel):
 
 ParsedExtra = ParsedFightExtra | ParsedRacketExtra
 
-def parse_extra(raw: Event) -> ParsedExtra | None:
+def parse_extra(raw: RawEvent) -> ParsedExtra | None:
     """Parse sport-specific extra info (fight or racket)."""
     # Fight sports
     if any(raw.get(k) is not None for k in ("fightType", "weightClass", "winType", "finalRound")):

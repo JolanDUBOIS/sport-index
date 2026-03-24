@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from .base import BaseParsedModel
 if TYPE_CHECKING:
-    from sportindex.provider.raw.models import Sport, Country, Category
+    from sportindex.provider.raw.models import RawSport, RawCountry, RawCategory
 
 
 @dataclass
@@ -15,7 +15,7 @@ class ParsedSport(BaseParsedModel):
     slug: str
 
     @classmethod
-    def _parse(cls, raw: Sport) -> ParsedSport:
+    def _parse(cls, raw: RawSport) -> ParsedSport:
         return cls(
             id = raw.get("id"),
             name = raw.get("name"),
@@ -32,7 +32,7 @@ class ParsedCountry(BaseParsedModel):
     flag: str
 
     @classmethod
-    def _parse(cls, raw: Country) -> ParsedCountry:
+    def _parse(cls, raw: RawCountry) -> ParsedCountry:
         return cls(
             name = raw.get("name"),
             slug = raw.get("slug"),
@@ -53,7 +53,7 @@ class ParsedCategory(BaseParsedModel):
     country: ParsedCountry
 
     @classmethod
-    def _parse(cls, raw: Category) -> ParsedCategory:
+    def _parse(cls, raw: RawCategory) -> ParsedCategory:
         return cls(
             id = raw.get("id"),
             name = raw.get("name"),

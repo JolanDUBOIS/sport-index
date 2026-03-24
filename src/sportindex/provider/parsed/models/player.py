@@ -8,8 +8,9 @@ from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .core import ParsedCountry
+    from .primitives import Amount
     from .team import ParsedTeam
-    from sportindex.provider.raw.models import Player, Amount
+    from sportindex.provider.raw.models import RawPlayer
 
 
 @dataclass
@@ -40,7 +41,7 @@ class ParsedPlayer(BaseParsedModel):
     contractUntil: datetime
 
     @classmethod
-    def _parse(cls, raw: Player) -> ParsedPlayer:
+    def _parse(cls, raw: RawPlayer) -> ParsedPlayer:
         from .core import ParsedCountry
         from .team import ParsedTeam
         return cls(
@@ -60,8 +61,8 @@ class ParsedPlayer(BaseParsedModel):
             deceased=raw.get("deceased"),
             preferredFoot=raw.get("preferredFoot"),
             preferredHand=raw.get("preferredHand"),
-            salaryRaw=raw.get("salaryRaw"),
-            proposedMarketValueRaw=raw.get("proposedMarketValueRaw"),
+            salaryRaw=Amount.from_raw(raw.get("salaryRaw")),
+            proposedMarketValueRaw=Amount.from_raw(raw.get("proposedMarketValueRaw")),
             position=raw.get("position"),
             positionsDetailed=raw.get("positionsDetailed"),
             primaryPosition=raw.get("primaryPosition"),
