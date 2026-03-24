@@ -52,7 +52,7 @@ class ParsedStage(BaseParsedModel):
     description: str
     year: str
     seasonStageName: str
-    uniqueStage: UniqueStage
+    uniqueStage: ParsedUniqueStage
     type_: StageType
     status: Status
     flag: str
@@ -75,7 +75,7 @@ class ParsedStage(BaseParsedModel):
             description=raw.get("description"),
             year=raw.get("year"),
             seasonStageName=raw.get("seasonStageName"),
-            uniqueStage=raw.get("uniqueStage"),
+            uniqueStage=ParsedUniqueStage.from_raw(raw.get("uniqueStage")),
             type_=raw.get("type"),
             status=raw.get("status"),
             flag=raw.get("flag"),

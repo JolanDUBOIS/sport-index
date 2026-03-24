@@ -101,10 +101,14 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
                 raise TypeError("Manager data must be of type ParsedManager after full load")
             self._full_loaded = True
             self._clear_cache()
-        except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Manager with id {self._data.id} not found during full load") from e
+        except ProviderNotFoundError:
+            logger.debug(f"Manager with id {self._data.id} not found during full load")
+            self._full_loaded = True
+            self._clear_cache()
         except FetchError as e:
-            raise DomainError(f"Network error while fully loading manager with id {self._data.id}") from e
+            logger.debug(f"Network error while fully loading manager with id {self._data.id}: {e}")
+            self._full_loaded = True
+            self._clear_cache()
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""
