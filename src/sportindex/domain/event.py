@@ -287,10 +287,14 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
                 raise TypeError("Event data must be either ParsedEvent or ParsedStage")
             self._full_loaded = True
             self._clear_cache()
-        except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Event with id {self._data.id} not found during full load") from e
+        except ProviderNotFoundError:
+            logger.debug(f"Event with id {self._data.id} not found during full load.")
+            self._full_loaded = True
+            self._clear_cache()
         except FetchError as e:
-            raise DomainError(f"Network error while fully loading event with id {self._data.id}") from e
+            logger.debug(f"Network error while fully loading event with id {self._data.id}: {e}")
+            self._full_loaded = True
+            self._clear_cache()
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""

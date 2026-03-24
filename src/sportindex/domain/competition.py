@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
@@ -92,10 +92,14 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
                 raise TypeError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
             self._full_loaded = True
             self._clear_cache()
-        except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Competition with id {self._data.id} not found during full load") from e
+        except ProviderNotFoundError:
+            logger.debug(f"Competition with id {self._data.id} not found during full load")
+            self._full_loaded = True
+            self._clear_cache()
         except FetchError as e:
-            raise DomainError(f"Network error while fully loading competition with id {self._data.id}") from e
+            logger.debug(f"Network error while fully loading competition with id {self._data.id}: {e}")
+            self._full_loaded = True
+            self._clear_cache()
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""
@@ -245,7 +249,7 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
         elif isinstance(self._data, ParsedStage):
             from .event import Event, EventCollection
             substages = self._provider.get_stage_substages(self._data.id)
-            future_substages = [s for s in substages if s.start >= datetime.now()]
+            future_substages = [s for s in substages if s.start >= datetime.now(tz=timezone.utc)]
             return EventCollection([Event(s, self._provider) for s in future_substages])
 
     def get_results(self, silent: bool = False) -> EventCollection:
@@ -259,7 +263,7 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
         elif isinstance(self._data, ParsedStage):
             from .event import Event, EventCollection
             substages = self._provider.get_stage_substages(self._data.id)
-            past_substages = [s for s in substages if s.end < datetime.now()]
+            past_substages = [s for s in substages if s.end < datetime.now(tz=timezone.utc)]
             return EventCollection([Event(s, self._provider) for s in past_substages])
 
     def _full_load(self) -> None:
@@ -286,10 +290,14 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
                 raise TypeError("Season data must be either ParsedSeason or ParsedStage")
             self._full_loaded = True
             self._clear_cache()
-        except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Season with id {self._data.id} not found during full load") from e
+        except ProviderNotFoundError:
+            logger.debug(f"Season with id {self._data.id} not found during full load")
+            self._full_loaded = True
+            self._clear_cache()
         except FetchError as e:
-            raise DomainError(f"Network error while fully loading season with id {self._data.id}") from e
+            logger.debug(f"Network error while fully loading season with id {self._data.id}: {e}")
+            self._full_loaded = True
+            self._clear_cache()
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""
