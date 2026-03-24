@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional
 from . import logger
 from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
-from sportindex.provider import NotFoundError, FetchError
+from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.parsed import ParsedVenue, ParsedStage
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ class Venue(IdentifiableEntity[ParsedVenue], EventAwareMixin):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, (ParsedVenue, ParsedStage)):
-            raise ValueError("Venue data must be either ParsedVenue or ParsedStage")
+            raise TypeError("Venue data must be either ParsedVenue or ParsedStage")
 
         self._full_loaded = False
 
@@ -99,24 +99,28 @@ class Venue(IdentifiableEntity[ParsedVenue], EventAwareMixin):
             return
         try:
             self._data = merge_dataclasses(self._data, self._provider.get_venue(self._data.id))
-            assert isinstance(self._data, ParsedVenue)
+            if not isinstance(self._data, ParsedVenue):
+                raise TypeError("Venue data must be of type ParsedVenue after full load")
             self._full_loaded = True
             self._clear_cache()
-        except NotFoundError:
-            logger.debug(f"Venue with id {self._data.id} not found during full load.")
-            self._full_loaded = True
+        except ProviderNotFoundError as e:
+            raise EntityNotFoundError(f"Venue with id {self._data.id} not found during full load") from e
         except FetchError as e:
-            logger.debug(f"Network error while fully loading venue with id {self._data.id}: {e}")
+            raise DomainError(f"Network error while fully loading venue with id {self._data.id}") from e
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""
         self.__dict__.pop("country", None)
         self.__dict__.pop("teams", None)
-
     @classmethod
     def from_id(cls, venue_id: int, provider: ParsedSofascoreProvider) -> Venue:
         """Fetch a venue by its ID."""
-        parsed_data = provider.get_venue(venue_id)
+        try:
+            parsed_data = provider.get_venue(venue_id)
+        except ProviderNotFoundError as e:
+            raise EntityNotFoundError(f"Venue with id {venue_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Network error while fetching venue {venue_id}") from e
         return cls(parsed_data, provider)
 
     @classmethod

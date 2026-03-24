@@ -57,12 +57,6 @@ from .domain import (
     Venue,
 )
 
-from .provider import (
-    FetchError,
-    NotFoundError,
-    RateLimitError,
-)
-
 __all__ = [
     # Core
     "SportClient",
@@ -100,9 +94,4 @@ __all__ = [
     "Sport",
     "Standings",
     "Venue",
-    
-    # Exceptions
-    "FetchError",
-    "NotFoundError",
-    "RateLimitError",
 ]

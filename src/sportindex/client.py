@@ -16,7 +16,8 @@ from .domain import (
     Sport,
     Venue
 )
-from .provider import ParsedSofascoreProvider, NotFoundError
+from .exceptions import ProviderNotFoundError, EntityNotFoundError
+from .provider import ParsedSofascoreProvider
 
 
 _default_provider = None
@@ -73,7 +74,7 @@ class SportClient:
             if namespace in self._cache:
                 self._cache[namespace].clear()
             else:
-                raise ValueError(f"Unknown cache namespace: {namespace}")
+                raise KeyError(f"Unknown cache namespace: {namespace}")
         else:
             for ns in self._cache:
                 self._cache[ns].clear()
@@ -101,7 +102,7 @@ class SportClient:
         """Fetch categories for a given sport ID."""
         sport = self.get_sport(sport_id)
         if sport is None:
-            raise ValueError(f"Sport with ID {sport_id} not found")
+            raise EntityNotFoundError(f"Sport with ID {sport_id} not found")
         return sport.categories
 
     # --- Competitions ---
@@ -113,17 +114,17 @@ class SportClient:
         try:
             entity = Competition.from_id(id, self._provider)
             return self._set_cached("competitions", entity)
-        except NotFoundError:
+        except ProviderNotFoundError:
             return None
 
     def list_competitions(self, sport_id: int, category_id: int) -> EntityCollection[Competition]:
         """Fetch competitions for a given sport ID and category ID."""
         sport = self.get_sport(sport_id)
         if sport is None:
-            raise ValueError(f"Sport with ID {sport_id} not found")
+            raise EntityNotFoundError(f"Sport with ID {sport_id} not found")
         category = sport.categories.get(id=category_id)
         if category is None:
-            raise ValueError(f"Category with ID {category_id} not found")
+            raise EntityNotFoundError(f"Category with ID {category_id} not found")
         
         return self._hydrate_cache("competitions", category.competitions)
 
@@ -133,7 +134,7 @@ class SportClient:
         """Fetch seasons for a given competition ID."""
         competition = self.get_competition(competition_id)
         if competition is None:
-            raise ValueError(f"Competition with ID {competition_id} not found")
+            raise EntityNotFoundError(f"Competition with ID {competition_id} not found")
         return self._hydrate_cache("seasons", competition.seasons)
 
     # --- Events ---
@@ -145,7 +146,7 @@ class SportClient:
         try:
             entity = Event.from_id(id, self._provider)
             return self._set_cached("events", entity)
-        except NotFoundError:
+        except ProviderNotFoundError:
             return None
 
     # --- Competitors ---
@@ -157,7 +158,7 @@ class SportClient:
         try:
             entity = Competitor.from_id(id, self._provider)
             return self._set_cached("competitors", entity)
-        except NotFoundError:
+        except ProviderNotFoundError:
             return None
 
     def search_competitors(self, query: str) -> EntityCollection[Competitor]:
@@ -174,7 +175,7 @@ class SportClient:
         try:
             entity = Manager.from_id(id, self._provider)
             return self._set_cached("managers", entity)
-        except NotFoundError:
+        except ProviderNotFoundError:
             return None
 
     def search_managers(self, query: str) -> EntityCollection[Manager]:
@@ -191,7 +192,7 @@ class SportClient:
         try:
             entity = Referee.from_id(id, self._provider)
             return self._set_cached("referees", entity)
-        except NotFoundError:
+        except ProviderNotFoundError:
             return None
 
     def search_referees(self, query: str) -> EntityCollection[Referee]:
@@ -208,7 +209,7 @@ class SportClient:
         try:
             entity = Venue.from_id(id, self._provider)
             return self._set_cached("venues", entity)
-        except NotFoundError:
+        except ProviderNotFoundError:
             return None
 
     def search_venues(self, query: str) -> EntityCollection[Venue]:

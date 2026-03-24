@@ -149,15 +149,58 @@ client.clear_cache()              # clear everything
 client.clear_cache("events")     # clear only one namespace
 ```
 
-## Errors and resilience
+## Exceptions & Error Handling
 
-Provider-level exceptions are exposed at package root:
+All exceptions are defined in `sportindex.exceptions` — import them from that module.
 
 ```python
-from sportindex import NotFoundError, RateLimitError, FetchError
+from sportindex.exceptions import (
+    ProviderNotFoundError, RateLimitError, FetchError,
+    NetworkError, ParseError, EntityNotFoundError,
+    InsufficientDataError, DomainError,
+)
 ```
 
-Many endpoints are best-effort: some fields may be absent depending on sport, competition, or provider payload.
+Semantics summary:
+
+- Provider-level errors (network/upstream): `ProviderNotFoundError` (HTTP 404), `RateLimitError` (HTTP 429), `FetchError` (general fetch failures), `NetworkError` (connection/timeouts), `ParseError` (failed parse/mapping).
+- Domain-level errors: `EntityNotFoundError` (requested domain entity cannot be constructed), `InsufficientDataError`, `DomainError` (generic business error).
+
+Public API behaviour to remember:
+
+- `get_*` methods are tolerant: they return `None` when the requested entity does not exist (e.g. wrong id).
+- `list_*` methods are strict: they raise `EntityNotFoundError` when required ids/arguments are invalid or missing.
+
+Recommended usage patterns:
+
+```python
+from sportindex import SportClient
+from sportindex.exceptions import (
+    ProviderNotFoundError, FetchError, RateLimitError, EntityNotFoundError
+)
+
+client = SportClient()
+
+# tolerant lookup
+event = client.get_event(12345)
+if event is None:
+    print("event not found")
+
+# strict listing (raises on missing)
+try:
+    competitions = client.list_competitions(sport_id=1, category_id=2)
+except EntityNotFoundError:
+    print("invalid sport or category")
+
+# handle provider/network issues when calling lower-level provider code
+try:
+    ev = client.get_event(12345)
+except (ProviderNotFoundError, FetchError, RateLimitError) as exc:
+    # retry, back off, or surface to caller
+    raise
+```
+
+Documenting these semantics helps keep error handling consistent and simple for consumers.
 
 ## Version
 

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional, Literal
 from . import logger
 from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
-from sportindex.provider import NotFoundError, FetchError
+from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.parsed import ParsedTeam, ParsedPlayer
 from sportindex.provider.raw import Amount as Amount
 
@@ -31,7 +31,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, (ParsedTeam, ParsedPlayer)):
-            raise ValueError("Competitor data must be either ParsedTeam or ParsedPlayer")
+            raise TypeError("Competitor data must be either ParsedTeam or ParsedPlayer")
 
         self._full_loaded = False
 
@@ -142,7 +142,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
             return None
         try:
             return EntityCollection([Competitor(player, self._provider) for player in self._provider.get_team_players(self._data.id).players])
-        except NotFoundError:
+        except ProviderNotFoundError:
             logger.debug(f"No players found for team with id {self.id}, returning empty collection")
             return EntityCollection([])
 
@@ -153,7 +153,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
             return None
         try:
             return EntityCollection([Competitor(driver, self._provider) for driver in self._provider.get_team(self._data.id).drivers])
-        except NotFoundError:
+        except ProviderNotFoundError:
             logger.debug(f"No drivers found for team with id {self.id}, returning empty collection")
             return EntityCollection([])
 
@@ -220,14 +220,14 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
                 self._data = merge_dataclasses(self._data, self._provider.get_player(self._data.id))
             elif isinstance(self._data, ParsedTeam):
                 self._data = merge_dataclasses(self._data, self._provider.get_team(self._data.id))
-            assert isinstance(self._data, (ParsedPlayer, ParsedTeam))
+            if not isinstance(self._data, (ParsedPlayer, ParsedTeam)):
+                raise TypeError("Competitor data must be either ParsedPlayer or ParsedTeam")
             self._full_loaded = True
             self._clear_cache()
-        except NotFoundError:
-            logger.debug(f"Competitor with id {self._data.id} not found during full load.")
-            self._full_loaded = True
+        except ProviderNotFoundError as e:
+            raise EntityNotFoundError(f"Competitor with id {self._data.id} not found during full load") from e
         except FetchError as e:
-            logger.debug(f"Network error while fully loading competitor with id {self._data.id}: {e}")
+            raise DomainError(f"Network error while fully loading competitor with id {self._data.id}") from e
 
     def _clear_cache(self) -> None:
         """Clear cached properties."""
@@ -250,15 +250,20 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
         type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
 
         if type_idx not in type_map_reverse:
-            raise ValueError(f"Invalid competitor ID {competitor_id}: unknown type index {type_idx}")
+            raise TypeError(f"Invalid competitor ID {competitor_id}: unknown type index {type_idx}")
 
         data_cls = type_map_reverse[type_idx]
-        if data_cls == ParsedTeam:
-            parsed_data = provider.get_team(raw_id).team
-        elif data_cls == ParsedPlayer:
-            parsed_data = provider.get_player(raw_id)
-        else:
-            raise ValueError(f"Unsupported competitor type index {type_idx} in ID {competitor_id}")
+        try:
+            if data_cls == ParsedTeam:
+                parsed_data = provider.get_team(raw_id).team
+            elif data_cls == ParsedPlayer:
+                parsed_data = provider.get_player(raw_id)
+            else:
+                raise TypeError(f"Unsupported competitor type index {type_idx} in ID {competitor_id}")
+        except ProviderNotFoundError as e:
+            raise EntityNotFoundError(f"Competitor with id {competitor_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Network error while fetching competitor {competitor_id}") from e
 
         return cls(parsed_data, provider)
 
@@ -269,7 +274,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
         for page in range(51):
             try:
                 all_matches = provider.search_all(query=query, page=page)
-            except (NotFoundError, FetchError):
+            except (ProviderNotFoundError, FetchError):
                 logger.debug(f"Failed to fetch search results for query '{query}' on page {page}, stopping pagination")
                 break
             if not all_matches:

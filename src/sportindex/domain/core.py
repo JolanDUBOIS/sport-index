@@ -9,7 +9,7 @@ import pycountry
 from . import logger
 from .base import BaseEntity, IdentifiableEntity, EntityCollection
 from .static import SPORT_RANKINGS
-from sportindex.provider.raw import NotFoundError
+from sportindex.exceptions import ProviderNotFoundError
 from sportindex.provider.parsed import (
     ParsedSport,
     ParsedCountry,
@@ -30,7 +30,7 @@ class Sport(IdentifiableEntity[ParsedSport]):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedSport):
-            raise ValueError("Sport data must be of type ParsedSport")
+            raise TypeError("Sport data must be of type ParsedSport")
 
     @property
     def id(self) -> int:
@@ -84,7 +84,7 @@ class Country(BaseEntity[ParsedCountry]):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedCountry):
-            raise ValueError("Country data must be of type ParsedCountry")
+            raise TypeError("Country data must be of type ParsedCountry")
 
         self._country = next(
             (c for c in pycountry.countries if c.name.lower() == self.name.lower()), None
@@ -155,7 +155,7 @@ class Category(IdentifiableEntity[ParsedCategory]):
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedCategory):
-            raise ValueError("Category data must be of type ParsedCategory")
+            raise TypeError("Category data must be of type ParsedCategory")
 
     @property
     def id(self) -> int:
@@ -189,11 +189,11 @@ class Category(IdentifiableEntity[ParsedCategory]):
         """Fetch all competitions (unique tournaments / unique stages) for this category."""
         try:
             unique_tournaments = self._provider.get_category_unique_tournaments(self.id)
-        except NotFoundError:
+        except ProviderNotFoundError:
             unique_tournaments = []
         try:
             unique_stages = self._provider.get_category_unique_stages(self.id)
-        except NotFoundError:
+        except ProviderNotFoundError:
             unique_stages = []
 
         from .competition import Competition
