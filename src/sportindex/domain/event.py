@@ -10,12 +10,12 @@ from .base import IdentifiableEntity, EntityCollection
 from .core import Sport
 from .competition import Season
 from .utils import merge_dataclasses
-from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.parsed import (
     ParsedEvent, ParsedStage, ParsedPeriod,
     ParsedLineupsResponse, ParsedIncident,
     ParsedEventStatisticsResponse, ParsedMomentumGraphResponse
 )
+from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.raw import Round as Round
 
 if TYPE_CHECKING:
@@ -307,6 +307,11 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         """Fetch an event by its ID."""
         raw_id, type_idx = cls.decode_id(event_id)
         type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
+
+        if type_idx not in type_map_reverse:
+            raise ValueError(f"Invalid event ID {event_id}: unknown type index {type_idx}")
+
+        data_cls = type_map_reverse[type_idx]
         try:
             if data_cls == ParsedEvent:
                 parsed_data = provider.get_event(raw_id)
@@ -315,11 +320,6 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
             else:
                 raise TypeError(f"Unsupported event type index {type_idx} in ID {event_id}")
         except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Event with id {event_id} not found") from e
-        except FetchError as e:
-            raise DomainError(f"Network error while fetching event {event_id}") from e
-                raise TypeError(f"Unsupported event type index {type_idx} in ID {event_id}")
-        except NotFoundError as e:
             raise EntityNotFoundError(f"Event with id {event_id} not found") from e
         except FetchError as e:
             raise DomainError(f"Network error while fetching event {event_id}") from e
