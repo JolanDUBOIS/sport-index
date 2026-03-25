@@ -5,6 +5,8 @@ Unified Python SDK for exploring sports data through a single object-oriented AP
 > **Disclaimer**  
 > This package relies on unofficial provider endpoints. Availability and payloads may change at any time. Use responsibly and comply with each provider's Terms of Service.
 
+The full API Reference, domain model overview, and user guide can be found here: [sport-index Documentation](https://JolanDUBOIS.github.io/sport-index/)
+
 ## Overview
 
 `sport-index` provides a coherent Python API across multiple sports domains:
@@ -23,7 +25,7 @@ Instead of manually traversing provider-specific endpoints, you work with **Pyth
 
 ```bash
 pip install "git+https://github.com/JolanDUBOIS/sport-index.git"
-````
+```
 
 ### Local development (Poetry)
 
