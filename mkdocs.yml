@@ -1,7 +1,11 @@
-site_name: My Package Documentation
+site_name: sport-index Documentation
 
 theme:
   name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.version
 
 plugins:
   - search

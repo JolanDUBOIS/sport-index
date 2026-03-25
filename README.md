@@ -1,3 +1,5 @@
+![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat-square)
+
 # sport-index
 
 Unified Python SDK for exploring sports data through a single object-oriented API.
