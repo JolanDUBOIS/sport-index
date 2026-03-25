@@ -71,7 +71,7 @@ class GoalIncident(Incident):
     side: str                  # "home" / "away"
     score: MatchScore
     scorer: Competitor
-    assist: Competitor
+    assist: Competitor | None
     extraTime: int             # stoppage-time minute offset
     kind: str                  # "regular", "ownGoal", "penalty" (football); "try", "twoPoints"... (rugby)
 
@@ -80,6 +80,7 @@ class GoalIncident(Incident):
         if parsed is None:
             return None
         provider = kwargs.get("provider")
+        from .event import MatchScore
         from ..competitor import Competitor
         return cls(
             type_=IncidentType.GOAL,
@@ -88,7 +89,7 @@ class GoalIncident(Incident):
             side=parsed.side,
             score=MatchScore._from_parsed(parsed.score),
             scorer=Competitor(parsed.scorer, provider=provider),
-            assist=Competitor(parsed.assist, provider=provider),
+            assist=Competitor(parsed.assist, provider=provider) if parsed.assist else None,
             extraTime=parsed.extraTime,
             kind=parsed.kind
         )
@@ -137,6 +138,7 @@ class PenaltyShootoutIncident(Incident):
         if parsed is None:
             return None
         provider = kwargs.get("provider")
+        from .event import MatchScore
         from ..competitor import Competitor
         return cls(
             type_=IncidentType.PENALTY_SHOOTOUT,
@@ -201,6 +203,7 @@ class PeriodIncident(Incident):
     def _from_parsed(cls, parsed: ParsedPeriodIncident | None, **kwargs) -> PeriodIncident | None:
         if parsed is None:
             return None
+        from .event import MatchScore
         return cls(
             type_=IncidentType.PERIOD,
             time=parsed.time,

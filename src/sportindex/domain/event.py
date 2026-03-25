@@ -177,6 +177,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         """The competitors in this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
             from .competitor import Competitor
+            from .components import MatchCompetitors
             return MatchCompetitors(
                 home=Competitor(self._data.home.team, self._provider),
                 away=Competitor(self._data.away.team, self._provider)
@@ -207,6 +208,9 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
             try:
                 from .components import MatchLineups, TeamLineup
                 parsed_lineups = self._provider.get_event_lineups(self._data.id)
+                if not parsed_lineups or not parsed_lineups.home or not parsed_lineups.away:
+                    logger.debug(f"Lineups not found for event {self.id}.")
+                    return None
                 return MatchLineups(
                     home=TeamLineup._from_parsed(parsed_lineups.home, provider=self._provider),
                     away=TeamLineup._from_parsed(parsed_lineups.away, provider=self._provider)
@@ -261,7 +265,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         """Head-to-head history for the competitors in this event, if match and available."""
         if isinstance(self._data, ParsedEvent):
             try:
-                return EventCollection([Event(e, self._provider) for e in self._provider.get_h2h_history(self._data.customId)])
+                return EventCollection([Event(e, self._provider) for e in self._provider.get_h2h_history(self._data.customId).events])
             except ProviderNotFoundError:
                 logger.debug(f"H2H history not found for event {self.id}.")
                 return None

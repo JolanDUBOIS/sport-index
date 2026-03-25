@@ -144,7 +144,7 @@ class StandingsEntry:
             scores_against=int(data.scoresAgainst),
             score_formatted=data.scoreDiffFormatted,
             games_behind=data.gamesBehind,
-            promotion=Promotion(**data.promotion)
+            promotion=Promotion._from_parsed(data.promotion)
         )
 
     @classmethod

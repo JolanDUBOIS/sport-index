@@ -89,9 +89,11 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
     def full_name(self) -> str:
         """The full name of the competitor."""
         if isinstance(self._data, ParsedTeam):
-            return self._data.fullName
+            return self._data.fullName or self._data.name
         elif isinstance(self._data, ParsedPlayer):
-            return self._data.firstName + " " + self._data.lastName
+            first = self._data.firstName or ""
+            last = self._data.lastName or ""
+            return f"{first} {last}".strip() or self._data.name
 
     @property
     def name_code(self) -> Optional[str]:
@@ -114,7 +116,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
     @cached_property
     def gender(self) -> Optional[Gender]:
         """The gender of the competitor, if applicable."""
-        from .core import Gender
+        from .components import Gender
         return Gender(self._data.gender)
 
     @cached_property
