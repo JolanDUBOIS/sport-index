@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sportindex.provider.parsed import ParsedSofascoreProvider
+from .components import Gender
+from sportindex.provider.parsed import SofascoreProvider
+
 if TYPE_CHECKING:
     from .base import EntityCollection
     from .core import Sport
@@ -48,7 +50,7 @@ _sports_cache: list[Sport] | None = None
 def get_sports() -> EntityCollection[Sport]:
     """Return the list of known sports, building Sport objects on first call."""
     global _sports_cache
-    provider = ParsedSofascoreProvider()
+    provider = SofascoreProvider()
     if _sports_cache is None:
         from .core import Sport
         _sports_cache = [
@@ -59,37 +61,36 @@ def get_sports() -> EntityCollection[Sport]:
     return EntityCollection(_sports_cache)
 
 # Mapping: sport slug → list of (ranking_id, gender | None)
-# Gender "X" denotes rankings that are not gender-specific
-SPORT_RANKINGS: dict[str, list[tuple[int, str | None]]] = {
+SPORT_RANKINGS: dict[str, list[tuple[int, Gender]]] = {
     "football": [
-        (1, "M"),          # UEFA Countries
-        (2, "M"),          # FIFA Rankings
-        (9, "M"),          # UEFA Clubs
+        (1, Gender.MALE),          # UEFA Countries
+        (2, Gender.MALE),          # FIFA Rankings
+        (9, Gender.MALE),          # UEFA Clubs
     ],
     "tennis": [
-        (5, "M"),        # ATP Rankings
-        (6, "F"),      # WTA Rankings
-        (7, "M"),        # ATP Rankings Live
-        (8, "F"),      # WTA Rankings Live
-        (34, "M"),       # UTR Men
-        (35, "F"),     # UTR Women
+        (5, Gender.MALE),        # ATP Rankings
+        (6, Gender.FEMALE),      # WTA Rankings
+        (7, Gender.MALE),        # ATP Rankings Live
+        (8, Gender.FEMALE),      # WTA Rankings Live
+        (34, Gender.MALE),       # UTR Men
+        (35, Gender.FEMALE),     # UTR Women
     ],
     "rugby": [
-        (3, "M"),          # Rugby Union Rankings
-        (4, "M"),          # Rugby League Rankings
+        (3, Gender.MALE),          # Rugby Union Rankings
+        (4, Gender.MALE),          # Rugby League Rankings
     ],
     "mma": [
-        (11, "M"),       # UFC Flyweight
-        (12, "M"),       # UFC Bantamweight
-        (13, "M"),       # UFC Featherweight
-        (14, "M"),       # UFC Lightweight
-        (15, "M"),       # UFC Welterweight
-        (16, "M"),       # UFC Middleweight
-        (17, "M"),       # UFC Light Heavyweight
-        (18, "M"),       # UFC Heavyweight
-        (19, "F"),     # UFC Women's Strawweight
-        (20, "F"),     # UFC Women's Flyweight
-        (21, "F"),     # UFC Women's Bantamweight
-        (22, "F"),     # UFC Women's Featherweight
+        (11, Gender.MALE),       # UFC Flyweight
+        (12, Gender.MALE),       # UFC Bantamweight
+        (13, Gender.MALE),       # UFC Featherweight
+        (14, Gender.MALE),       # UFC Lightweight
+        (15, Gender.MALE),       # UFC Welterweight
+        (16, Gender.MALE),       # UFC Middleweight
+        (17, Gender.MALE),       # UFC Light Heavyweight
+        (18, Gender.MALE),       # UFC Heavyweight
+        (19, Gender.FEMALE),     # UFC Women's Strawweight
+        (20, Gender.FEMALE),     # UFC Women's Flyweight
+        (21, Gender.FEMALE),     # UFC Women's Bantamweight
+        (22, Gender.FEMALE),     # UFC Women's Featherweight
     ],
 }

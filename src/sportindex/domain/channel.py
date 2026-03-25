@@ -11,14 +11,14 @@ from sportindex.provider.parsed import ParsedChannel, ParsedCountryChannelsRespo
 if TYPE_CHECKING:
     from .core import Country
     from .event import EventCollection
-    from sportindex.provider.parsed import ParsedSofascoreProvider
+    from sportindex.provider.parsed import SofascoreProvider
 
 
 
 class Channel(IdentifiableEntity[ParsedChannel]):
     """A TV channel broadcasting sports events.
 
-    Provides access to the channel’s name, ID, and scheduled events.
+    Provides access to the channel's name, ID, and scheduled events.
 
     Attributes:
         id (int): Unique channel ID.
@@ -30,9 +30,9 @@ class Channel(IdentifiableEntity[ParsedChannel]):
         EntityNotFoundError: If channel does not exist in the provider.
         DomainError: If a network or provider error occurs during fetch.
     """
-    REPR_FIELDS = ("id", "name")
+    _REPR_FIELDS = ("id", "name")
 
-    def __init__(self, data: ParsedChannel, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: ParsedChannel, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedChannel):
@@ -60,7 +60,7 @@ class Channel(IdentifiableEntity[ParsedChannel]):
         ])
 
     @classmethod
-    def from_id(cls, channel_id: int, provider: ParsedSofascoreProvider) -> Channel:
+    def from_id(cls, channel_id: int, provider: SofascoreProvider) -> Channel:
         """Fetch a channel by its ID."""
         try:
             parsed_channel_events = provider.get_channel_schedule(channel_id)
@@ -86,9 +86,9 @@ class EventChannels(BaseEntity[ParsedCountryChannelsResponse]):
         TypeError: If initialized with invalid data type.
         EntityNotFoundError: If a specified country cannot be found.
     """
-    REPR_FIELDS = ("channels")
+    _REPR_FIELDS = ("channels")
 
-    def __init__(self, data: ParsedCountryChannelsResponse, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: ParsedCountryChannelsResponse, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedCountryChannelsResponse):

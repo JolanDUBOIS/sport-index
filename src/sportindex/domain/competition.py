@@ -17,7 +17,7 @@ from sportindex.exceptions import InsufficientDataError, ProviderNotFoundError, 
 if TYPE_CHECKING:
     from .event import EventCollection
     from .leaderboard import Standings
-    from sportindex.provider.parsed import ParsedSofascoreProvider
+    from sportindex.provider.parsed import SofascoreProvider
 
 
 class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]):
@@ -35,12 +35,12 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
         seasons (EntityCollection[Season]): Seasons of this competition (lazy-loaded).
 
     Raises:
-        TypeError: If data is not ParsedUniqueTournament or ParsedUniqueStage.
+        TypeError: If data is not UniqueTournament or UniqueStage.
     """
-    REPR_FIELDS = ("id", "name", "slug", "sport", "category")
+    _REPR_FIELDS = ("id", "name", "slug", "sport", "category")
     _TYPE_MAP = {ParsedUniqueTournament: 1, ParsedUniqueStage: 2}
 
-    def __init__(self, data: ParsedUniqueTournament | ParsedUniqueStage, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: ParsedUniqueTournament | ParsedUniqueStage, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider)
 
         if not isinstance(data, (ParsedUniqueTournament, ParsedUniqueStage)):
@@ -122,7 +122,7 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
         self.__dict__.pop("seasons", None)
 
     @classmethod
-    def from_id(cls, competition_id: int, provider: ParsedSofascoreProvider) -> Competition:
+    def from_id(cls, competition_id: int, provider: SofascoreProvider) -> Competition:
         """Fetch a competition by its ID."""
         raw_id, type_idx = cls.decode_id(competition_id)
         type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
@@ -151,7 +151,7 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Competition]:
+    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Competition]:
         """Search for competitions matching the given query (up to the first 20 matches)."""
         entities = []
         for page in range(51): # Sofascore has a maximum of 50 pages of search results
@@ -183,10 +183,10 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
     Raises:
         InsufficientDataError: If season data lacks required competition info.
     """
-    REPR_FIELDS = ("id", "name", "year", "start", "sport")
+    _REPR_FIELDS = ("id", "name", "year", "start", "sport")
     _TYPE_MAP = {ParsedSeason: 1, ParsedStage: 2}
 
-    def __init__(self, data: ParsedSeason | ParsedStage, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: ParsedSeason | ParsedStage, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, (ParsedSeason, ParsedStage)):

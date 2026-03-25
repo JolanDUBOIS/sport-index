@@ -12,8 +12,9 @@ from sportindex.provider.parsed import ParsedReferee
 
 if TYPE_CHECKING:
     from .core import Country, Sport
+    from .components import Cards
     from .event import EventCollection
-    from sportindex.provider.parsed import ParsedSofascoreProvider
+    from sportindex.provider.parsed import SofascoreProvider
 
 
 class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
@@ -37,14 +38,14 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
             Returns fixtures for this referee. Currently returns empty, logs a warning.
         get_results(silent: bool = False) -> EventCollection:
             Returns results for this referee.
-        from_id(referee_id: int, provider: ParsedSofascoreProvider) -> Referee:
+        from_id(referee_id: int, provider: SofascoreProvider) -> Referee:
             Fetch a referee by its unique ID.
-        search(query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Referee]:
+        search(query: str, provider: SofascoreProvider) -> EntityCollection[Referee]:
             Search for referees matching a query string (up to 20 results).
     """
-    REPR_FIELDS = ("id", "name", "slug", "sport", "country")
+    _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
-    def __init__(self, data: ParsedReferee, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: ParsedReferee, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedReferee):
@@ -87,6 +88,7 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
     def cards(self) -> Optional[Cards]:
         """Get the number of cards this referee has given."""
         self._full_load()
+        from .components import Cards
         return Cards(
             yellow=int(self._data.yellowCards),
             red=int(self._data.redCards),
@@ -135,7 +137,7 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
         self.__dict__.pop("cards", None)
 
     @classmethod
-    def from_id(cls, referee_id: int, provider: ParsedSofascoreProvider) -> Referee:
+    def from_id(cls, referee_id: int, provider: SofascoreProvider) -> Referee:
         """Fetch a referee by its ID."""
         try:
             parsed_data = provider.get_referee(referee_id)
@@ -146,7 +148,7 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Referee]:
+    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Referee]:
         """Search for referees matching the given query (up to the first 20 matches)."""
         entities = []
         for page in range(51): # Sofascore has a maximum of 50 pages of search results
@@ -158,17 +160,3 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
             if len(matches) > 20:
                 break
         return EntityCollection(entities[:20])
-
-
-@dataclass(frozen=True)
-class Cards:
-    """Represents counts of disciplinary cards issued by a referee.
-
-    Attributes:
-        yellow (int): Number of yellow cards issued.
-        red (int): Number of red cards issued.
-        yellow_red (int): Number of yellow-red (second yellow resulting in red) cards issued.
-    """
-    yellow: int
-    red: int
-    yellow_red: int

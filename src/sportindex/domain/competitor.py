@@ -10,15 +10,15 @@ from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.parsed import ParsedTeam, ParsedPlayer
-from sportindex.provider.raw import Amount as Amount
 
 if TYPE_CHECKING:
-    from .core import Category, Country, Sport, Gender
+    from .components import Amount, Gender
+    from .core import Category, Country, Sport
     from .event import EventCollection
     from .manager import Manager
     from .venue import Venue
     from sportindex.provider.parsed import (
-        ParsedSofascoreProvider, ParsedPlayerTeamInfo
+        SofascoreProvider, ParsedPlayerTeamInfo
     )
 
 
@@ -53,10 +53,10 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
         EntityNotFoundError: If the competitor does not exist in the provider.
         DomainError: If a network or provider error occurs during fetch.
     """
-    REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name", "name_code", "national", "gender", "sport", "country", "category", "kind")
+    _REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name", "name_code", "national", "gender", "sport", "country", "category", "kind")
     _TYPE_MAP = {ParsedTeam: 1, ParsedPlayer: 2}
 
-    def __init__(self, data: ParsedTeam | ParsedPlayer, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: ParsedTeam | ParsedPlayer, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, (ParsedTeam, ParsedPlayer)):
@@ -250,7 +250,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
             elif isinstance(self._data, ParsedTeam):
                 self._data = merge_dataclasses(self._data, self._provider.get_team(self._data.id))
             if not isinstance(self._data, (ParsedPlayer, ParsedTeam)):
-                raise TypeError("Competitor data must be either ParsedPlayer or ParsedTeam")
+                raise TypeError("Competitor data must be either ParsedPlayer or ParsedTeam.")
             self._full_loaded = True
             self._clear_cache()
         except ProviderNotFoundError:
@@ -277,7 +277,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
         self.__dict__.pop("player_info", None)
 
     @classmethod
-    def from_id(cls, competitor_id: int, provider: ParsedSofascoreProvider) -> Competitor:
+    def from_id(cls, competitor_id: int, provider: SofascoreProvider) -> Competitor:
         """Fetch a competitor by its ID."""
         raw_id, type_idx = cls.decode_id(competitor_id)
         type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
@@ -301,7 +301,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Competitor]:
+    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Competitor]:
         """Search for competitors matching the given query (up to the first 20 matches)."""
         entities = []
         for page in range(51):
@@ -382,7 +382,7 @@ class PlayerInfo:
             number=int(data.number),
             preferred_foot=data.plays, # Note: probably never populated, as there are not single sport using the foot preference field...
             preferred_hand=data.plays,
-            total_prizes=data.prizeTotalRaw,
+            total_prizes=Amount._from_parsed(data.prizeTotalRaw),
         )
 
     @classmethod
@@ -400,7 +400,7 @@ class PlayerInfo:
             preferred_foot=data.preferredFoot,
             preferred_hand=data.preferredHand,
             positions=data.positionsDetailed or [data.position] or [data.primaryPosition] or None,
-            salary=data.salaryRaw,
-            market_value=data.proposedMarketValueRaw,
+            salary=Amount._from_parsed(data.salaryRaw),
+            market_value=Amount._from_parsed(data.proposedMarketValueRaw),
             contract_expiry=data.contractUntil.date() if data.contractUntil else None,
         )

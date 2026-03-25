@@ -7,7 +7,7 @@ from . import logger
 from sportindex.provider.parsed import BaseParsedModel
 if TYPE_CHECKING:
     from .event import EventCollection
-    from sportindex.provider.parsed import ParsedSofascoreProvider, ParsedEventsResponse
+    from sportindex.provider.parsed import SofascoreProvider, ParsedEventsResponse
 
 
 T = TypeVar("T", bound=BaseParsedModel)
@@ -15,10 +15,10 @@ T = TypeVar("T", bound=BaseParsedModel)
 class BaseEntity(ABC, Generic[T]):
     """Base class for all domain entities."""
     _data: T | list[T]
-    REPR_FIELDS = ()
+    _REPR_FIELDS = ()
     _ID_OFFSET_STEP = 10_000_000_000 # to avoid ID collisions across entity types when using several sofascore types for the same entity (e.g. competitions, seasons, events, competitors, etc.)
 
-    def __init__(self, data: T | list[T], provider: ParsedSofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: T | list[T], provider: SofascoreProvider, **kwargs) -> None:
         self._data = data
         self._provider = provider
         self._kwargs = kwargs
@@ -41,7 +41,7 @@ class BaseEntity(ABC, Generic[T]):
         return raw_id, type_idx
 
     def __repr__(self):
-        field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')!r}" for k in self.REPR_FIELDS)
+        field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')!r}" for k in self._REPR_FIELDS)
         return f"<{self.__class__.__name__} {field_str}>"
 
 
