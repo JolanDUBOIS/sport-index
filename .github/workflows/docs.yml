@@ -35,4 +35,6 @@ jobs:
         run: poetry install
 
       - name: Deploy versioned docs to GitHub Pages
-        run: poetry run mike deploy $(poetry version -s) latest --update-aliases --push
+        run: |
+          poetry run mike deploy $(poetry version -s) latest --update-aliases --push
+          poetry run mike set-default latest --push

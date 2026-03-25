@@ -1,11 +1,13 @@
 site_name: sport-index Documentation
+repo_url: https://github.com/JolanDUBOIS/sport-index
+repo_name: JolanDUBOIS/sport-index
 
 theme:
   name: material
   features:
-    - navigation.tabs
-    - navigation.sections
     - navigation.version
+    - navigation.sections
+    - navigation.expand
 
 plugins:
   - search
