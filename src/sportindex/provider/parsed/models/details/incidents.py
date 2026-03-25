@@ -250,5 +250,5 @@ def _get_side(raw: RawIncident) -> str:
 def _get_score(raw: RawIncident) -> ParsedScore:
     """Extract running score from an incident (flat homeScore/awayScore ints)."""
     if "homeScore" in raw and "awayScore" in raw:
-        return {"home": raw["homeScore"], "away": raw["awayScore"]}
+        return ParsedScore(home=raw["homeScore"], away=raw["awayScore"])
     return None

@@ -6,6 +6,10 @@ from typing import TYPE_CHECKING
 
 from ..base import BaseParsedModel
 from ..parsers import parse_timestamp, parse_iso
+from sportindex.provider.raw.models import (
+    RawTeamSeasonStats, RawTeamYearSurfaceStats,
+    RawPlayerSeasonStatsItem, RawVenueStatistics
+)
 if TYPE_CHECKING:
     from ..team import ParsedTeam
     from ..player import ParsedPlayer
@@ -14,8 +18,7 @@ if TYPE_CHECKING:
     from sportindex.provider.raw.models import (
         RawPlayerPreviousTeam, RawTeamPlayers,
         RawPlayerSeasonStats, RawManagerCareerHistoryItem,
-        RawPlayerSeasonStatsItem, RawTeamSeasonStats,
-        RawTeamYearSurfaceStats, RawTeamYearStats
+        RawTeamYearStats
     )
 
 
@@ -64,122 +67,7 @@ class ParsedTeamPlayers(BaseParsedModel):
 
 @dataclass
 class ParsedTeamSeasonStats(BaseParsedModel):
-    id: int
-    goalsScored: int
-    goalsConceded: int
-    ownGoals: int
-    assists: int
-    shots: int
-    penaltyGoals: int
-    penaltiesTaken: int
-    freeKickGoals: int
-    freeKickShots: int
-    goalsFromInsideTheBox: int
-    goalsFromOutsideTheBox: int
-    shotsFromInsideTheBox: int
-    shotsFromOutsideTheBox: int
-    headedGoals: int
-    leftFootGoals: int
-    rightFootGoals: int
-    bigChances: int
-    bigChancesCreated: int
-    bigChancesMissed: int
-    shotsOnTarget: int
-    shotsOffTarget: int
-    blockedScoringAttempt: int
-    successfulDribbles: int
-    dribbleAttempts: int
-    corners: int
-    hitWoodwork: int
-    fastBreaks: int
-    fastBreakGoals: int
-    fastBreakShots: int
-    averageBallPossession: float
-    totalPasses: int
-    accuratePasses: int
-    accuratePassesPercentage: float
-    totalOwnHalfPasses: int
-    accurateOwnHalfPasses: int
-    accurateOwnHalfPassesPercentage: float
-    totalOppositionHalfPasses: int
-    accurateOppositionHalfPasses: int
-    accurateOppositionHalfPassesPercentage: float
-    totalLongBalls: int
-    accurateLongBalls: int
-    accurateLongBallsPercentage: float
-    totalCrosses: int
-    accurateCrosses: int
-    accurateCrossesPercentage: float
-    cleanSheets: int
-    tackles: int
-    interceptions: int
-    saves: int
-    errorsLeadingToGoal: int
-    errorsLeadingToShot: int
-    penaltiesCommited: int
-    penaltyGoalsConceded: int
-    clearances: int
-    clearancesOffLine: int
-    lastManTackles: int
-    totalDuels: int
-    duelsWon: int
-    duelsWonPercentage: float
-    totalGroundDuels: int
-    groundDuelsWon: int
-    groundDuelsWonPercentage: float
-    totalAerialDuels: int
-    aerialDuelsWon: int
-    aerialDuelsWonPercentage: float
-    possessionLost: int
-    offsides: int
-    fouls: int
-    yellowCards: int
-    yellowRedCards: int
-    redCards: int
-    avgRating: float
-    accurateFinalThirdPassesAgainst: int
-    accurateOppositionHalfPassesAgainst: int
-    accurateOwnHalfPassesAgainst: int
-    accuratePassesAgainst: int
-    bigChancesAgainst: int
-    bigChancesCreatedAgainst: int
-    bigChancesMissedAgainst: int
-    clearancesAgainst: int
-    cornersAgainst: int
-    crossesSuccessfulAgainst: int
-    crossesTotalAgainst: int
-    dribbleAttemptsTotalAgainst: int
-    dribbleAttemptsWonAgainst: int
-    errorsLeadingToGoalAgainst: int
-    errorsLeadingToShotAgainst: int
-    hitWoodworkAgainst: int
-    interceptionsAgainst: int
-    keyPassesAgainst: int
-    longBallsSuccessfulAgainst: int
-    longBallsTotalAgainst: int
-    offsidesAgainst: int
-    redCardsAgainst: int
-    shotsAgainst: int
-    shotsBlockedAgainst: int
-    shotsFromInsideTheBoxAgainst: int
-    shotsFromOutsideTheBoxAgainst: int
-    shotsOffTargetAgainst: int
-    shotsOnTargetAgainst: int
-    blockedScoringAttemptAgainst: int
-    tacklesAgainst: int
-    totalFinalThirdPassesAgainst: int
-    oppositionHalfPassesTotalAgainst: int
-    ownHalfPassesTotalAgainst: int
-    totalPassesAgainst: int
-    yellowCardsAgainst: int
-    throwIns: int
-    goalKicks: int
-    ballRecovery: int
-    freeKicks: int
-    kilometersCovered: float
-    numberOfSprints: int
-    matches: int
-    awardedMatches: int
+    __annotations__ = RawTeamSeasonStats.__annotations__
 
     @classmethod
     def _parse(cls, raw: RawTeamSeasonStats) -> ParsedTeamSeasonStats:
@@ -191,12 +79,21 @@ class ParsedTeamSeasonStats(BaseParsedModel):
 # =====================================================================
 
 @dataclass
+class ParsedTeamYearSurfaceStats(BaseParsedModel):
+    __annotations__ = RawTeamYearSurfaceStats.__annotations__
+
+    @classmethod
+    def _parse(cls, raw: RawTeamYearSurfaceStats) -> ParsedTeamYearSurfaceStats:
+        return cls(**raw)
+
+
+@dataclass
 class ParsedTeamYearStats(BaseParsedModel):
-    statistics: list[RawTeamYearSurfaceStats]
+    statistics: list[ParsedTeamYearSurfaceStats]
 
     @classmethod
     def _parse(cls, raw: RawTeamYearStats) -> ParsedTeamYearStats:
-        return cls(statistics=raw.get("statistics", []))
+        return cls(statistics=[ParsedTeamYearSurfaceStats.from_raw(stat) for stat in raw.get("statistics", [])])
 
 
 # =====================================================================
@@ -204,11 +101,20 @@ class ParsedTeamYearStats(BaseParsedModel):
 # =====================================================================
 
 @dataclass
+class ParsedPlayerSeasonStatsItem(BaseParsedModel):
+    __annotations__ = RawPlayerSeasonStatsItem.__annotations__
+
+    @classmethod
+    def _parse(cls, raw: RawPlayerSeasonStatsItem) -> ParsedPlayerSeasonStatsItem:
+        return cls(**raw)
+
+
+@dataclass
 class ParsedPlayerSeasonStats(BaseParsedModel):
     year: str
     startYear: int
     endYear: int
-    statistics: RawPlayerSeasonStatsItem
+    statistics: ParsedPlayerSeasonStatsItem
     team: ParsedTeam
     uniqueTournament: ParsedUniqueTournament
     season: ParsedSeason
@@ -221,7 +127,7 @@ class ParsedPlayerSeasonStats(BaseParsedModel):
             year=raw.get("year"),
             startYear=raw.get("startYear"),
             endYear=raw.get("endYear"),
-            statistics=raw.get("statistics"),
+            statistics=ParsedPlayerSeasonStatsItem.from_raw(raw.get("statistics")),
             team=ParsedTeam.from_raw(raw.get("team")),
             uniqueTournament=ParsedUniqueTournament.from_raw(raw.get("uniqueTournament")),
             season=ParsedSeason.from_raw(raw.get("season"))
@@ -249,3 +155,16 @@ class ParsedManagerCareerHistoryItem(BaseParsedModel):
             start=parse_timestamp(raw.get("startTimestamp")),
             end=parse_timestamp(raw.get("endTimestamp"))
         )
+
+
+# =====================================================================
+# Venue Statistics
+# =====================================================================
+
+@dataclass
+class ParsedVenueStatistics(BaseParsedModel):
+    __annotations__ = RawVenueStatistics.__annotations__
+
+    @classmethod
+    def _parse(cls, raw: RawVenueStatistics) -> ParsedVenueStatistics:
+        return cls(**raw)

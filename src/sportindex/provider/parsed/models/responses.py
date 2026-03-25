@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from .base import BaseParsedModel
 if TYPE_CHECKING:
-    from .details import ParsedLineup
+    from .details import ParsedLineup, ParsedMomentumPoint, ParsedPeriodStatistics
     from .event import ParsedEvent
     from .leaderboard import ParsedRankingType, ParsedRankingEntry
     from .primitives import ParsedChannel
@@ -16,7 +16,6 @@ if TYPE_CHECKING:
         RawTeamResponse, RawUniqueTournamentSeasonsResponse,
         RawEventsResponse, RawRankingsResponse,
         RawChannelScheduleResponse, RawLineupsResponse,
-        RawPeriodStatistics, RawMomentumPoint,
         RawCountryChannelsResponse, RawEventStatisticsResponse,
         RawMomentumGraphResponse, RawChannelEventVotesResponse
     )
@@ -163,20 +162,27 @@ class ParsedLineupsResponse(BaseParsedModel):
 
 @dataclass
 class ParsedEventStatisticsResponse(BaseParsedModel):
-    statistics: list[RawPeriodStatistics]
+    statistics: list[ParsedPeriodStatistics]
 
     @classmethod
     def _parse(cls, raw: RawEventStatisticsResponse) -> ParsedEventStatisticsResponse:
-        return cls(statistics=raw.get("statistics", []))
+        return cls(
+            statistics=[ParsedPeriodStatistics._parse(s) for s in raw.get("statistics", [])]
+        )
 
 
 @dataclass
 class ParsedMomentumGraphResponse(BaseParsedModel):
-    graphPoints: list[RawMomentumPoint]
+    graphPoints: list[ParsedMomentumPoint]
     periodTime: int
     periodCount: int
     overtimeLength: int
 
     @classmethod
     def _parse(cls, raw: RawMomentumGraphResponse) -> ParsedMomentumGraphResponse:
-        return cls(**raw)
+        return cls(
+            graphPoints=[ParsedMomentumPoint.from_raw(p) for p in raw.get("graphPoints", [])],
+            periodTime=raw.get("periodTime", 0),
+            periodCount=raw.get("periodCount", 0),
+            overtimeLength=raw.get("overtimeLength", 0),
+        )

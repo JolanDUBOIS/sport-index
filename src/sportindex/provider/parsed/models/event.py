@@ -116,7 +116,8 @@ class EventTeam:
 # Periods & scoring
 # =====================================================================
 
-class ParsedScore(TypedDict, total=False):
+@dataclass
+class ParsedScore(BaseParsedModel):
     home: int
     away: int
 

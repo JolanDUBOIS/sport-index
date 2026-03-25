@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from .base import BaseParsedModel
 if TYPE_CHECKING:
-    from sportindex.provider.raw.models import RawAmount, RawChannel, RawPerformance
+    from sportindex.provider.raw.models import RawAmount, RawChannel, RawPerformance, RawPromotion
 
 
 @dataclass
@@ -40,4 +40,14 @@ class ParsedPerformance(BaseParsedModel):
 
     @classmethod
     def _parse(cls, raw: RawPerformance) -> ParsedPerformance:
+        return cls(**raw)
+
+
+@dataclass
+class ParsedPromotion(BaseParsedModel):
+    id: int
+    text: str
+
+    @classmethod
+    def _parse(cls, raw: RawPromotion) -> ParsedPromotion:
         return cls(**raw)
