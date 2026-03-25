@@ -17,15 +17,15 @@ from .domain import (
     Venue
 )
 from .exceptions import ProviderNotFoundError, EntityNotFoundError
-from .provider import ParsedSofascoreProvider
+from .provider import SofascoreProvider
 
 
 _default_provider = None
 
-def _get_default_provider() -> ParsedSofascoreProvider:
+def _get_default_provider() -> SofascoreProvider:
     global _default_provider
     if _default_provider is None:
-        _default_provider = ParsedSofascoreProvider()
+        _default_provider = SofascoreProvider()
     return _default_provider
 
 
@@ -48,11 +48,11 @@ class SportClient:
         ProviderNotFoundError: If the data provider is unavailable.
     """
 
-    def __init__(self, provider: Optional[ParsedSofascoreProvider] = None):
+    def __init__(self, provider: Optional[SofascoreProvider] = None):
         """Initialize the SportClient.
 
         Args:
-            provider (Optional[ParsedSofascoreProvider]): Optional provider instance to fetch data.
+            provider (Optional[SofascoreProvider]): Optional provider instance to fetch data.
                 If not supplied, a default provider will be used.
 
         Initializes in-memory caches for all entity types.

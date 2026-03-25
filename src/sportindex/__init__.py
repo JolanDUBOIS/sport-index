@@ -22,76 +22,95 @@ except PackageNotFoundError:
 
 from .client import SportClient
 
+# Import domain types in logical groups (alphabetical within each group)
 from .domain import (
-    Amount,
+    # Base / collections
     BaseEntity,
-    Cards,
-    Category,
-    Channel,
-    Competition,
-    Competitor,
-    Country,
     EntityCollection,
+    IdentifiableEntity,
+    EventAwareMixin,
+
+    # Core
+    Category,
+    Country,
+    Sport,
+
+    # Competitors
+    Competitor,
+    PlayerInfo,
+
+    # Competition / seasons
+    Competition,
+    Season,
+
+    # Events
     Event,
     EventCollection,
     EventChannels,
-    EventStatistics,
-    Gender,
-    IdentifiableEntity,
-    Incident,
-    Lineups,
-    Manager,
-    ManagerCareerHistory,
-    MatchCompetitors,
-    MatchScore,
-    MomentumGraph,
-    Period,
-    PlayerInfo,
-    Promotion,
+
+    # Channels
+    Channel,
+
+    # Leaderboards
     Rankings,
-    Referee,
-    Round,
-    Season,
-    Sport,
+    RankingsEntry,
     Standings,
+    StandingsEntry,
+
+    # People / staff
+    Manager,
+    Referee,
+
+    # Venues
     Venue,
 )
 
+from . import subelements
+from . import exceptions
+
 __all__ = [
-    # Core
+    # Public API
     "SportClient",
-    
-    # Domain Models
-    "Amount",
+
+    # Base / collections
     "BaseEntity",
-    "Cards",
-    "Category",
-    "Channel",
-    "Competition",
-    "Competitor",
-    "Country",
     "EntityCollection",
+    "IdentifiableEntity",
+    "EventAwareMixin",
+
+    # Core
+    "Category",
+    "Country",
+    "Sport",
+
+    # Competitors
+    "Competitor",
+    "PlayerInfo",
+
+    # Competition / seasons
+    "Competition",
+    "Season",
+
+    # Events
     "Event",
     "EventCollection",
     "EventChannels",
-    "EventStatistics",
-    "Gender",
-    "IdentifiableEntity",
-    "Incident",
-    "Lineups",
-    "Manager",
-    "ManagerCareerHistory",
-    "MatchCompetitors",
-    "MatchScore",
-    "MomentumGraph",
-    "Period",
-    "PlayerInfo",
-    "Promotion",
+    "Channel",
+
+    # Leaderboards
     "Rankings",
-    "Referee",
-    "Round",
-    "Season",
-    "Sport",
+    "RankingsEntry",
     "Standings",
+    "StandingsEntry",
+
+    # People / staff
+    "Manager",
+    "Referee",
+
+    # Venues
     "Venue",
+
+    # Exceptions / submodules
+    "exceptions",
+    "subelements",
 ]
