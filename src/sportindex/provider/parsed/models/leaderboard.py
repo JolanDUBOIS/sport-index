@@ -9,12 +9,13 @@ from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .event import ParsedEvent
     from .core import ParsedSport, ParsedCountry, ParsedCategory
+    from .primitives import ParsedPromotion
     from .team import ParsedTeam
     from .tournament import ParsedTournament, ParsedUniqueTournament
-    from sportindex.provider.raw.models import (
+    from sportindex.provider.raw import (
         RawTeamStandingsEntry, RawTeamStandings,
         RawRacingStandingsEntry, RawRankingEntry,
-        RawRankingType, RawPromotion
+        RawRankingType
     )
 
 
@@ -31,13 +32,14 @@ class ParsedTeamStandingsEntry(BaseParsedModel):
     scoresFor: int
     scoresAgainst: int
     scoreDiffFormatted: str    # e.g. "+15"
-    promotion: RawPromotion
+    promotion: ParsedPromotion
     gamesBehind: int
     streak: int
     team: ParsedTeam
 
     @classmethod
     def _parse(cls, raw: RawTeamStandingsEntry) -> ParsedTeamStandingsEntry:
+        from .primitives import ParsedPromotion
         from .team import ParsedTeam
         return cls(
             id=raw.get("id"),
@@ -51,7 +53,7 @@ class ParsedTeamStandingsEntry(BaseParsedModel):
             scoresFor=raw.get("scoresFor"),
             scoresAgainst=raw.get("scoresAgainst"),
             scoreDiffFormatted=raw.get("scoreDiffFormatted"),
-            promotion=raw.get("promotion"),
+            promotion=ParsedPromotion.from_raw(raw.get("promotion")),
             gamesBehind=raw.get("gamesBehind"),
             streak=raw.get("streak"),
             team=ParsedTeam.from_raw(raw.get("team"))

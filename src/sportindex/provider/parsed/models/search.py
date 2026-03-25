@@ -12,7 +12,7 @@ from .team import ParsedTeam
 from .tournament import ParsedUniqueTournament
 from .venue import ParsedVenue
 if TYPE_CHECKING:
-    from sportindex.provider.raw.models import RawSearchResult
+    from sportindex.provider.raw import RawSearchResult
 
 
 AnyParsedEntity = (

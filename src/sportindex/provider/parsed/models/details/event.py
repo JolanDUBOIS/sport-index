@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from ..base import BaseParsedModel
 if TYPE_CHECKING:
     from ..player import ParsedPlayer
-    from sportindex.provider.raw.models import RawLineup, RawStatisticsItem, RawStatisticsGroup, RawPeriodStatistics, RawMomentumPoint
+    from sportindex.provider.raw import RawLineup, RawStatisticsItem, RawStatisticsGroup, RawPeriodStatistics, RawMomentumPoint
 
 
 # =====================================================================

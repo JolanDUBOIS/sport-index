@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from .core import ParsedSport, ParsedCountry
     from .primitives import ParsedPerformance
     from .team import ParsedTeam
-    from sportindex.provider.raw.models import RawManager
+    from sportindex.provider.raw import RawManager
 
 
 @dataclass
@@ -34,6 +34,7 @@ class ParsedManager(BaseParsedModel):
     @classmethod
     def _parse(cls, raw: RawManager) -> ParsedManager:
         from .core import ParsedSport, ParsedCountry
+        from .primitives import ParsedPerformance
         from .team import ParsedTeam
         return cls(
             id = raw.get("id"),

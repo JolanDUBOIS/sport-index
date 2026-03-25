@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from ..base import BaseParsedModel
 from ..parsers import parse_timestamp, parse_iso
-from sportindex.provider.raw.models import (
+from sportindex.provider.raw import (
     RawTeamSeasonStats, RawTeamYearSurfaceStats,
     RawPlayerSeasonStatsItem, RawVenueStatistics
 )
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from ..player import ParsedPlayer
     from ..primitives import ParsedPerformance
     from ..tournament import ParsedUniqueTournament, ParsedSeason
-    from sportindex.provider.raw.models import (
+    from sportindex.provider.raw import (
         RawPlayerPreviousTeam, RawTeamPlayers,
         RawPlayerSeasonStats, RawManagerCareerHistoryItem,
         RawTeamYearStats
@@ -69,10 +69,6 @@ class ParsedTeamPlayers(BaseParsedModel):
 class ParsedTeamSeasonStats(BaseParsedModel):
     __annotations__ = RawTeamSeasonStats.__annotations__
 
-    @classmethod
-    def _parse(cls, raw: RawTeamSeasonStats) -> ParsedTeamSeasonStats:
-        return cls(**raw)
-
 
 # =====================================================================
 # Team Year Stats (Tennis)
@@ -82,9 +78,6 @@ class ParsedTeamSeasonStats(BaseParsedModel):
 class ParsedTeamYearSurfaceStats(BaseParsedModel):
     __annotations__ = RawTeamYearSurfaceStats.__annotations__
 
-    @classmethod
-    def _parse(cls, raw: RawTeamYearSurfaceStats) -> ParsedTeamYearSurfaceStats:
-        return cls(**raw)
 
 
 @dataclass
@@ -103,10 +96,6 @@ class ParsedTeamYearStats(BaseParsedModel):
 @dataclass
 class ParsedPlayerSeasonStatsItem(BaseParsedModel):
     __annotations__ = RawPlayerSeasonStatsItem.__annotations__
-
-    @classmethod
-    def _parse(cls, raw: RawPlayerSeasonStatsItem) -> ParsedPlayerSeasonStatsItem:
-        return cls(**raw)
 
 
 @dataclass
@@ -164,7 +153,3 @@ class ParsedManagerCareerHistoryItem(BaseParsedModel):
 @dataclass
 class ParsedVenueStatistics(BaseParsedModel):
     __annotations__ = RawVenueStatistics.__annotations__
-
-    @classmethod
-    def _parse(cls, raw: RawVenueStatistics) -> ParsedVenueStatistics:
-        return cls(**raw)

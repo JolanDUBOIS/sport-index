@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from .base import BaseParsedModel
 if TYPE_CHECKING:
-    from sportindex.provider.raw.models import RawSport, RawCountry, RawCategory
+    from sportindex.provider.raw import RawSport, RawCountry, RawCategory
 
 
 @dataclass

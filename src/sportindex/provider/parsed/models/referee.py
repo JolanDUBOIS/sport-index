@@ -8,7 +8,7 @@ from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .core import ParsedSport, ParsedCountry
-    from sportindex.provider.raw.models import RawReferee
+    from sportindex.provider.raw import RawReferee
 
 
 @dataclass

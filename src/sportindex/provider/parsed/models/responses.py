@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from .stage import ParsedStage
     from .team import ParsedTeam
     from .tournament import ParsedUniqueTournament, ParsedSeason
-    from sportindex.provider.raw.models import (
+    from sportindex.provider.raw import (
         RawTeamResponse, RawUniqueTournamentSeasonsResponse,
         RawEventsResponse, RawRankingsResponse,
         RawChannelScheduleResponse, RawLineupsResponse,

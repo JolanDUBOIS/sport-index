@@ -2,18 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TypedDict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from .base import BaseParsedModel
 from .parsers import parse_timestamp
+from sportindex.provider.raw import RawRound
 if TYPE_CHECKING:
     from .referee import ParsedReferee
     from .team import ParsedTeam
     from .tournament import ParsedSeason, ParsedTournament
     from .venue import ParsedVenue
-    from sportindex.provider.raw.models import (
-        RawRound, RawStatus, RawEvent
-    )
+    from sportindex.provider.raw import RawStatus, RawEvent
 
 
 # =====================================================================
@@ -22,13 +21,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class ParsedRound(BaseParsedModel):
-    name: str
-    slug: str
-    round: int
-
-    @classmethod
-    def _parse(cls, raw: RawRound) -> ParsedRound:
-        return cls(**raw)
+    __annotations__ = RawRound.__annotations__
 
 
 # =====================================================================

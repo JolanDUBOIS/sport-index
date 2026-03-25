@@ -7,7 +7,7 @@ from .base import BaseParsedModel
 if TYPE_CHECKING:
     from .core import ParsedCountry
     from .team import ParsedTeam
-    from sportindex.provider.raw.models import RawCity, RawCoordinates, RawStadium, RawVenue
+    from sportindex.provider.raw import RawCity, RawCoordinates, RawStadium, RawVenue
 
 
 @dataclass

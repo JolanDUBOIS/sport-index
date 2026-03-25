@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from ..manager import ParsedManager
     from ..player import ParsedPlayer
     from ..event import ParsedScore
-    from sportindex.provider.raw.models import RawIncident
+    from sportindex.provider.raw import RawIncident
 
 
 # =====================================================================
@@ -250,5 +250,6 @@ def _get_side(raw: RawIncident) -> str:
 def _get_score(raw: RawIncident) -> ParsedScore:
     """Extract running score from an incident (flat homeScore/awayScore ints)."""
     if "homeScore" in raw and "awayScore" in raw:
+        from ..event import ParsedScore
         return ParsedScore(home=raw["homeScore"], away=raw["awayScore"])
     return None

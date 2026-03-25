@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from .primitives import ParsedAmount
     from .tournament import ParsedTournament, ParsedUniqueTournament
     from .venue import ParsedVenue
-    from sportindex.provider.raw.models import (
+    from sportindex.provider.raw import (
         RawTeam, RawPlayerTeamInfo
     )
 

@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from .core import ParsedCountry
     from .primitives import ParsedAmount
     from .team import ParsedTeam
-    from sportindex.provider.raw.models import RawPlayer
+    from sportindex.provider.raw import RawPlayer
 
 
 @dataclass
@@ -43,6 +43,7 @@ class ParsedPlayer(BaseParsedModel):
     @classmethod
     def _parse(cls, raw: RawPlayer) -> ParsedPlayer:
         from .core import ParsedCountry
+        from .primitives import ParsedAmount
         from .team import ParsedTeam
         return cls(
             id=raw.get("id"),

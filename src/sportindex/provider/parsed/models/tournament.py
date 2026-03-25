@@ -9,7 +9,7 @@ from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .core import ParsedCategory
     from .team import ParsedTeam
-    from sportindex.provider.raw.models import RawSeason, RawUniqueTournament, RawTournament
+    from sportindex.provider.raw import RawSeason, RawUniqueTournament, RawTournament
 
 
 @dataclass

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sportindex.provider.raw.models import Timestamp, ISODate
+from sportindex.provider.raw import Timestamp, ISODate
 
 
 def parse_timestamp(ts: Timestamp | int | float | None) -> datetime | None:
