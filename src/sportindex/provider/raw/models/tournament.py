@@ -4,16 +4,16 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .core import Category
+    from .core import RawCategory
     from .primitives import Timestamp
-    from .team import Team
+    from .team import RawTeam
 
 
 # =====================================================================
 # Season
 # =====================================================================
 
-class Season(TypedDict, total=False):
+class RawSeason(TypedDict, total=False):
     id: int
     name: str
     year: str              # e.g. "24/25" or "2025"
@@ -25,11 +25,11 @@ class Season(TypedDict, total=False):
 # Unique Tournament
 # =====================================================================
 
-class UniqueTournament(TypedDict, total=False):
+class RawUniqueTournament(TypedDict, total=False):
     id: int
     slug: str
     name: str
-    category: Category
+    category: RawCategory
     gender: str
     tier: str
     titleHolderTitles: int
@@ -42,21 +42,21 @@ class UniqueTournament(TypedDict, total=False):
     tennisPoints: int
     startDateTimestamp: Timestamp
     endDateTimestamp: Timestamp
-    upperDivisions: list[UniqueTournament]
-    lowerDivisions: list[UniqueTournament]
-    titleHolder: Team
-    mostTitlesTeams: list[Team]
-    linkedUniqueTournaments: list[UniqueTournament]
+    upperDivisions: list[RawUniqueTournament]
+    lowerDivisions: list[RawUniqueTournament]
+    titleHolder: RawTeam
+    mostTitlesTeams: list[RawTeam]
+    linkedUniqueTournaments: list[RawUniqueTournament]
 
 
 # =====================================================================
 # Tournament
 # =====================================================================
 
-class Tournament(TypedDict, total=False):
+class RawTournament(TypedDict, total=False):
     """A Tournament is a concrete instance within a UniqueTournament (e.g. a group)."""
     id: int
     slug: str
     name: str
-    category: Category
-    uniqueTournament: UniqueTournament
+    category: RawCategory
+    uniqueTournament: RawUniqueTournament

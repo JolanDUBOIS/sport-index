@@ -4,16 +4,16 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .core import Country
-    from .primitives import Coordinates, City
-    from .team import Team
+    from .core import RawCountry
+    from .primitives import RawCoordinates, RawCity
+    from .team import RawTeam
 
 
 # =====================================================================
 # Stadium
 # =====================================================================
 
-class Stadium(TypedDict, total=False):
+class RawStadium(TypedDict, total=False):
     name: str
     capacity: int
 
@@ -22,13 +22,13 @@ class Stadium(TypedDict, total=False):
 # Venue
 # =====================================================================
 
-class Venue(TypedDict, total=False):
+class RawVenue(TypedDict, total=False):
     id: int
     slug: str
     name: str
     capacity: int
-    city: City
-    stadium: Stadium
-    country: Country
-    venueCoordinates: Coordinates
-    mainTeams: list[Team]
+    city: RawCity
+    stadium: RawStadium
+    country: RawCountry
+    venueCoordinates: RawCoordinates
+    mainTeams: list[RawTeam]

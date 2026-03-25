@@ -17,16 +17,28 @@ from sportindex.provider.parsed import (
 )
 
 if TYPE_CHECKING:
-    from .leaderboard import Rankings
     from .competition import Competition
-    from sportindex.provider.parsed import ParsedSofascoreProvider
+    from .leaderboard import Rankings
+    from sportindex.provider.parsed import SofascoreProvider
 
 
 class Sport(IdentifiableEntity[ParsedSport]):
-    """A sport, e.g. football, tennis, motorsport, etc."""
-    REPR_FIELDS = ("id", "name", "slug")
+    """A sport (e.g., football, tennis, motorsport).
 
-    def __init__(self, data: ParsedSport, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    Provides access to its categories and official rankings, and can be instantiated from minimal raw data without fetching full details.
+
+    Attributes:
+        id (int): Unique sport ID.
+        name (str): Official sport name.
+        slug (str): URL-friendly identifier.
+        categories (EntityCollection[Category]): All categories associated with this sport.
+
+    Methods:
+        get_rankings(gender: Optional[str] = None) -> list[Rankings]: Fetch official rankings for the sport.
+    """
+    _REPR_FIELDS = ("id", "name", "slug")
+
+    def __init__(self, data: ParsedSport, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedSport):
@@ -68,7 +80,7 @@ class Sport(IdentifiableEntity[ParsedSport]):
         return rankings
 
     @classmethod
-    def _from_tuple(cls, data: tuple[int, str, str], provider: ParsedSofascoreProvider) -> Sport:
+    def _from_tuple(cls, data: tuple[int, str, str], provider: SofascoreProvider) -> Sport:
         """Create a Sport instance from a raw tuple (id, slug, name). This is used to build the initial list of sports without needing to fetch categories or rankings."""
         sid, slug, name = data
         return cls(ParsedSport(id=sid, slug=slug, name=name), provider)
@@ -77,10 +89,23 @@ class Sport(IdentifiableEntity[ParsedSport]):
 
 
 class Country(BaseEntity[ParsedCountry]):
-    """ A country, e.g. France, England, Spain, etc."""
-    REPR_FIELDS = ("name", "slug", "alpha2", "alpha3")
+    """A country (e.g., France, England, Spain).
 
-    def __init__(self, data: ParsedCountry, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    Provides standard identifiers (name, slug, alpha-2, alpha-3) and can be instantiated from a name or alpha code.
+
+    Attributes:
+        name (str): Official country name.
+        slug (str): URL-friendly identifier.
+        alpha2 (str | None): ISO alpha-2 code.
+        alpha3 (str | None): ISO alpha-3 code.
+
+    Methods:
+        from_alpha(alpha: str, provider) -> Optional[Country]: Create from alpha code.
+        from_name(name: str, provider) -> Optional[Country]: Create from country name.
+    """
+    _REPR_FIELDS = ("name", "slug", "alpha2", "alpha3")
+
+    def __init__(self, data: ParsedCountry, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedCountry):
@@ -111,7 +136,7 @@ class Country(BaseEntity[ParsedCountry]):
         return self._data.alpha3 or (self._country.alpha_3 if self._country else None)
 
     @classmethod
-    def from_alpha(cls, alpha: str, provider: ParsedSofascoreProvider) -> Optional[Country]:
+    def from_alpha(cls, alpha: str, provider: SofascoreProvider) -> Optional[Country]:
         """Create a Country instance from an alpha-2 or alpha-3 code."""
         country = next(
             (c for c in pycountry.countries if c.alpha_2 == alpha.upper() or c.alpha_3 == alpha.upper()), None
@@ -129,7 +154,7 @@ class Country(BaseEntity[ParsedCountry]):
         return None
 
     @classmethod
-    def from_name(cls, name: str, provider: ParsedSofascoreProvider) -> Optional[Country]:
+    def from_name(cls, name: str, provider: SofascoreProvider) -> Optional[Country]:
         """Create a Country instance from a country name."""
         country = next(
             (c for c in pycountry.countries if c.name.lower() == name.lower()), None
@@ -148,10 +173,21 @@ class Country(BaseEntity[ParsedCountry]):
 
 
 class Category(IdentifiableEntity[ParsedCategory]):
-    """A category within a sport (e.g. 'France Amateur', 'Formula 1', 'International')."""
-    REPR_FIELDS = ("id", "name", "slug", "sport", "country")
+    """A category within a sport (e.g., 'France Amateur', 'Formula 1', 'International').
 
-    def __init__(self, data: ParsedCategory, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    Provides access to its sport, country (if applicable), and competitions.
+
+    Attributes:
+        id (int): Unique category ID.
+        name (str): Category name.
+        slug (str): URL-friendly identifier.
+        sport (Sport): The sport this category belongs to.
+        country (Country | None): The country this category belongs to, or None if international.
+        competitions (EntityCollection[Competition]): All competitions under this category.
+    """
+    _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
+
+    def __init__(self, data: ParsedCategory, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedCategory):
@@ -202,15 +238,3 @@ class Category(IdentifiableEntity[ParsedCategory]):
         ] + [
             Competition(s, self._provider) for s in unique_stages
         ])
-
-
-class Gender(str, Enum):
-    UNSPECIFIED = "X"
-    MALE = "M"
-    FEMALE = "F"
-
-    @classmethod
-    def _missing_(cls, value):
-        # This triggers if 'value' is not "X", "M", or "F".
-        logger.debug(f"Received unknown gender value '{value}', defaulting to UNSPECIFIED")
-        return cls.UNSPECIFIED

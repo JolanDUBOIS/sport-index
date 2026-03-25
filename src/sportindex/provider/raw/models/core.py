@@ -2,13 +2,13 @@ from __future__ import annotations
 from typing import TypedDict
 
 
-class Sport(TypedDict, total=False):
+class RawSport(TypedDict, total=False):
     id: int
     name: str
     slug: str
 
 
-class Country(TypedDict, total=False):
+class RawCountry(TypedDict, total=False):
     name: str
     slug: str
     alpha2: str
@@ -16,11 +16,11 @@ class Country(TypedDict, total=False):
     flag: str
 
 
-class Category(TypedDict, total=False):
+class RawCategory(TypedDict, total=False):
     id: int
     name: str
     slug: str
-    sport: Sport
+    sport: RawSport
     alpha2: str
     flag: str
-    country: Country
+    country: RawCountry

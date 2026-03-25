@@ -9,10 +9,10 @@ from ..parsers import parse_timestamp
 if TYPE_CHECKING:
     from ..stage import ParsedStage
     from ..team import ParsedTeam
-    from sportindex.provider.raw.models import (
-        RaceResults, SeasonCareerHistory,
-        TotalCareerHistory, DriverCareerHistory,
-        DriverPerformance, Lap
+    from sportindex.provider.raw import (
+        RawRaceResults, RawSeasonCareerHistory,
+        RawTotalCareerHistory, RawDriverCareerHistory,
+        RawDriverPerformance, RawLap
     )
 
 
@@ -27,7 +27,7 @@ class ParsedRaceResults(BaseParsedModel):
     stage: ParsedStage
 
     @classmethod
-    def _parse(cls, raw: RaceResults) -> ParsedRaceResults:
+    def _parse(cls, raw: RawRaceResults) -> ParsedRaceResults:
         from ..stage import ParsedStage
         return cls(
             position=raw.get("position"),
@@ -53,7 +53,7 @@ class ParsedSeasonCareerHistory(BaseParsedModel):
     updatedAtTimestamp: datetime
 
     @classmethod
-    def _parse(cls, raw: SeasonCareerHistory) -> ParsedSeasonCareerHistory:
+    def _parse(cls, raw: RawSeasonCareerHistory) -> ParsedSeasonCareerHistory:
         from ..stage import ParsedStage
         from ..team import ParsedTeam
         return cls(
@@ -79,7 +79,7 @@ class ParsedTotalCareerHistory(BaseParsedModel):
     team: ParsedTeam
 
     @classmethod
-    def _parse(cls, raw: TotalCareerHistory) -> ParsedTotalCareerHistory:
+    def _parse(cls, raw: RawTotalCareerHistory) -> ParsedTotalCareerHistory:
         from ..team import ParsedTeam
         return cls(
             racesStarted=raw.get("racesStarted"),
@@ -98,7 +98,7 @@ class ParsedDriverCareerHistory(BaseParsedModel):
 
 
     @classmethod
-    def _parse(cls, raw: DriverCareerHistory) -> ParsedDriverCareerHistory:
+    def _parse(cls, raw: RawDriverCareerHistory) -> ParsedDriverCareerHistory:
         return cls(
             total=ParsedTotalCareerHistory.from_raw(raw.get("total")),
             bySeason=[ParsedSeasonCareerHistory.from_raw(season) for season in raw.get("bySeason")]
@@ -111,11 +111,11 @@ class ParsedDriverPerformance(BaseParsedModel):
     name: str
     slug: str
     startNumber: int
-    laps: list[Lap]
+    laps: list[RawLap]
     parentTeam: ParsedTeam
 
     @classmethod
-    def _parse(cls, raw: DriverPerformance) -> ParsedDriverPerformance:
+    def _parse(cls, raw: RawDriverPerformance) -> ParsedDriverPerformance:
         from ..team import ParsedTeam
         return cls(
             id=raw.get("id"),

@@ -6,23 +6,48 @@ from typing import TYPE_CHECKING, Optional
 from . import logger
 from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
-from sportindex.provider.parsed import ParsedManager, ParsedManagerCareerHistoryItem
 from sportindex.exceptions import EntityNotFoundError, DomainError, ProviderNotFoundError, FetchError
+from sportindex.provider.parsed import ParsedManager
 
 if TYPE_CHECKING:
     from .competitor import Competitor
+    from .components import ManagerTenure
     from .core import Country, Sport
     from .event import EventCollection
-    from sportindex.provider.parsed import ParsedSofascoreProvider
-
-ManagerCareerHistory = ParsedManagerCareerHistoryItem
+    from sportindex.provider.parsed import SofascoreProvider
 
 
 class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
-    """A manager, e.g. 'Luis Enrique', 'Pep Guardiola', etc."""
-    REPR_FIELDS = ("id", "name", "slug", "short_name", "sport", "country")
+    """Represents a sports manager/coach (e.g., football manager, Formula 1 team principal).
 
-    def __init__(self, data: ParsedManager, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    This entity handles basic information, associated sport and country, team affiliations,
+    career history, and provides access to fixtures and results. Supports lazy full-loading
+    for properties that require more detailed API responses.
+
+    Attributes:
+        id (int): Unique identifier of the manager.
+        name (str): Full name of the manager.
+        slug (str): URL-friendly slug of the manager.
+        short_name (str): Shortened name or abbreviation (e.g., "Z. Zidane").
+        sport (Sport): Sport associated with the manager.
+        country (Country | None): Country associated with the manager, if available.
+        team (Competitor | None): Current primary team, if assigned.
+        teams (EntityCollection[Competitor]): All teams associated with the manager.
+        performances (list[ManagerTenure]): Career history and performance records of the manager.
+
+    Methods:
+        get_fixtures(silent: bool = False) -> EventCollection:
+            Returns fixtures for this manager. Currently returns empty, logs a warning.
+        get_results(silent: bool = False) -> EventCollection:
+            Returns results for this manager.
+        from_id(manager_id: int, provider: SofascoreProvider) -> Manager:
+            Fetch a manager by its unique ID.
+        search(query: str, provider: SofascoreProvider) -> EntityCollection[Manager]:
+            Search for managers matching a query string (up to 20 results).
+    """
+    _REPR_FIELDS = ("id", "name", "slug", "short_name", "sport", "country")
+
+    def __init__(self, data: ParsedManager, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedManager):
@@ -73,8 +98,10 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
         return EntityCollection([Competitor(t, self._provider) for t in self._data.teams]) if self._data.teams else EntityCollection([])
 
     @cached_property
-    def performances(self) -> list[ManagerCareerHistory]:
-        return self._provider.get_manager_career_history(self._data.id)
+    def performances(self) -> list[ManagerTenure]:
+        from .components import ManagerTenure
+        parsed_career_history = self._provider.get_manager_career_history(self._data.id)
+        return [ManagerTenure._from_parsed(parsed, provider=self._provider) for parsed in parsed_career_history]
 
     def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this manager."""
@@ -119,7 +146,7 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
         self.__dict__.pop("performances", None)
 
     @classmethod
-    def from_id(cls, manager_id: int, provider: ParsedSofascoreProvider) -> Manager:
+    def from_id(cls, manager_id: int, provider: SofascoreProvider) -> Manager:
         """Fetch a manager by its ID."""
         try:
             parsed_data = provider.get_manager(manager_id)
@@ -130,7 +157,7 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Manager]:
+    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Manager]:
         """Search for managers matching the given query (up to the first 20 matches)."""
         entities = []
         for page in range(51): # Sofascore has a maximum of 50 pages of search results

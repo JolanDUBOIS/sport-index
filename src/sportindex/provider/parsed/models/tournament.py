@@ -9,7 +9,7 @@ from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .core import ParsedCategory
     from .team import ParsedTeam
-    from sportindex.provider.raw.models import Season, UniqueTournament, Tournament
+    from sportindex.provider.raw import RawSeason, RawUniqueTournament, RawTournament
 
 
 @dataclass
@@ -21,7 +21,7 @@ class ParsedSeason(BaseParsedModel):
     start: datetime
 
     @classmethod
-    def _parse(cls, raw: Season) -> ParsedSeason:
+    def _parse(cls, raw: RawSeason) -> ParsedSeason:
         return cls(
             id=raw.get("id"),
             name=raw.get("name"),
@@ -56,7 +56,7 @@ class ParsedUniqueTournament(BaseParsedModel):
     linkedUniqueTournaments: list[ParsedUniqueTournament]
 
     @classmethod
-    def _parse(cls, raw: UniqueTournament) -> ParsedUniqueTournament:
+    def _parse(cls, raw: RawUniqueTournament) -> ParsedUniqueTournament:
         from .core import ParsedCategory
         from .team import ParsedTeam
         return cls(
@@ -93,7 +93,7 @@ class ParsedTournament(BaseParsedModel):
     uniqueTournament: ParsedUniqueTournament
 
     @classmethod
-    def _parse(cls, raw: Tournament) -> ParsedTournament:
+    def _parse(cls, raw: RawTournament) -> ParsedTournament:
         from .core import ParsedCategory
         return cls(
             id=raw.get("id"),

@@ -4,18 +4,18 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .core import Category, Sport, Country
-    from .manager import Manager
-    from .primitives import Timestamp, Amount
-    from .tournament import Tournament, UniqueTournament
-    from .venue import Venue
+    from .core import RawCategory, RawSport, RawCountry
+    from .manager import RawManager
+    from .primitives import Timestamp, RawAmount
+    from .tournament import RawTournament, RawUniqueTournament
+    from .venue import RawVenue
 
 
 # =====================================================================
 # Player Info (for individual athletes represented as teams)
 # =====================================================================
 
-class PlayerTeamInfo(TypedDict, total=False):
+class RawPlayerTeamInfo(TypedDict, total=False):
     id: int
     residence: str
     birthplace: str
@@ -25,8 +25,8 @@ class PlayerTeamInfo(TypedDict, total=False):
     plays: str           # e.g. "right-handed"
     mainDriver: bool
     turnedPro: str       # e.g. "2018"
-    prizeCurrentRaw: Amount
-    prizeTotalRaw: Amount
+    prizeCurrentRaw: RawAmount
+    prizeTotalRaw: RawAmount
     currentRanking: int
     birthDateTimestamp: Timestamp
 
@@ -35,7 +35,7 @@ class PlayerTeamInfo(TypedDict, total=False):
 # Team
 # =====================================================================
 
-class Team(TypedDict, total=False):
+class RawTeam(TypedDict, total=False):
     id: int
     slug: str
     name: str
@@ -43,16 +43,16 @@ class Team(TypedDict, total=False):
     fullName: str
     nameCode: str        # e.g. "PSG", "BAR"
     gender: str          # "M", "F"
-    sport: Sport
-    category: Category
-    country: Country
+    sport: RawSport
+    category: RawCategory
+    country: RawCountry
     national: bool
     disabled: bool
     ranking: int
-    tournament: Tournament
-    primaryUniqueTournament: UniqueTournament
-    manager: Manager
-    venue: Venue
+    tournament: RawTournament
+    primaryUniqueTournament: RawUniqueTournament
+    manager: RawManager
+    venue: RawVenue
     foundationDateTimestamp: Timestamp
-    parentTeam: Team
-    playerTeamInfo: PlayerTeamInfo
+    parentTeam: RawTeam
+    playerTeamInfo: RawPlayerTeamInfo

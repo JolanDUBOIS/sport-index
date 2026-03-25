@@ -13,14 +13,36 @@ if TYPE_CHECKING:
     from .core import Country
     from .event import EventCollection
     from .competitor import Competitor
-    from sportindex.provider.parsed import ParsedSofascoreProvider
+    from sportindex.provider.parsed import SofascoreProvider
 
 
-class Venue(IdentifiableEntity[ParsedVenue], EventAwareMixin):
-    """A venue, e.g. a stadium, a tennis court, a race track, etc."""
-    REPR_FIELDS = ("id", "name")
+class Venue(IdentifiableEntity[ParsedVenue | ParsedStage], EventAwareMixin):
+    """Represents a sports venue or race stage, e.g., a stadium, tennis court, or race track.
 
-    def __init__(self, data: ParsedVenue | ParsedStage, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    Handles basic information, location, capacity, associated teams, and provides
+    lazy full-loading for detailed API properties.
+
+    Attributes:
+        id (int): Unique identifier of the venue.
+        name (str): Name of the venue.
+        city (str | None): City where the venue is located.
+        capacity (int | None): Seating or attendance capacity of the venue.
+        country (Country | None): Country where the venue is located.
+        teams (EntityCollection[Competitor]): Main teams associated with the venue.
+
+    Methods:
+        get_fixtures() -> EventCollection:
+            Fetch all fixtures scheduled at this venue.
+        get_results() -> EventCollection:
+            Fetch all results played at this venue.
+        from_id(venue_id: int, provider: SofascoreProvider) -> Venue:
+            Fetch a venue by its unique ID.
+        search(query: str, provider: SofascoreProvider) -> EntityCollection[Venue]:
+            Search for venues by query string (up to 20 results).
+    """
+    _REPR_FIELDS = ("id", "name")
+
+    def __init__(self, data: ParsedVenue | ParsedStage, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, (ParsedVenue, ParsedStage)):
@@ -117,7 +139,7 @@ class Venue(IdentifiableEntity[ParsedVenue], EventAwareMixin):
         self.__dict__.pop("country", None)
         self.__dict__.pop("teams", None)
     @classmethod
-    def from_id(cls, venue_id: int, provider: ParsedSofascoreProvider) -> Venue:
+    def from_id(cls, venue_id: int, provider: SofascoreProvider) -> Venue:
         """Fetch a venue by its ID."""
         try:
             parsed_data = provider.get_venue(venue_id)
@@ -128,7 +150,7 @@ class Venue(IdentifiableEntity[ParsedVenue], EventAwareMixin):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Venue]:
+    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Venue]:
         """Search for venues matching the given query (up to the first 20 matches)."""
         entities = []
         for page in range(51): # Sofascore has a maximum of 50 pages of search results

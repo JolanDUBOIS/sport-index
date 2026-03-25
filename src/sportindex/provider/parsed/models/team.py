@@ -9,10 +9,11 @@ from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .core import ParsedSport, ParsedCountry, ParsedCategory
     from .manager import ParsedManager
+    from .primitives import ParsedAmount
     from .tournament import ParsedTournament, ParsedUniqueTournament
     from .venue import ParsedVenue
-    from sportindex.provider.raw.models import (
-        Team, Amount, PlayerTeamInfo
+    from sportindex.provider.raw import (
+        RawTeam, RawPlayerTeamInfo
     )
 
 
@@ -40,7 +41,7 @@ class ParsedTeam(BaseParsedModel):
     playerTeamInfo: ParsedPlayerTeamInfo
 
     @classmethod
-    def _parse(cls, raw: Team) -> ParsedTeam:
+    def _parse(cls, raw: RawTeam) -> ParsedTeam:
         from .core import ParsedSport, ParsedCountry, ParsedCategory
         from .manager import ParsedManager
         from .tournament import ParsedTournament, ParsedUniqueTournament
@@ -79,13 +80,13 @@ class ParsedPlayerTeamInfo(BaseParsedModel):
     plays: str           # e.g. "right-handed"
     mainDriver: bool
     turnedPro: str       # e.g. "2018"
-    prizeCurrentRaw: Amount
-    prizeTotalRaw: Amount
+    prizeCurrentRaw: ParsedAmount
+    prizeTotalRaw: ParsedAmount
     currentRanking: int
     birthDate: datetime
 
     @classmethod
-    def _parse(cls, raw: PlayerTeamInfo) -> ParsedPlayerTeamInfo:
+    def _parse(cls, raw: RawPlayerTeamInfo) -> ParsedPlayerTeamInfo:
         return cls(
             id=raw.get("id"),
             residence=raw.get("residence"),
@@ -96,8 +97,8 @@ class ParsedPlayerTeamInfo(BaseParsedModel):
             plays=raw.get("plays"),
             mainDriver=raw.get("mainDriver"),
             turnedPro=raw.get("turnedPro"),
-            prizeCurrentRaw=raw.get("prizeCurrentRaw"),
-            prizeTotalRaw=raw.get("prizeTotalRaw"),
+            prizeCurrentRaw=ParsedAmount.from_raw(raw.get("prizeCurrentRaw")),
+            prizeTotalRaw=ParsedAmount.from_raw(raw.get("prizeTotalRaw")),
             currentRanking=raw.get("currentRanking"),
             birthDate=parse_timestamp(raw.get("birthDateTimestamp")),
         )

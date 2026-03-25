@@ -12,7 +12,7 @@ from .team import ParsedTeam
 from .tournament import ParsedUniqueTournament
 from .venue import ParsedVenue
 if TYPE_CHECKING:
-    from sportindex.provider.raw.models import SearchResult
+    from sportindex.provider.raw import RawSearchResult
 
 
 AnyParsedEntity = (
@@ -46,7 +46,7 @@ class ParsedSearchResult(BaseParsedModel, Generic[T]):
     entity: T                 # The parsed entity (e.g. ParsedPlayer, ParsedTeam, etc.)
 
     @classmethod
-    def _parse(cls, raw: SearchResult) -> ParsedSearchResult[AnyParsedEntity]:
+    def _parse(cls, raw: RawSearchResult) -> ParsedSearchResult[AnyParsedEntity]:
         entity_type = raw.get("type")
         entity_cls = ENTITY_MODELS.get(entity_type)
         if not entity_cls:

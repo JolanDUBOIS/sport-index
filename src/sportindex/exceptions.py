@@ -24,16 +24,12 @@ class RateLimitError(ProviderError):
 
 
 class ProviderNotFoundError(ProviderError):
-    """Raised when a requested remote resource is not found (HTTP 404).
-
-    Named `ProviderNotFoundError` to avoid confusion with domain-level
-    `EntityNotFoundError` and make it clear this originates from upstream
-    provider/network layer.
-    """
+    """Raised when a requested remote resource is not found (HTTP 404)."""
 
 
 class FetchError(ProviderError):
     """Raised for general fetch failures (non-404/429 HTTP responses or exhausted retries)."""
+
 
 class DomainError(SportIndexError):
     """Base class for domain/business-logic errors."""

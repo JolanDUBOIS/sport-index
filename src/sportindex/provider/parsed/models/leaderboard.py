@@ -9,12 +9,13 @@ from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .event import ParsedEvent
     from .core import ParsedSport, ParsedCountry, ParsedCategory
+    from .primitives import ParsedPromotion
     from .team import ParsedTeam
     from .tournament import ParsedTournament, ParsedUniqueTournament
-    from sportindex.provider.raw.models import (
-        TeamStandingsEntry, TeamStandings,
-        RacingStandingsEntry, RankingEntry,
-        RankingType, Promotion
+    from sportindex.provider.raw import (
+        RawTeamStandingsEntry, RawTeamStandings,
+        RawRacingStandingsEntry, RawRankingEntry,
+        RawRankingType
     )
 
 
@@ -31,13 +32,14 @@ class ParsedTeamStandingsEntry(BaseParsedModel):
     scoresFor: int
     scoresAgainst: int
     scoreDiffFormatted: str    # e.g. "+15"
-    promotion: Promotion
+    promotion: ParsedPromotion
     gamesBehind: int
     streak: int
     team: ParsedTeam
 
     @classmethod
-    def _parse(cls, raw: TeamStandingsEntry) -> ParsedTeamStandingsEntry:
+    def _parse(cls, raw: RawTeamStandingsEntry) -> ParsedTeamStandingsEntry:
+        from .primitives import ParsedPromotion
         from .team import ParsedTeam
         return cls(
             id=raw.get("id"),
@@ -51,7 +53,7 @@ class ParsedTeamStandingsEntry(BaseParsedModel):
             scoresFor=raw.get("scoresFor"),
             scoresAgainst=raw.get("scoresAgainst"),
             scoreDiffFormatted=raw.get("scoreDiffFormatted"),
-            promotion=raw.get("promotion"),
+            promotion=ParsedPromotion.from_raw(raw.get("promotion")),
             gamesBehind=raw.get("gamesBehind"),
             streak=raw.get("streak"),
             team=ParsedTeam.from_raw(raw.get("team"))
@@ -68,7 +70,7 @@ class ParsedTeamStandings(BaseParsedModel):
     updatedAt: datetime
 
     @classmethod
-    def _parse(cls, raw: TeamStandings) -> ParsedTeamStandings:
+    def _parse(cls, raw: RawTeamStandings) -> ParsedTeamStandings:
         from .tournament import ParsedTournament
         return cls(
             id=raw.get("id"),
@@ -121,7 +123,7 @@ class ParsedRacingStandingsEntry(BaseParsedModel):
     shirt: str
 
     @classmethod
-    def _parse(cls, raw: RacingStandingsEntry) -> ParsedRacingStandingsEntry:
+    def _parse(cls, raw: RawRacingStandingsEntry) -> ParsedRacingStandingsEntry:
         from .team import ParsedTeam
         return cls(
             startNumber=raw.get("startNumber"),
@@ -170,7 +172,7 @@ class ParsedRankingType(BaseParsedModel):
     lastUpdated: datetime
 
     @classmethod
-    def _parse(cls, raw: RankingType) -> ParsedRankingType:
+    def _parse(cls, raw: RawRankingType) -> ParsedRankingType:
         from .core import ParsedSport, ParsedCategory
         from .tournament import ParsedUniqueTournament
         return cls(
@@ -208,7 +210,7 @@ class ParsedRankingEntry(BaseParsedModel):
     updatedAt: datetime
 
     @classmethod
-    def _parse(cls, raw: RankingEntry) -> ParsedRankingEntry:
+    def _parse(cls, raw: RawRankingEntry) -> ParsedRankingEntry:
         from .event import ParsedEvent
         from .core import ParsedCountry
         from .team import ParsedTeam

@@ -38,15 +38,26 @@ from .models import (
     ParsedUniqueTournamentSeasonsResponse,
     ParsedVenue,
 )
-from ..raw import SofascoreProvider
-from sportindex.exceptions import ProviderNotFoundError, RateLimitError, FetchError
+from ..raw import RawSofascoreProvider
 
 
-class ParsedSofascoreProvider:
-    """Parsed wrapper around `SofascoreProvider`."""
+class SofascoreProvider:
+    """
+    A wrapper around the low-level `RawSofascoreProvider` that parses raw API
+    responses into typed Parsed* models. Provides methods grouped by
+    entity type (categories, tournaments, teams, players, managers, referees,
+    venues, events, rankings, motorsport, TV channels, and search).
+    
+    Patterns:
+      - Each method fetches raw data via self._provider and wraps it using
+        a corresponding `Parsed*` model.
+      - Pagination is supported via optional `page` parameters where relevant.
+      - Exceptions from the underlying provider (ProviderNotFoundError, 
+        RateLimitError, FetchError) propagate as-is.
+    """
 
     def __init__(self, fetch_delay: float = 0.5):
-        self._provider = SofascoreProvider(fetch_delay=fetch_delay)
+        self._provider = RawSofascoreProvider(fetch_delay=fetch_delay)
 
     # ---- Categories ---- #
 

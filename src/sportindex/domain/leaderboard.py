@@ -7,18 +7,16 @@ from typing import TYPE_CHECKING, Optional
 
 from . import logger
 from .base import BaseEntity
-from sportindex.provider.parsed import (
-    ParsedTeamStandings, ParsedRacingStandingsEntry, ParsedRankingsResponse
-)
-from sportindex.provider.raw import Promotion as Promotion
 from sportindex.exceptions import InsufficientDataError
+from sportindex.provider.parsed import ParsedTeamStandings, ParsedRacingStandingsEntry, ParsedRankingsResponse
 
 if TYPE_CHECKING:
-    from .core import Gender, Sport, Category
+    from .core import Sport, Category
     from .competition import Competition
     from .competitor import Competitor
+    from .components import Gender, Promotion
     from sportindex.provider.parsed import (
-        ParsedSofascoreProvider,
+        SofascoreProvider,
         ParsedTeamStandingsEntry,
         ParsedRankingEntry
     )
@@ -29,10 +27,21 @@ if TYPE_CHECKING:
 # =====================================================================
 
 class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry]]):
-    """The standings of a competition, e.g. Ligue 1 table, Formula 1 driver standings, etc."""
-    REPR_FIELDS = ("name", "kind", "updated_at")
+    """Represents the standings (ranked table) of a competition or sport.
 
-    def __init__(self, data: ParsedTeamStandings | list[ParsedRacingStandingsEntry], provider: ParsedSofascoreProvider, **kwargs) -> None:
+    Can handle both team/match standings (e.g., football league tables) and racing/cycling standings 
+    (e.g., Formula 1 driver standings).
+
+    Attributes:
+        name (str | None): Name of the standings, e.g., "Ligue 1 table".
+        kind (str | None): Type of standings, e.g., "home", "away", "competitors", "teams".
+        updated_at (datetime | None): Last update timestamp.
+        sport (Sport | None): Sport associated with these standings.
+        entries (list[StandingsEntry]): Ordered list of entries in the standings.
+    """
+    _REPR_FIELDS = ("name", "kind", "updated_at")
+
+    def __init__(self, data: ParsedTeamStandings | list[ParsedRacingStandingsEntry], provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not (isinstance(data, ParsedTeamStandings) or (isinstance(data, list) and all(isinstance(e, ParsedRacingStandingsEntry) for e in data))):
@@ -79,8 +88,21 @@ class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry
         else:
             return [StandingsEntry._from_racing_standings_entry(e, self._provider) for e in self._data]
 
-@dataclass
+@dataclass(frozen=True)
 class StandingsEntry:
+    """A single entry in a Standings table.
+
+    Attributes:
+        position (int): Rank/position in the standings.
+        competitor (Competitor): Competitor (team, driver, or rider).
+        points (int): Points accumulated.
+        matches, wins, draws, losses, scores_for, scores_against, score_formatted, games_behind, promotion:
+            Match-specific fields.
+        victories, podiums, races_with_points, races_started:
+            Racing-specific fields.
+        time, gap_to_leader:
+            Cycling-specific fields.
+    """
     position: int
     competitor: Competitor
     points: int
@@ -107,8 +129,9 @@ class StandingsEntry:
     gap_to_leader: Optional[str] = None
 
     @classmethod
-    def _from_team_standings_entry(cls, data: ParsedTeamStandingsEntry, provider: ParsedSofascoreProvider) -> StandingsEntry:
+    def _from_team_standings_entry(cls, data: ParsedTeamStandingsEntry, provider: SofascoreProvider) -> StandingsEntry:
         from .competitor import Competitor
+        from .components import Promotion
         return cls(
             position=data.position,
             competitor=Competitor(data.team, provider),
@@ -121,11 +144,11 @@ class StandingsEntry:
             scores_against=int(data.scoresAgainst),
             score_formatted=data.scoreDiffFormatted,
             games_behind=data.gamesBehind,
-            promotion=data.promotion
+            promotion=Promotion._from_parsed(data.promotion)
         )
 
     @classmethod
-    def _from_racing_standings_entry(cls, data: ParsedRacingStandingsEntry, provider: ParsedSofascoreProvider) -> StandingsEntry:
+    def _from_racing_standings_entry(cls, data: ParsedRacingStandingsEntry, provider: SofascoreProvider) -> StandingsEntry:
         from .competitor import Competitor
         return cls(
             position=data.position,
@@ -145,10 +168,22 @@ class StandingsEntry:
 # =====================================================================
 
 class Rankings(BaseEntity[ParsedRankingsResponse]):
-    """The rankings of a sport, e.g. ATP tennis rankings, FIFA football rankings, etc."""
-    REPR_FIELDS = ("id", "name", "slug", "sport", "category", "gender", "updated_at")
+    """Represents the rankings of a sport, e.g., FIFA, ATP, or Olympic rankings.
 
-    def __init__(self, data: ParsedRankingsResponse, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    Attributes:
+        id (int | None): Unique ID of the ranking type.
+        name (str | None): Name of the rankings.
+        slug (str | None): URL-friendly slug of the ranking.
+        updated_at (datetime | None): Last updated timestamp.
+        gender (Gender | None): Gender category of the ranking (M/F/X).
+        sport (Sport | None): Sport associated with the ranking.
+        category (Category | None): Category, if applicable.
+        competition (Competition | None): Competition associated, if applicable.
+        entries (list[RankingsEntry]): Ordered list of ranking entries.
+    """
+    _REPR_FIELDS = ("id", "name", "slug", "sport", "category", "gender", "updated_at")
+
+    def __init__(self, data: ParsedRankingsResponse, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
     @property
@@ -207,8 +242,18 @@ class Rankings(BaseEntity[ParsedRankingsResponse]):
             return None
 
 
-@dataclass
+@dataclass(frozen=True)
 class RankingsEntry:
+    """A single entry in a Rankings table.
+
+    Attributes:
+        position (int): Current position.
+        entity (Competitor | Competition): Entity being ranked.
+        points (int): Points in the ranking.
+        previous_position (int | None): Previous ranking position.
+        previous_points (int | None): Previous points.
+        best_position (int | None): Best historical position.
+    """
     position: int
     entity: Competitor | Competition
     points: int
@@ -218,7 +263,7 @@ class RankingsEntry:
     best_position: Optional[int] = None
 
     @classmethod
-    def _from_ranking_entry(cls, data: ParsedRankingEntry, provider: ParsedSofascoreProvider) -> RankingsEntry:
+    def _from_ranking_entry(cls, data: ParsedRankingEntry, provider: SofascoreProvider) -> RankingsEntry:
         from .competitor import Competitor
         from .competition import Competition
         entity = Competitor(data.team, provider) if data.team else Competition(data.uniqueTournament, provider) if data.uniqueTournament else None

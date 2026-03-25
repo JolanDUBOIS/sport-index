@@ -3,17 +3,17 @@ from __future__ import annotations
 from typing import TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .core import Sport, Country
+    from .core import RawSport, RawCountry
     from .primitives import Timestamp
 
 
-class Referee(TypedDict, total=False):
+class RawReferee(TypedDict, total=False):
     id: int
     slug: str
     name: str
     games: int
-    sport: Sport
-    country: Country
+    sport: RawSport
+    country: RawCountry
     yellowCards: int
     redCards: int
     yellowRedCards: int

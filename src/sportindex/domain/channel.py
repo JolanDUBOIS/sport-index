@@ -11,15 +11,28 @@ from sportindex.provider.parsed import ParsedChannel, ParsedCountryChannelsRespo
 if TYPE_CHECKING:
     from .core import Country
     from .event import EventCollection
-    from sportindex.provider.parsed import ParsedSofascoreProvider
+    from sportindex.provider.parsed import SofascoreProvider
 
 
 
 class Channel(IdentifiableEntity[ParsedChannel]):
-    """A TV channel broadcasting sports events."""
-    REPR_FIELDS = ("id", "name")
+    """A TV channel broadcasting sports events.
 
-    def __init__(self, data: ParsedChannel, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    Provides access to the channel's name, ID, and scheduled events.
+
+    Attributes:
+        id (int): Unique channel ID.
+        name (str): Channel name.
+        events (EventCollection): Scheduled events broadcast on this channel.
+
+    Raises:
+        TypeError: If initialized with invalid data type.
+        EntityNotFoundError: If channel does not exist in the provider.
+        DomainError: If a network or provider error occurs during fetch.
+    """
+    _REPR_FIELDS = ("id", "name")
+
+    def __init__(self, data: ParsedChannel, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedChannel):
@@ -47,7 +60,7 @@ class Channel(IdentifiableEntity[ParsedChannel]):
         ])
 
     @classmethod
-    def from_id(cls, channel_id: int, provider: ParsedSofascoreProvider) -> Channel:
+    def from_id(cls, channel_id: int, provider: SofascoreProvider) -> Channel:
         """Fetch a channel by its ID."""
         try:
             parsed_channel_events = provider.get_channel_schedule(channel_id)
@@ -59,10 +72,23 @@ class Channel(IdentifiableEntity[ParsedChannel]):
 
 
 class EventChannels(BaseEntity[ParsedCountryChannelsResponse]):
-    """A wrapper for channels broadcasting an event, grouped by country."""
-    REPR_FIELDS = ("channels")
+    """Channels broadcasting a specific event, organized by country.
 
-    def __init__(self, data: ParsedCountryChannelsResponse, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    Allows querying which channels broadcast the event in a given country.
+
+    Attributes:
+        channels (dict[str, list[int]]): Mapping from country alpha-2 codes to lists of channel IDs.
+
+    Methods:
+        get_channels(country, country_name, country_alpha): Return Channel entities broadcasting the event in a specific country.
+
+    Raises:
+        TypeError: If initialized with invalid data type.
+        EntityNotFoundError: If a specified country cannot be found.
+    """
+    _REPR_FIELDS = ("channels")
+
+    def __init__(self, data: ParsedCountryChannelsResponse, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedCountryChannelsResponse):

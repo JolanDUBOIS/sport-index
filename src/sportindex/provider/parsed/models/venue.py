@@ -7,7 +7,7 @@ from .base import BaseParsedModel
 if TYPE_CHECKING:
     from .core import ParsedCountry
     from .team import ParsedTeam
-    from sportindex.provider.raw.models import City, Coordinates, Stadium, Venue
+    from sportindex.provider.raw import RawCity, RawCoordinates, RawStadium, RawVenue
 
 
 @dataclass
@@ -16,14 +16,14 @@ class ParsedVenue(BaseParsedModel):
     slug: str
     name: str
     capacity: int
-    city: City
-    stadium: Stadium
+    city: RawCity
+    stadium: RawStadium
     country: ParsedCountry
-    venueCoordinates: Coordinates
+    venueCoordinates: RawCoordinates
     mainTeams: list[ParsedTeam]
 
     @classmethod
-    def _parse(cls, raw: Venue) -> ParsedVenue:
+    def _parse(cls, raw: RawVenue) -> ParsedVenue:
         from .core import ParsedCountry
         from .team import ParsedTeam
         return cls(

@@ -3,24 +3,24 @@ from __future__ import annotations
 from typing import TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..player import Player
+    from ..player import RawPlayer
 
 
 # =====================================================================
 # Lineups
 # =====================================================================
 
-class Lineup(TypedDict, total=False):
+class RawLineup(TypedDict, total=False):
     formation: str                  # e.g. "4-3-3"
-    players: list[Player]
-    missingPlayers: list[Player]
+    players: list[RawPlayer]
+    missingPlayers: list[RawPlayer]
 
 
 # =====================================================================
 # Event Statistics
 # =====================================================================
 
-class StatisticsItem(TypedDict, total=False):
+class RawStatisticsItem(TypedDict, total=False):
     key: str                      # e.g. "ballPossession", "totalShots"
     name: str                     # Display name, e.g. "Ball possession"
     home: str                     # String representation, e.g. "54%"
@@ -33,20 +33,20 @@ class StatisticsItem(TypedDict, total=False):
     renderType: int
 
 
-class StatisticsGroup(TypedDict, total=False):
+class RawStatisticsGroup(TypedDict, total=False):
     groupName: str                    # e.g. "Match overview", "Shots"
-    statisticsItems: list[StatisticsItem]
+    statisticsItems: list[RawStatisticsItem]
 
 
-class PeriodStatistics(TypedDict, total=False):
+class RawPeriodStatistics(TypedDict, total=False):
     period: str                       # e.g. "ALL", "1ST", "2ND"
-    groups: list[StatisticsGroup]
+    groups: list[RawStatisticsGroup]
 
 
 # =====================================================================
 # Momentum Graph
 # =====================================================================
 
-class MomentumPoint(TypedDict, total=False):
+class RawMomentumPoint(TypedDict, total=False):
     minute: float
     value: int  # positive=home, negative=away, range ~[-100, 100]

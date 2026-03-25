@@ -2,18 +2,26 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TypedDict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from .base import BaseParsedModel
 from .parsers import parse_timestamp
+from sportindex.provider.raw import RawRound
 if TYPE_CHECKING:
     from .referee import ParsedReferee
     from .team import ParsedTeam
     from .tournament import ParsedSeason, ParsedTournament
     from .venue import ParsedVenue
-    from sportindex.provider.raw.models import (
-        Round, Status, Event
-    )
+    from sportindex.provider.raw import RawStatus, RawEvent
+
+
+# =====================================================================
+# Primitives
+# =====================================================================
+
+@dataclass
+class ParsedRound(BaseParsedModel):
+    __annotations__ = RawRound.__annotations__
 
 
 # =====================================================================
@@ -27,12 +35,12 @@ class ParsedEvent(BaseParsedModel):
     slug: str
     gender: str
     start: datetime
-    roundInfo: Round
+    roundInfo: ParsedRound
     season: ParsedSeason
     tournament: ParsedTournament
 
     attendance: int
-    status: Status
+    status: RawStatus
     previousLegEventId: int
     winnerCode: int  # 1=home, 2=away, 3=draw 
 
@@ -49,7 +57,7 @@ class ParsedEvent(BaseParsedModel):
     parsedPeriods: ParsedPeriods
 
     @classmethod
-    def _parse(cls, raw: Event) -> ParsedEvent:
+    def _parse(cls, raw: RawEvent) -> ParsedEvent:
         from .referee import ParsedReferee
         from .tournament import ParsedSeason, ParsedTournament
         from .venue import ParsedVenue
@@ -59,7 +67,7 @@ class ParsedEvent(BaseParsedModel):
             slug=raw.get("slug"),
             gender=raw.get("gender"),
             start=parse_timestamp(raw.get("startTimestamp")),
-            roundInfo=raw.get("roundInfo"),
+            roundInfo=ParsedRound.from_raw(raw.get("roundInfo")),
             season=ParsedSeason.from_raw(raw.get("season")),
             tournament=ParsedTournament.from_raw(raw.get("tournament")),
             attendance=raw.get("attendance"),
@@ -87,7 +95,7 @@ class EventTeam:
     score: int
 
     @classmethod
-    def from_raw(cls, raw: Event, side: str) -> EventTeam:
+    def from_raw(cls, raw: RawEvent, side: str) -> EventTeam:
         from .team import ParsedTeam
         return cls(
             team=ParsedTeam.from_raw(raw.get(f"{side}Team")),
@@ -101,7 +109,8 @@ class EventTeam:
 # Periods & scoring
 # =====================================================================
 
-class ParsedScore(TypedDict, total=False):
+@dataclass
+class ParsedScore(BaseParsedModel):
     home: int
     away: int
 
@@ -121,7 +130,7 @@ class ParsedPeriods(BaseParsedModel):
     periods: list[ParsedPeriod]
 
     @classmethod
-    def _parse(cls, raw: Event) -> ParsedPeriods | None:
+    def _parse(cls, raw: RawEvent) -> ParsedPeriods | None:
         if "defaultPeriodCount" not in raw:
             return None
 
@@ -239,7 +248,7 @@ class ParsedRacketExtra(BaseParsedModel):
 
 ParsedExtra = ParsedFightExtra | ParsedRacketExtra
 
-def parse_extra(raw: Event) -> ParsedExtra | None:
+def parse_extra(raw: RawEvent) -> ParsedExtra | None:
     """Parse sport-specific extra info (fight or racket)."""
     # Fight sports
     if any(raw.get(k) is not None for k in ("fightType", "weightClass", "winType", "finalRound")):

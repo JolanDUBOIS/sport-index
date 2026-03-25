@@ -10,24 +10,53 @@ from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .utils import merge_dataclasses
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.parsed import ParsedTeam, ParsedPlayer
-from sportindex.provider.raw import Amount as Amount
 
 if TYPE_CHECKING:
-    from .core import Category, Country, Sport, Gender
+    from .components import Amount, Gender
+    from .core import Category, Country, Sport
     from .event import EventCollection
     from .manager import Manager
     from .venue import Venue
     from sportindex.provider.parsed import (
-        ParsedSofascoreProvider, ParsedPlayerTeamInfo
+        SofascoreProvider, ParsedPlayerTeamInfo
     )
 
 
 class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin):
-    """A competitor, e.g. 'Paris Saint-Germain', 'Roger Federer', 'Lewis Hamilton', etc."""
-    REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name", "name_code", "national", "gender", "sport", "country", "category", "kind")
+    """A sports competitor, either an individual or a team.
+
+    Provides access to identity, affiliations, and related entities such as players, managers, and venues.
+    Supports fetching fixtures and results, and distinguishing between player and team competitors.
+
+    Attributes:
+        id (int): Unique competitor ID.
+        name (str): Official competitor name.
+        slug (str): URL-friendly slug.
+        short_name (str): Abbreviated name.
+        full_name (str): Full name or concatenation of first and last names for players.
+        kind (Literal['team','player']): Type of competitor.
+        sport (Sport | None): Sport this competitor belongs to.
+        country (Country | None): Competitor's country, if applicable.
+        category (Category | None): Competitor's category, if applicable.
+        manager (Manager | None): Manager, if applicable.
+        venue (Venue | None): Home venue, if applicable.
+        players (EntityCollection[Competitor] | None): Players of this team, if applicable.
+        parent (Competitor | None): Parent competitor for players or sub-teams.
+        player_info (PlayerInfo | None): Detailed player information, if applicable.
+
+    Methods:
+        get_fixtures(silent=False) -> EventCollection: Fetch all scheduled events for the competitor.
+        get_results(silent=False) -> EventCollection: Fetch all results for the competitor.
+
+    Raises:
+        TypeError: If initialized with invalid data type.
+        EntityNotFoundError: If the competitor does not exist in the provider.
+        DomainError: If a network or provider error occurs during fetch.
+    """
+    _REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name", "name_code", "national", "gender", "sport", "country", "category", "kind")
     _TYPE_MAP = {ParsedTeam: 1, ParsedPlayer: 2}
 
-    def __init__(self, data: ParsedTeam | ParsedPlayer, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: ParsedTeam | ParsedPlayer, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, (ParsedTeam, ParsedPlayer)):
@@ -60,9 +89,11 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
     def full_name(self) -> str:
         """The full name of the competitor."""
         if isinstance(self._data, ParsedTeam):
-            return self._data.fullName
+            return self._data.fullName or self._data.name
         elif isinstance(self._data, ParsedPlayer):
-            return self._data.firstName + " " + self._data.lastName
+            first = self._data.firstName or ""
+            last = self._data.lastName or ""
+            return f"{first} {last}".strip() or self._data.name
 
     @property
     def name_code(self) -> Optional[str]:
@@ -85,7 +116,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
     @cached_property
     def gender(self) -> Optional[Gender]:
         """The gender of the competitor, if applicable."""
-        from .core import Gender
+        from .components import Gender
         return Gender(self._data.gender)
 
     @cached_property
@@ -221,7 +252,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
             elif isinstance(self._data, ParsedTeam):
                 self._data = merge_dataclasses(self._data, self._provider.get_team(self._data.id))
             if not isinstance(self._data, (ParsedPlayer, ParsedTeam)):
-                raise TypeError("Competitor data must be either ParsedPlayer or ParsedTeam")
+                raise TypeError("Competitor data must be either ParsedPlayer or ParsedTeam.")
             self._full_loaded = True
             self._clear_cache()
         except ProviderNotFoundError:
@@ -248,7 +279,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
         self.__dict__.pop("player_info", None)
 
     @classmethod
-    def from_id(cls, competitor_id: int, provider: ParsedSofascoreProvider) -> Competitor:
+    def from_id(cls, competitor_id: int, provider: SofascoreProvider) -> Competitor:
         """Fetch a competitor by its ID."""
         raw_id, type_idx = cls.decode_id(competitor_id)
         type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
@@ -272,7 +303,7 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Competitor]:
+    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Competitor]:
         """Search for competitors matching the given query (up to the first 20 matches)."""
         entities = []
         for page in range(51):
@@ -293,7 +324,32 @@ class Competitor(IdentifiableEntity[ParsedTeam | ParsedPlayer], EventAwareMixin)
 
 @dataclass(frozen=True)
 class PlayerInfo:
-    """Comprehensive details covering a player's physical attributes, career status, and financial data."""
+    """Comprehensive details about an individual athlete.
+
+    Covers identity, physical attributes, career status, technical profile, and financial/contractual data.
+
+    Attributes:
+        first_name (str | None): Player's first name.
+        last_name (str | None): Player's last name.
+        weight (float | None): Player weight in kilograms.
+        height (int | None): Player height in centimeters.
+        date_of_birth (date | None): Birth date.
+        place_of_birth (str | None): Birthplace.
+        retired (bool | None): Whether the player is retired.
+        deceased (bool | None): Whether the player is deceased.
+        number (int | None): Shirt or squad number.
+        preferred_foot (str | None): Dominant foot (if applicable).
+        preferred_hand (str | None): Dominant hand (if applicable).
+        positions (list[str] | None): Positions played.
+        total_prizes (Amount | None): Career prize earnings.
+        salary (Amount | None): Current salary.
+        market_value (Amount | None): Market valuation.
+        contract_expiry (date | None): Contract end date.
+
+    Methods:
+        _from_parsed_player(data: ParsedPlayer) -> PlayerInfo: Create instance from ParsedPlayer data.
+        _from_parsed_player_team_info(data: ParsedPlayerTeamInfo) -> PlayerInfo: Create instance from ParsedPlayerTeamInfo data.
+    """
 
     # --- Identity & Physical Attributes ---
     first_name: Optional[str] = None
@@ -328,7 +384,7 @@ class PlayerInfo:
             number=int(data.number),
             preferred_foot=data.plays, # Note: probably never populated, as there are not single sport using the foot preference field...
             preferred_hand=data.plays,
-            total_prizes=data.prizeTotalRaw,
+            total_prizes=Amount._from_parsed(data.prizeTotalRaw),
         )
 
     @classmethod
@@ -346,7 +402,7 @@ class PlayerInfo:
             preferred_foot=data.preferredFoot,
             preferred_hand=data.preferredHand,
             positions=data.positionsDetailed or [data.position] or [data.primaryPosition] or None,
-            salary=data.salaryRaw,
-            market_value=data.proposedMarketValueRaw,
+            salary=Amount._from_parsed(data.salaryRaw),
+            market_value=Amount._from_parsed(data.proposedMarketValueRaw),
             contract_expiry=data.contractUntil.date() if data.contractUntil else None,
         )

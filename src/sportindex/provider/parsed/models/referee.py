@@ -8,7 +8,7 @@ from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .core import ParsedSport, ParsedCountry
-    from sportindex.provider.raw.models import Referee
+    from sportindex.provider.raw import RawReferee
 
 
 @dataclass
@@ -25,7 +25,7 @@ class ParsedReferee(BaseParsedModel):
     dateOfBirth: datetime
 
     @classmethod
-    def _parse(cls, raw: Referee) -> ParsedReferee:
+    def _parse(cls, raw: RawReferee) -> ParsedReferee:
         from .core import ParsedSport, ParsedCountry
         return cls(
             id=raw.get("id"),

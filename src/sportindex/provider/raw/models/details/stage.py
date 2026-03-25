@@ -5,57 +5,57 @@ from typing import TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..primitives import Timestamp
-    from ..stage import Stage
-    from ..team import Team
+    from ..stage import RawStage
+    from ..team import RawTeam
 
 
-class RaceResults(TypedDict, total=False):
+class RawRaceResults(TypedDict, total=False):
     position: int
     gridPosition: int
     points: int
     time: str               # Finishing time
     gap: str                # Gap to leader
     updatedAtTimestamp: int
-    stage: Stage
+    stage: RawStage
 
 
-class SeasonCareerHistory(TypedDict, total=False):
+class RawSeasonCareerHistory(TypedDict, total=False):
     position: int
     points: int
     victories: int
     racesStarted: int
     polePositions: int
     podiums: int
-    stage: Stage
-    parentTeam: Team
+    stage: RawStage
+    parentTeam: RawTeam
     updatedAtTimestamp: Timestamp
 
 
-class TotalCareerHistory(TypedDict, total=False):
+class RawTotalCareerHistory(TypedDict, total=False):
     racesStarted: int
     victories: int
     podiums: int
     polePositions: int
     worldChampionshipTitles: int
-    team: Team
+    team: RawTeam
 
 
-class DriverCareerHistory(TypedDict, total=False):
-    total: TotalCareerHistory
-    bySeason: list[SeasonCareerHistory]
+class RawDriverCareerHistory(TypedDict, total=False):
+    total: RawTotalCareerHistory
+    bySeason: list[RawSeasonCareerHistory]
 
 
-class Lap(TypedDict, total=False):
+class RawLap(TypedDict, total=False):
     lap: int
     position: int
     tyreType: str
     visitedPitStop: bool
 
 
-class DriverPerformance(TypedDict, total=False):
+class RawDriverPerformance(TypedDict, total=False):
     id: int
     name: str
     slug: str
     startNumber: int
-    laps: list[Lap]
-    parentTeam: Team
+    laps: list[RawLap]
+    parentTeam: RawTeam

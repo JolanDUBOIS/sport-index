@@ -4,20 +4,20 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .core import Category, Country
-    from .primitives import Timestamp, Status
-    from .team import Team
+    from .core import RawCategory, RawCountry
+    from .primitives import Timestamp, RawStatus
+    from .team import RawTeam
 
 
 # =====================================================================
 # Unique Stage
 # =====================================================================
 
-class UniqueStage(TypedDict, total=False):
+class RawUniqueStage(TypedDict, total=False):
     id: int
     slug: str
     name: str
-    category: Category
+    category: RawCategory
     description: str
 
 
@@ -25,36 +25,36 @@ class UniqueStage(TypedDict, total=False):
 # Stage
 # =====================================================================
 
-class Stage(TypedDict, total=False):
+class RawStage(TypedDict, total=False):
     id: int
     slug: str
     name: str
     description: str
     year: str
     seasonStageName: str
-    uniqueStage: UniqueStage
-    type: StageType
-    status: Status
+    uniqueStage: RawUniqueStage
+    type: RawStageType
+    status: RawStatus
     flag: str
-    country: Country
-    info: StageInfo
+    country: RawCountry
+    info: RawStageInfo
     startDateTimestamp: Timestamp
     endDateTimestamp: Timestamp
-    stageParent: StageParent
-    winner: Team
-    substages: list[Stage]
+    stageParent: RawStageParent
+    winner: RawTeam
+    substages: list[RawStage]
 
 
 # =====================================================================
 # Primitives
 # =====================================================================
 
-class StageType(TypedDict, total=False):
+class RawStageType(TypedDict, total=False):
     id: int
     name: str  # "Season", "Event", or other values — drives stage dispatch
 
 
-class StageInfo(TypedDict, total=False):
+class RawStageInfo(TypedDict, total=False):
     stageType: str     # e.g. "flat", "mountain", etc.
     stageRound: int
     discipline: str
@@ -76,7 +76,7 @@ class StageInfo(TypedDict, total=False):
     arrivalCity: str
 
 
-class StageParent(TypedDict, total=False):
+class RawStageParent(TypedDict, total=False):
     id: int
     slug: str
     description: str

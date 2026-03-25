@@ -8,8 +8,9 @@ from .base import BaseParsedModel
 from .parsers import parse_timestamp
 if TYPE_CHECKING:
     from .core import ParsedSport, ParsedCountry
+    from .primitives import ParsedPerformance
     from .team import ParsedTeam
-    from sportindex.provider.raw.models import Manager, Performance
+    from sportindex.provider.raw import RawManager
 
 
 @dataclass
@@ -23,7 +24,7 @@ class ParsedManager(BaseParsedModel):
     nationality: str              # ISO3
     nationalityISO2: str          # ISO2
     deceased: bool
-    performance: Performance
+    performance: ParsedPerformance
     preferredFormation: str       # e.g. "4-3-3"
     formerPlayerId: int
     team: ParsedTeam
@@ -31,8 +32,9 @@ class ParsedManager(BaseParsedModel):
     dateOfBirthTimestamp: datetime
 
     @classmethod
-    def _parse(cls, raw: Manager) -> ParsedManager:
+    def _parse(cls, raw: RawManager) -> ParsedManager:
         from .core import ParsedSport, ParsedCountry
+        from .primitives import ParsedPerformance
         from .team import ParsedTeam
         return cls(
             id = raw.get("id"),
@@ -44,7 +46,7 @@ class ParsedManager(BaseParsedModel):
             nationality = raw.get("nationality"),
             nationalityISO2 = raw.get("nationalityISO2"),
             deceased = raw.get("deceased"),
-            performance = raw.get("performance"),
+            performance = ParsedPerformance.from_raw(raw.get("performance")),
             preferredFormation = raw.get("preferredFormation"),
             formerPlayerId = raw.get("formerPlayerId"),
             team = ParsedTeam.from_raw(raw.get("team")),

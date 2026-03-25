@@ -4,18 +4,18 @@ from typing import TypedDict, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .event import Event
-    from .core import Country, Sport, Category
-    from .primitives import Timestamp, Promotion
-    from .team import Team
-    from .tournament import Tournament, UniqueTournament
+    from .event import RawEvent
+    from .core import RawCountry, RawSport, RawCategory
+    from .primitives import Timestamp, RawPromotion
+    from .team import RawTeam
+    from .tournament import RawTournament, RawUniqueTournament
 
 
 # =====================================================================
 # Leaderboard — Team / Individual Standings
 # =====================================================================
 
-class TeamStandingsEntry(TypedDict, total=False):
+class RawTeamStandingsEntry(TypedDict, total=False):
     id: int
     position: int
     matches: int
@@ -27,18 +27,18 @@ class TeamStandingsEntry(TypedDict, total=False):
     scoresFor: int
     scoresAgainst: int
     scoreDiffFormatted: str    # e.g. "+15"
-    promotion: Promotion
+    promotion: RawPromotion
     gamesBehind: int
     streak: int
-    team: Team
+    team: RawTeam
 
 
-class TeamStandings(TypedDict, total=False):
+class RawTeamStandings(TypedDict, total=False):
     id: int
     name: str                  # e.g. "Premier League"
     type: str                  # "home", "away", "total"
-    rows: list[TeamStandingsEntry]
-    tournament: Tournament
+    rows: list[RawTeamStandingsEntry]
+    tournament: RawTournament
     updatedAtTimestamp: Timestamp
 
 
@@ -46,7 +46,7 @@ class TeamStandings(TypedDict, total=False):
 # Leaderboard — Racing Standings
 # =====================================================================
 
-class RacingStandingsEntry(TypedDict, total=False):
+class RawRacingStandingsEntry(TypedDict, total=False):
     startNumber: int           # Driver or cyclist number
     number: int                # alternative numbering, if API provides
 
@@ -81,8 +81,8 @@ class RacingStandingsEntry(TypedDict, total=False):
     sprintPosition: int
     climbPosition: int
     shirt: str
-    team: Team              # Driver/Cyclist or Team/Constructor
-    parentTeam: Team        # Team/Constructor if team is Driver/Cyclist, else None
+    team: RawTeam              # Driver/Cyclist or Team/Constructor
+    parentTeam: RawTeam        # Team/Constructor if team is Driver/Cyclist, else None
     updatedAtTimestamp: Timestamp
 
 
@@ -90,23 +90,23 @@ class RacingStandingsEntry(TypedDict, total=False):
 # Leaderboard — Rankings
 # =====================================================================
 
-class RankingType(TypedDict, total=False):
+class RawRankingType(TypedDict, total=False):
     id: int
     slug: str
     name: str
     gender: str
-    sport: Sport
-    category: Category
-    uniqueTournament: UniqueTournament
+    sport: RawSport
+    category: RawCategory
+    uniqueTournament: RawUniqueTournament
     lastUpdatedTimestamp: Timestamp
 
 
-class RankingEntry(TypedDict, total=False):
+class RawRankingEntry(TypedDict, total=False):
     id: int
     name: str
     position: int         # For MMA, position starts at 0 instead of 1
     points: float
-    country: Country
+    country: RawCountry
 
     bestPosition: int
     previousPosition: int
@@ -114,11 +114,11 @@ class RankingEntry(TypedDict, total=False):
 
     # Specific to a team or a competitor ranking
     tournamentsPlayed: int
-    team: Team
-    lastEvent: Event
+    team: RawTeam
+    lastEvent: RawEvent
 
     # Specific to a country ranking (e.g. UEFA football rankings)
-    uniqueTournament: UniqueTournament
+    uniqueTournament: RawUniqueTournament
     playingTeams: int
     totalTeams: int
 

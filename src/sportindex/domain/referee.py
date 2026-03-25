@@ -12,15 +12,40 @@ from sportindex.provider.parsed import ParsedReferee
 
 if TYPE_CHECKING:
     from .core import Country, Sport
+    from .components import Cards
     from .event import EventCollection
-    from sportindex.provider.parsed import ParsedSofascoreProvider
+    from sportindex.provider.parsed import SofascoreProvider
 
 
 class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
-    """A referee, e.g. 'Pierluigi Collina', 'Michael Masi', etc."""
-    REPR_FIELDS = ("id", "name", "slug", "sport", "country")
+    """Represents a sports referee/officiator (e.g., football referee, Formula 1 race director).
 
-    def __init__(self, data: ParsedReferee, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    Handles basic information, associated sport and country, games officiated,
+    and cards issued. Supports lazy full-loading for properties requiring
+    detailed API responses.
+
+    Attributes:
+        id (int): Unique identifier of the referee.
+        name (str): Full name of the referee.
+        slug (str): URL-friendly slug of the referee.
+        sport (Sport): Sport associated with the referee.
+        country (Country | None): Country associated with the referee, if available.
+        games (int | None): Number of games officiated by the referee.
+        cards (Cards | None): Counts of yellow, red, and yellow-red cards issued.
+
+    Methods:
+        get_fixtures(silent: bool = False) -> EventCollection:
+            Returns fixtures for this referee. Currently returns empty, logs a warning.
+        get_results(silent: bool = False) -> EventCollection:
+            Returns results for this referee.
+        from_id(referee_id: int, provider: SofascoreProvider) -> Referee:
+            Fetch a referee by its unique ID.
+        search(query: str, provider: SofascoreProvider) -> EntityCollection[Referee]:
+            Search for referees matching a query string (up to 20 results).
+    """
+    _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
+
+    def __init__(self, data: ParsedReferee, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, ParsedReferee):
@@ -46,11 +71,13 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
     @cached_property
     def sport(self) -> Sport:
         """The sport this referee is associated with."""
+        from .core import Sport
         return Sport(self._data.sport, self._provider)
 
     @cached_property
     def country(self) -> Optional[Country]:
         """The country this referee is associated with, if any."""
+        from .core import Country
         return Country(self._data.country, self._provider) if self._data.country else None
 
     @cached_property
@@ -63,6 +90,7 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
     def cards(self) -> Optional[Cards]:
         """Get the number of cards this referee has given."""
         self._full_load()
+        from .components import Cards
         return Cards(
             yellow=int(self._data.yellowCards),
             red=int(self._data.redCards),
@@ -111,7 +139,7 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
         self.__dict__.pop("cards", None)
 
     @classmethod
-    def from_id(cls, referee_id: int, provider: ParsedSofascoreProvider) -> Referee:
+    def from_id(cls, referee_id: int, provider: SofascoreProvider) -> Referee:
         """Fetch a referee by its ID."""
         try:
             parsed_data = provider.get_referee(referee_id)
@@ -122,7 +150,7 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Referee]:
+    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Referee]:
         """Search for referees matching the given query (up to the first 20 matches)."""
         entities = []
         for page in range(51): # Sofascore has a maximum of 50 pages of search results
@@ -134,10 +162,3 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
             if len(matches) > 20:
                 break
         return EntityCollection(entities[:20])
-
-
-@dataclass(frozen=True)
-class Cards:
-    yellow: int
-    red: int
-    yellow_red: int

@@ -17,15 +17,30 @@ from sportindex.exceptions import InsufficientDataError, ProviderNotFoundError, 
 if TYPE_CHECKING:
     from .event import EventCollection
     from .leaderboard import Standings
-    from sportindex.provider.parsed import ParsedSofascoreProvider
+    from sportindex.provider.parsed import SofascoreProvider
 
 
 class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]):
-    """A competition, e.g. 'Ligue 1', 'Rolland Garros', etc."""
-    REPR_FIELDS = ("id", "name", "slug", "sport", "category")
+    """A competition, e.g., 'Ligue 1', 'Rolland Garros'.
+
+    Can represent either a unique tournament or a unique stage.
+    Provides access to its category, sport, and associated seasons.
+
+    Attributes:
+        id (int): Unique ID, encoded from source ID and type.
+        name (str): Competition name.
+        slug (str): URL-friendly slug.
+        sport (Sport): Parent sport.
+        category (Category): Parent category (lazy-loaded).
+        seasons (EntityCollection[Season]): Seasons of this competition (lazy-loaded).
+
+    Raises:
+        TypeError: If data is not UniqueTournament or UniqueStage.
+    """
+    _REPR_FIELDS = ("id", "name", "slug", "sport", "category")
     _TYPE_MAP = {ParsedUniqueTournament: 1, ParsedUniqueStage: 2}
 
-    def __init__(self, data: ParsedUniqueTournament | ParsedUniqueStage, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: ParsedUniqueTournament | ParsedUniqueStage, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider)
 
         if not isinstance(data, (ParsedUniqueTournament, ParsedUniqueStage)):
@@ -107,7 +122,7 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
         self.__dict__.pop("seasons", None)
 
     @classmethod
-    def from_id(cls, competition_id: int, provider: ParsedSofascoreProvider) -> Competition:
+    def from_id(cls, competition_id: int, provider: SofascoreProvider) -> Competition:
         """Fetch a competition by its ID."""
         raw_id, type_idx = cls.decode_id(competition_id)
         type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
@@ -136,7 +151,7 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: ParsedSofascoreProvider) -> EntityCollection[Competition]:
+    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Competition]:
         """Search for competitions matching the given query (up to the first 20 matches)."""
         entities = []
         for page in range(51): # Sofascore has a maximum of 50 pages of search results
@@ -152,11 +167,26 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
 
 
 class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
-    """A season of a competition, e.g. '2023/24', '2024', etc."""
-    REPR_FIELDS = ("id", "name", "year", "start", "sport")
+    """A season of a competition, e.g., '2023/24', '2024'.
+
+    Provides access to parent competition, sport, standings, fixtures, and results.
+
+    Attributes:
+        id (int): Unique ID, encoded from source ID and type.
+        name (str): Season name.
+        year (str): Season year.
+        start (Optional[datetime]): Start date of the season.
+        sport (Sport): Parent sport.
+        competition (Competition): Parent competition (lazy-loaded).
+        standings (EntityCollection[Standings]): Standings for this season.
+
+    Raises:
+        InsufficientDataError: If season data lacks required competition info.
+    """
+    _REPR_FIELDS = ("id", "name", "year", "start", "sport")
     _TYPE_MAP = {ParsedSeason: 1, ParsedStage: 2}
 
-    def __init__(self, data: ParsedSeason | ParsedStage, provider: ParsedSofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: ParsedSeason | ParsedStage, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
         if not isinstance(data, (ParsedSeason, ParsedStage)):
