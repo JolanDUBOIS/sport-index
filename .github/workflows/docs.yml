@@ -14,6 +14,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Configure Git Credentials
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
       - name: Install Poetry
         run: pipx install poetry
@@ -27,5 +34,5 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
-      - name: Deploy to GitHub Pages
-        run: poetry run mkdocs gh-deploy --force
+      - name: Deploy versioned docs to GitHub Pages
+        run: poetry run mike deploy $(poetry version -s) latest --update-aliases --push
