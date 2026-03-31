@@ -1,32 +1,31 @@
 from __future__ import annotations
 
 from functools import cached_property
-from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from pydantic import BaseModel
+from typing import TYPE_CHECKING, Any, Optional
 
 from . import logger
 from .base import BaseEntity
-from sportindex.exceptions import InsufficientDataError
-from sportindex.provider.parsed import ParsedTeamStandings, ParsedRacingStandingsEntry, ParsedRankingsResponse
+from .competition import Competition
+from .competitor import Competitor
+from sportindex.provider.models import (
+    _TeamStandingsData, _RacingStandingsEntryData,
+    _RankingsResponse, _TeamStandingsEntryData,
+    _RankingEntryData, Promotion
+)
 
 if TYPE_CHECKING:
     from .core import Sport, Category
-    from .competition import Competition
-    from .competitor import Competitor
-    from .components import Gender, Promotion
-    from sportindex.provider.parsed import (
-        SofascoreProvider,
-        ParsedTeamStandingsEntry,
-        ParsedRankingEntry
-    )
+    from .gender import Gender
+    from sportindex.provider import SofascoreProvider
 
 
 # =====================================================================
 # Standings
 # =====================================================================
 
-class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry]]):
+class Standings(BaseEntity[_TeamStandingsData | list[_RacingStandingsEntryData]]):
     """Represents the standings (ranked table) of a competition or sport.
 
     Can handle both team/match standings (e.g., football league tables) and racing/cycling standings 
@@ -41,16 +40,16 @@ class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry
     """
     _REPR_FIELDS = ("name", "kind", "updated_at")
 
-    def __init__(self, data: ParsedTeamStandings | list[ParsedRacingStandingsEntry], provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _TeamStandingsData | list[_RacingStandingsEntryData], provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not (isinstance(data, ParsedTeamStandings) or (isinstance(data, list) and all(isinstance(e, ParsedRacingStandingsEntry) for e in data))):
-            raise TypeError("Standings data must be either ParsedTeamStandings or list[ParsedRacingStandingsEntry]")
+        if not (isinstance(data, _TeamStandingsData) or (isinstance(data, list) and all(isinstance(e, _RacingStandingsEntryData) for e in data))):
+            raise TypeError(f"Standings data must be either _TeamStandingsData or list[_RacingStandingsEntryData], got {type(data)}")
 
     @property
     def name(self) -> Optional[str]:
         """The name of the standings, e.g. "Ligue 1 table", "Formula 1 driver standings", etc."""
-        if isinstance(self._data, ParsedTeamStandings):
+        if isinstance(self._data, _TeamStandingsData):
             return self._data.name
         else:
             return self._kwargs.get("name", None)
@@ -58,7 +57,7 @@ class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry
     @property
     def kind(self) -> Optional[str]:
         """The kind of standings, e.g. "home", "away", "total" (match standings) or "competitors", "teams" (racing standings)."""
-        if isinstance(self._data, ParsedTeamStandings):
+        if isinstance(self._data, _TeamStandingsData):
             return self._data.type_
         else:
             return self._kwargs.get("kind", None)
@@ -66,10 +65,10 @@ class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry
     @property
     def updated_at(self) -> Optional[datetime]:
         """The date and time when the standings were last updated."""
-        if isinstance(self._data, ParsedTeamStandings):
-            return self._data.updatedAt
+        if isinstance(self._data, _TeamStandingsData):
+            return self._data.updated_at
         else:
-            return self._data[0].updatedAt if self._data else None
+            return self._data[0].updated_at if self._data else None
 
     @cached_property
     def sport(self) -> Optional[Sport]:
@@ -77,25 +76,23 @@ class Standings(BaseEntity[ParsedTeamStandings | list[ParsedRacingStandingsEntry
         if self.entries:
             return self.entries[0].competitor.sport
         else:
-            logger.warning(f"Standings {self.id} has no entries, cannot determine sport")
+            logger.warning(f"Standings {self.name} has no entries, cannot determine sport")
             return None
 
     @cached_property
     def entries(self) -> list[StandingsEntry]:
         """The entries in the standings."""
-        if isinstance(self._data, ParsedTeamStandings):
-            return [StandingsEntry._from_team_standings_entry(e, self._provider) for e in self._data.rows]
-        else:
-            return [StandingsEntry._from_racing_standings_entry(e, self._provider) for e in self._data]
+        entries = self._data.rows if isinstance(self._data, _TeamStandingsData) else self._data
+        return [StandingsEntry._from_base_schema(e, self._provider) for e in entries]
 
-@dataclass(frozen=True)
-class StandingsEntry:
+
+class StandingsEntry(BaseModel):
     """A single entry in a Standings table.
 
     Attributes:
-        position (int): Rank/position in the standings.
         competitor (Competitor): Competitor (team, driver, or rider).
-        points (int): Points accumulated.
+        position (int): Rank/position in the standings.
+        points (float): Points accumulated.
         matches, wins, draws, losses, scores_for, scores_against, score_formatted, games_behind, promotion:
             Match-specific fields.
         victories, podiums, races_with_points, races_started:
@@ -103,9 +100,9 @@ class StandingsEntry:
         time, gap_to_leader:
             Cycling-specific fields.
     """
-    position: int
     competitor: Competitor
-    points: int
+    position: int
+    points: Optional[float] = None
 
     # Match standings
     matches: Optional[int] = None
@@ -115,7 +112,7 @@ class StandingsEntry:
     scores_for: Optional[int] = None
     scores_against: Optional[int] = None
     score_formatted: Optional[str] = None
-    games_behind: Optional[int] = None
+    games_behind: Optional[float] = None  # Kept as float to preserve half-games (e.g. 1.5)
     promotion: Optional[Promotion] = None
 
     # Racing standings (motorsport)
@@ -129,45 +126,52 @@ class StandingsEntry:
     gap_to_leader: Optional[str] = None
 
     @classmethod
-    def _from_team_standings_entry(cls, data: ParsedTeamStandingsEntry, provider: SofascoreProvider) -> StandingsEntry:
-        from .competitor import Competitor
-        from .components import Promotion
-        return cls(
-            position=data.position,
-            competitor=Competitor(data.team, provider),
-            points=int(data.points),
-            matches=int(data.matches),
-            wins=int(data.wins),
-            draws=int(data.draws),
-            losses=int(data.losses),
-            scores_for=int(data.scoresFor),
-            scores_against=int(data.scoresAgainst),
-            score_formatted=data.scoreDiffFormatted,
-            games_behind=data.gamesBehind,
-            promotion=Promotion._from_parsed(data.promotion)
-        )
+    def _from_base_schema(
+        cls, 
+        raw: _TeamStandingsEntryData | _RacingStandingsEntryData, 
+        provider: Any
+    ) -> StandingsEntry:
+        
+        if not raw.team:
+            raise ValueError("Standings entry must have an associated team to determine competitor")
+        if not raw.position:
+            raise ValueError("Standings entry must have a position")
 
-    @classmethod
-    def _from_racing_standings_entry(cls, data: ParsedRacingStandingsEntry, provider: SofascoreProvider) -> StandingsEntry:
-        from .competitor import Competitor
-        return cls(
-            position=data.position,
-            competitor=Competitor(data.team, provider),
-            points=data.points,
-            victories=int(data.victories),
-            podiums=int(data.podiums),
-            races_with_points=int(data.racesWithPoints),
-            races_started=int(data.racesStarted),
-            time=data.time,
-            gap_to_leader=data.gap
-        )
+        if isinstance(raw, _TeamStandingsEntryData):
+            return cls(
+                competitor=Competitor(raw.team, provider),
+                position=raw.position,
+                points=raw.points,
+                matches=raw.matches,
+                wins=raw.wins,
+                draws=raw.draws,
+                losses=raw.losses,
+                scores_for=raw.scores_for,
+                scores_against=raw.scores_against,
+                score_formatted=raw.score_diff_formatted,
+                games_behind=raw.games_behind,
+                promotion=raw.promotion
+            )
+            
+        elif isinstance(raw, _RacingStandingsEntryData):
+            return cls(
+                competitor=Competitor(raw.team, provider),
+                position=raw.position,
+                points=raw.points,
+                victories=raw.victories,
+                podiums=raw.podiums,
+                races_with_points=raw.races_with_points,
+                races_started=raw.races_started,
+                time=raw.time,
+                gap_to_leader=raw.gap
+            )
 
 
 # =====================================================================
 # Rankings
 # =====================================================================
 
-class Rankings(BaseEntity[ParsedRankingsResponse]):
+class Rankings(BaseEntity[_RankingsResponse]):
     """Represents the rankings of a sport, e.g., FIFA, ATP, or Olympic rankings.
 
     Attributes:
@@ -183,52 +187,55 @@ class Rankings(BaseEntity[ParsedRankingsResponse]):
     """
     _REPR_FIELDS = ("id", "name", "slug", "sport", "category", "gender", "updated_at")
 
-    def __init__(self, data: ParsedRankingsResponse, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _RankingsResponse, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
+
+        if not isinstance(data, _RankingsResponse):
+            raise TypeError(f"Rankings data must be _RankingsResponse, got {type(data)}")
 
     @property
     def id(self) -> Optional[int]:
         """The unique ID of these rankings."""
-        return self._data.rankingType.id if self._data and self._data.rankingType else None
+        return self._data.ranking_type.id if self._data.ranking_type else None
 
     @property
     def name(self) -> Optional[str]:
         """The name of the rankings, e.g. "FIFA Rankings", "ATP Rankings", etc."""
-        return self._data.rankingType.name if self._data and self._data.rankingType else None
+        return self._data.ranking_type.name if self._data.ranking_type else None
 
     @property
     def slug(self) -> Optional[str]:
         """The slug of the rankings, e.g. "fifa", "atp", etc."""
-        return self._data.rankingType.slug if self._data and self._data.rankingType else None
+        return self._data.ranking_type.slug if self._data.ranking_type else None
 
     @property
     def updated_at(self) -> Optional[datetime]:
         """The date and time when the rankings were last updated."""
-        return self._data.rankingType.lastUpdated if self._data and self._data.rankingType else None
+        return self._data.ranking_type.last_updated if self._data.ranking_type else None
 
     @cached_property
     def gender(self) -> Optional[Gender]:
         """The gender category of these rankings, e.g. "M", "F" or "X" (mixed/other)."""
         from .core import Gender
-        return Gender(self._data.rankingType.gender) if self._data and self._data.rankingType and self._data.rankingType.gender else None
+        return Gender(self._data.ranking_type.gender) if self._data.ranking_type and self._data.ranking_type.gender else None
 
     @cached_property
     def entries(self) -> list[RankingsEntry]:
         """The entries in the rankings."""
-        return [RankingsEntry._from_ranking_entry(e, self._provider) for e in self._data.rankingRows]
+        return [RankingsEntry._from_base_schema(e, self._provider) for e in self._data.ranking_rows]
 
     @cached_property
     def sport(self) -> Optional[Sport]:
         """The sport these rankings belong to."""
         from .core import Sport
-        return Sport(self._data.rankingType.sport, self._provider) if self._data and self._data.rankingType and self._data.rankingType.sport else None
+        return Sport(self._data.ranking_type.sport, self._provider) if self._data.ranking_type and self._data.ranking_type.sport else None
 
     @cached_property
     def category(self) -> Optional[Category]:
         """The category these rankings belong to, if any."""
         from .core import Category
         try:
-            return Category(self._data.rankingType.category, self._provider) if self._data and self._data.rankingType and self._data.rankingType.category else None
+            return Category(self._data.ranking_type.category, self._provider) if self._data.ranking_type and self._data.ranking_type.category else None
         except TypeError:
             return None
 
@@ -237,43 +244,46 @@ class Rankings(BaseEntity[ParsedRankingsResponse]):
         """The competition these rankings belong to, if any."""
         from .competition import Competition
         try:
-            return Competition(self._data.rankingType.uniqueTournament, self._provider) if self._data and self._data.rankingType and self._data.rankingType.uniqueTournament else None
+            return Competition(self._data.ranking_type.unique_tournament, self._provider) if self._data.ranking_type and self._data.ranking_type.unique_tournament else None
         except TypeError:
             return None
 
 
-@dataclass(frozen=True)
-class RankingsEntry:
+class RankingsEntry(BaseModel):
     """A single entry in a Rankings table.
 
     Attributes:
         position (int): Current position.
         entity (Competitor | Competition): Entity being ranked.
-        points (int): Points in the ranking.
+        points (float): Points in the ranking.
         previous_position (int | None): Previous ranking position.
-        previous_points (int | None): Previous points.
+        previous_points (float | None): Previous points.
         best_position (int | None): Best historical position.
     """
     position: int
     entity: Competitor | Competition
-    points: int
+    points: Optional[float] = None
 
     previous_position: Optional[int] = None
-    previous_points: Optional[int] = None
+    previous_points: Optional[float] = None
     best_position: Optional[int] = None
 
     @classmethod
-    def _from_ranking_entry(cls, data: ParsedRankingEntry, provider: SofascoreProvider) -> RankingsEntry:
-        from .competitor import Competitor
-        from .competition import Competition
-        entity = Competitor(data.team, provider) if data.team else Competition(data.uniqueTournament, provider) if data.uniqueTournament else None
-        if not entity:
-            raise InsufficientDataError(f"Ranking entry {data.id} has neither team nor unique tournament, cannot determine entity")
+    def _from_base_schema(cls, raw: _RankingEntryData, provider: Any) -> RankingsEntry:
+        """Alternative constructor to build a domain RankingsEntry from raw provider data."""
+        
+        if raw.unique_tournament:
+            entity = Competition(raw.unique_tournament, provider)
+        elif raw.team:
+            entity = Competitor(raw.team, provider)
+        else:
+            raise ValueError("Ranking entry must have either a team or a unique tournament associated")
+
         return cls(
-            position=data.position,
+            position=raw.position,
             entity=entity,
-            points=int(data.points),
-            previous_position=int(data.previousPosition) if data.previousPosition is not None else None,
-            previous_points=int(data.previousPoints) if data.previousPoints is not None else None,
-            best_position=int(data.bestPosition) if data.bestPosition is not None else None
+            points=raw.points,
+            previous_position=raw.previous_position,
+            previous_points=raw.previous_points,
+            best_position=raw.best_position
         )

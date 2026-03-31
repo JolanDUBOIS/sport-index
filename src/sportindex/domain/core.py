@@ -1,28 +1,26 @@
 from __future__ import annotations
 
-from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 import pycountry
 
-from . import logger
 from .base import BaseEntity, IdentifiableEntity, EntityCollection
 from .static import SPORT_RANKINGS
 from sportindex.exceptions import ProviderNotFoundError
-from sportindex.provider.parsed import (
-    ParsedSport,
-    ParsedCountry,
-    ParsedCategory
+from sportindex.provider.models import (
+    _SportData,
+    _CountryData,
+    _CategoryData
 )
 
 if TYPE_CHECKING:
     from .competition import Competition
     from .leaderboard import Rankings
-    from sportindex.provider.parsed import SofascoreProvider
+    from sportindex.provider import SofascoreProvider
 
 
-class Sport(IdentifiableEntity[ParsedSport]):
+class Sport(IdentifiableEntity[_SportData]):
     """A sport (e.g., football, tennis, motorsport).
 
     Provides access to its categories and official rankings, and can be instantiated from minimal raw data without fetching full details.
@@ -38,11 +36,11 @@ class Sport(IdentifiableEntity[ParsedSport]):
     """
     _REPR_FIELDS = ("id", "name", "slug")
 
-    def __init__(self, data: ParsedSport, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _SportData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not isinstance(data, ParsedSport):
-            raise TypeError("Sport data must be of type ParsedSport")
+        if not isinstance(data, _SportData):
+            raise TypeError(f"Sport data must be of type _SportData, got {type(data)}")
 
     @property
     def id(self) -> int:
@@ -83,12 +81,12 @@ class Sport(IdentifiableEntity[ParsedSport]):
     def _from_tuple(cls, data: tuple[int, str, str], provider: SofascoreProvider) -> Sport:
         """Create a Sport instance from a raw tuple (id, slug, name). This is used to build the initial list of sports without needing to fetch categories or rankings."""
         sid, slug, name = data
-        return cls(ParsedSport(id=sid, slug=slug, name=name), provider)
+        return cls(_SportData(id=sid, slug=slug, name=name), provider)
 
     # Events ? 
 
 
-class Country(BaseEntity[ParsedCountry]):
+class Country(BaseEntity[_CountryData]):
     """A country (e.g., France, England, Spain).
 
     Provides standard identifiers (name, slug, alpha-2, alpha-3) and can be instantiated from a name or alpha code.
@@ -105,11 +103,11 @@ class Country(BaseEntity[ParsedCountry]):
     """
     _REPR_FIELDS = ("name", "slug", "alpha2", "alpha3")
 
-    def __init__(self, data: ParsedCountry, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _CountryData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not isinstance(data, ParsedCountry):
-            raise TypeError("Country data must be of type ParsedCountry")
+        if not isinstance(data, _CountryData):
+            raise TypeError(f"Country data must be of type _CountryData, got {type(data)}")
 
         self._country = next(
             (c for c in pycountry.countries if c.name.lower() == self.name.lower()), None
@@ -143,7 +141,7 @@ class Country(BaseEntity[ParsedCountry]):
         )
         if country:
             return cls(
-                data=ParsedCountry(
+                data=_CountryData(
                     name=country.name,
                     slug=country.name.lower().replace(" ", "-"),
                     alpha2=country.alpha_2,
@@ -161,7 +159,7 @@ class Country(BaseEntity[ParsedCountry]):
         )
         if country:
             return cls(
-                data=ParsedCountry(
+                data=_CountryData(
                     name=country.name,
                     slug=country.name.lower().replace(" ", "-"),
                     alpha2=country.alpha_2,
@@ -172,7 +170,7 @@ class Country(BaseEntity[ParsedCountry]):
         return None
 
 
-class Category(IdentifiableEntity[ParsedCategory]):
+class Category(IdentifiableEntity[_CategoryData]):
     """A category within a sport (e.g., 'France Amateur', 'Formula 1', 'International').
 
     Provides access to its sport, country (if applicable), and competitions.
@@ -187,11 +185,11 @@ class Category(IdentifiableEntity[ParsedCategory]):
     """
     _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
-    def __init__(self, data: ParsedCategory, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _CategoryData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not isinstance(data, ParsedCategory):
-            raise TypeError("Category data must be of type ParsedCategory")
+        if not isinstance(data, _CategoryData):
+            raise TypeError(f"Category data must be of type _CategoryData, got {type(data)}")
 
     @property
     def id(self) -> int:

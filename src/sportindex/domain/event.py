@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from dataclasses import dataclass
+from pydantic import BaseModel
 from datetime import datetime, date
 from typing import TYPE_CHECKING, Optional, Literal
 
@@ -9,29 +9,54 @@ from . import logger
 from .base import IdentifiableEntity, EntityCollection
 from .core import Sport
 from .competition import Season
-from .utils import merge_dataclasses
-from sportindex.provider.parsed import ParsedEvent, ParsedStage
+from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
+from sportindex.provider.models import _EventData, _StageData
 
 if TYPE_CHECKING:
     from .channel import EventChannels
     from .competition import Competition
     from .competitor import Competitor
-    from .components import (
-        MatchCompetitors, MatchScore,
-        MatchLineups, MatchPeriod,
-        EventRound, MatchMomentumPoint,
-        PeriodStats, Incident
-    )
+    from .incident import Incident
     from .leaderboard import Standings
     from .referee import Referee
     from .venue import Venue
-    from sportindex.provider.parsed import SofascoreProvider
+    from sportindex.provider import SofascoreProvider
+    from sportindex.provider.models import (
+        Round, Score, MatchPeriod, PeriodStats,
+        _LineupsResponse, MomentumPoint
+    )
 
 
-# ====== Event entity =====
 
-class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
+# ===== Components =====
+
+class MatchCompetitors(BaseModel):
+    """Represents the two competitors in a match."""
+    home: Competitor
+    away: Competitor
+
+
+class MatchLineups(BaseModel):
+    """Represents the lineups of both teams for a match."""
+    home: list[Competitor]
+    away: list[Competitor]
+
+    @classmethod
+    def _from_base_schema(cls, lineup_response: _LineupsResponse, provider: SofascoreProvider) -> MatchLineups:
+        """Create MatchLineups from a _LineupsResponse."""
+        if not lineup_response or not lineup_response.home or not lineup_response.away:
+            logger.debug(f"Lineups response is incomplete for event. Response: {lineup_response}")
+            raise ProviderNotFoundError("Lineups data is incomplete or missing")
+        return cls(
+            home=[Competitor(p, provider) for p in lineup_response.home.players],
+            away=[Competitor(p, provider) for p in lineup_response.away.players]
+        )
+
+
+# ===== Event entity =====
+
+class Event(IdentifiableEntity[_EventData | _StageData]):
     """An event in a sport, such as a football match, tennis match, or motorsport race.
 
     Provides access to event metadata, competitors, scores, lineups, incidents, statistics, and associated entities
@@ -44,7 +69,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         start (datetime): Start time of the event.
         end (datetime | None): End time, if available.
         kind (Literal["match", "race"]): Type of event.
-        round (EventRound | None): Event round, if applicable.
+        round (Round | None): Event round, if applicable.
         sport (Sport): Sport associated with this event.
         season (Season): Season this event belongs to.
         competition (Competition): Competition this event belongs to.
@@ -54,12 +79,12 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
 
     Match-specific attributes:
         competitors (MatchCompetitors | None): Competitors in the event.
-        score (MatchScore | None): Score of the match.
+        score (Score | None): Score of the match.
         periods (list[MatchPeriod] | None): Periods of the match.
         lineups (MatchLineups | None): Player lineups.
         incidents (list[Incident] | None): Notable incidents.
         statistics (list[PeriodStats] | None): Event statistics.
-        momentum_graph (list[MatchMomentumPoint] | None): Momentum graph.
+        momentum_graph (list[MomentumPoint] | None): Momentum graph.
         h2h (EventCollection | None): Head-to-head history.
 
     Race-specific attributes:
@@ -74,13 +99,13 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         _full_load() -> None: Lazy-load full event details from the provider.
     """
     _REPR_FIELDS = ("id", "name", "slug", "start", "kind", "end", "round", "competitors")
-    _TYPE_MAP = {ParsedEvent: 1, ParsedStage: 2}
+    _TYPE_MAP = {_EventData: 1, _StageData: 2}
 
-    def __init__(self, data: ParsedEvent | ParsedStage, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _EventData | _StageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not isinstance(data, (ParsedEvent, ParsedStage)):
-            raise TypeError("Event data must be either ParsedEvent or ParsedStage")
+        if not isinstance(data, (_EventData, _StageData)):
+            raise TypeError(f"Event data must be either _EventData or _StageData, got {type(data)}")
 
         self._full_loaded = False
 
@@ -108,7 +133,7 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
     @property
     def kind(self) -> Literal["match", "race"]:
         """The kind of the event (match or race)."""
-        return "match" if isinstance(self._data, ParsedEvent) else "race"
+        return "match" if isinstance(self._data, _EventData) else "race"
 
     @property
     def end(self) -> Optional[datetime]:
@@ -116,10 +141,14 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         return self._data.end if hasattr(self._data, "end") else None
 
     @property
-    def round(self) -> Optional[EventRound]:
+    def round(self) -> Optional[Round]:
         """The round of the event, if available."""
-        from .components import EventRound
-        return EventRound._from_parsed(self._data.roundInfo, provider=self._provider) if hasattr(self._data, "roundInfo") and self._data.roundInfo else None
+        if isinstance(self._data, _EventData):
+            return self._data.round
+        elif isinstance(self._data, _StageData):
+            # TODO - Needs to be checked, I'm not sure what description and stage_round are in most cases...
+            return self._data.description or (self._data.info.stage_round if self._data.info else None)
+        return None
 
     @property
     def sport(self) -> Sport:
@@ -129,15 +158,16 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
     @cached_property
     def season(self) -> Season:
         """The season this event belongs to."""
-        from sportindex.provider.parsed import ParsedEvent, ParsedStage
-        if isinstance(self._data, ParsedEvent):
-            return Season(self._data.season, self._provider, uniqueTournament=self._data.tournament.uniqueTournament)
-        elif isinstance(self._data, ParsedStage):
-            parent_stage_id = self._data.stageParent.id
-            parent_stage = self._provider.get_stage(parent_stage_id)
-            return Season(parent_stage, self._provider)
+        from sportindex.provider.models import _EventData, _StageData
+        if isinstance(self._data, _EventData):
+            return Season(self._data.season, self._provider, uniqueTournament=self._data.tournament.unique_tournament)
+        elif isinstance(self._data, _StageData):
+            parent_stage_id = self._data.parent.id if self._data.parent else None
+            if not parent_stage_id:
+                raise EntityNotFoundError(f"Parent stage not found for stage {self.id}, cannot determine season")
+            return Season(self._provider.get_stage(parent_stage_id), self._provider)
         else:
-            raise TypeError("Event data must be either ParsedEvent or ParsedStage to determine season")
+            raise TypeError(f"Event data must be either _EventData or _StageData to determine season, got {type(self._data)}")
 
     @property
     def competition(self) -> Competition:
@@ -148,25 +178,25 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
     def referee(self) -> Optional[Referee]:
         """The referee for this event, if available."""
         from .referee import Referee
-        if isinstance(self._data, ParsedEvent) and self._data.referee:
+        if isinstance(self._data, _EventData) and self._data.referee:
             return Referee(self._data.referee, self._provider)
 
     @cached_property
     def venue(self) -> Optional[Venue]:
         """The venue where this event takes place, if available."""
         from .venue import Venue
-        if isinstance(self._data, ParsedEvent) and self._data.venue:
+        if isinstance(self._data, _EventData) and self._data.venue:
             return Venue(self._data.venue, self._provider)
-        elif isinstance(self._data, ParsedStage):
+        elif isinstance(self._data, _StageData):
             return Venue(self._data, self._provider)
 
     @property
     def channels(self) -> EventChannels:
         """Get the channels broadcasting this event, if match and available."""
         from .channel import EventChannels
-        if isinstance(self._data, ParsedEvent):
+        if isinstance(self._data, _EventData):
             return EventChannels(self._provider.get_event_channels(self._data.id), self._provider)
-        elif isinstance(self._data, ParsedStage):
+        elif isinstance(self._data, _StageData):
             return EventChannels(self._provider.get_stage_channels(self._data.id), self._provider)
 
 
@@ -175,9 +205,8 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
     @cached_property
     def competitors(self) -> Optional[MatchCompetitors]:
         """The competitors in this event, if match and available."""
-        if isinstance(self._data, ParsedEvent):
+        if isinstance(self._data, _EventData):
             from .competitor import Competitor
-            from .components import MatchCompetitors
             return MatchCompetitors(
                 home=Competitor(self._data.home.team, self._provider),
                 away=Competitor(self._data.away.team, self._provider)
@@ -185,10 +214,11 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         return None
 
     @property
-    def score(self) -> Optional[MatchScore]:
+    def score(self) -> Optional[Score]:
         """The score for this event, if match and available."""
-        if isinstance(self._data, ParsedEvent):
-            return MatchScore(
+        if isinstance(self._data, _EventData):
+            from sportindex.provider.models import Score
+            return Score(
                 home=self._data.home.score,
                 away=self._data.away.score
             )
@@ -197,98 +227,90 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
     @property
     def periods(self) -> Optional[list[MatchPeriod]]:
         """The periods for this event, if match and available."""
-        if isinstance(self._data, ParsedEvent):
-            return [MatchPeriod._from_parsed(p) for p in self._data.parsedPeriods.periods]
+        if isinstance(self._data, _EventData):
+            return self._data.periods.periods if self._data.periods else None
         return None
 
     @cached_property
     def lineups(self) -> Optional[MatchLineups]:
         """The lineups for this event, if match and available."""
-        if isinstance(self._data, ParsedEvent):
+        if isinstance(self._data, _EventData):
             try:
-                from .components import MatchLineups, TeamLineup
                 parsed_lineups = self._provider.get_event_lineups(self._data.id)
-                if not parsed_lineups or not parsed_lineups.home or not parsed_lineups.away:
-                    logger.debug(f"Lineups not found for event {self.id}.")
-                    return None
-                return MatchLineups(
-                    home=TeamLineup._from_parsed(parsed_lineups.home, provider=self._provider),
-                    away=TeamLineup._from_parsed(parsed_lineups.away, provider=self._provider)
-                )
+                return MatchLineups._from_base_schema(parsed_lineups, self._provider)
             except ProviderNotFoundError:
                 logger.debug(f"Lineups not found for event {self.id}.")
                 return None
         return None
 
     @property
-    def incidents(self) -> Optional[list[Incident]]:
+    def incidents(self) -> list[Incident]:
         """The incidents for this event, if match and available."""
-        if isinstance(self._data, ParsedEvent):
+        if isinstance(self._data, _EventData):
             try:
-                from .components import Incident
+                from .incident import to_domain_incident
                 parsed_incidents = self._provider.get_event_incidents(self._data.id)
-                return [Incident._from_parsed(inc, provider=self._provider) for inc in parsed_incidents]
+                return [to_domain_incident(inc, provider=self._provider) for inc in parsed_incidents]
             except ProviderNotFoundError:
                 logger.debug(f"Incidents not found for event {self.id}.")
-                return None
-        return None
+                return []
+        return []
 
     @cached_property
-    def statistics(self) -> Optional[list[PeriodStats]]:
+    def statistics(self) -> list[PeriodStats]:
         """The statistics for this event, if match and available."""
-        if isinstance(self._data, ParsedEvent):
+        if isinstance(self._data, _EventData):
             try:
-                from .components import PeriodStats
                 parsed_stats_response = self._provider.get_event_statistics(self._data.id)
-                return [PeriodStats._from_parsed(s) for s in parsed_stats_response.statistics]
+                if parsed_stats_response:
+                    return parsed_stats_response.statistics
             except ProviderNotFoundError:
                 logger.debug(f"Statistics not found for event {self.id}.")
-                return None
-        return None
+                return []
+        return []
 
     @property
-    def momentum_graph(self) -> Optional[list[MatchMomentumPoint]]:
+    def momentum_graph(self) -> Optional[list[MomentumPoint]]:
         """The momentum graph for this event, if match and available."""
-        if isinstance(self._data, ParsedEvent):
+        if isinstance(self._data, _EventData):
             try:
                 graph = self._provider.get_event_graph(self._data.id)
-                if graph and graph.graphPoints:
-                    from .components import MatchMomentumPoint
-                    return [MatchMomentumPoint._from_parsed(p) for p in graph.graphPoints]
+                if graph:
+                    return graph.points
             except ProviderNotFoundError:
                 logger.debug(f"Momentum graph not found for event {self.id}.")
-                return None
-        return None
+                return []
+        return []
 
     @cached_property
-    def h2h(self) -> Optional[EventCollection]:
+    def h2h(self) -> EventCollection:
         """Head-to-head history for the competitors in this event, if match and available."""
-        if isinstance(self._data, ParsedEvent):
+        if isinstance(self._data, _EventData):
             try:
-                return EventCollection([Event(e, self._provider) for e in self._provider.get_h2h_history(self._data.customId).events])
+                return EventCollection([Event(e, self._provider) for e in self._provider.get_h2h_history(self._data.custom_id).events])
             except ProviderNotFoundError:
                 logger.debug(f"H2H history not found for event {self.id}.")
-                return None
-        return None
+                return EventCollection([])
+        return EventCollection([])
 
 
     # Race specific properties
 
     @cached_property
-    def substages(self) -> Optional[EventCollection]:
+    def substages(self) -> EventCollection:
         """The substages for this event, if race and available."""
-        if isinstance(self._data, ParsedStage):
+        if isinstance(self._data, _StageData):
             try:
                 return EventCollection([Event(s, self._provider) for s in self._provider.get_stage_substages(self._data.id)])
             except ProviderNotFoundError:
                 logger.debug(f"Substages not found for event {self.id}.")
-                return None
-        return None
+                return EventCollection([])
+        return EventCollection([])
 
     @property
     def standings(self) -> Optional[EntityCollection[Standings]]:
         """The standings for this event, if race and available."""
-        if isinstance(self._data, ParsedStage):
+        if isinstance(self._data, _StageData):
             try:
                 competitors_standings = self._provider.get_stage_standings_competitors(self._data.id)
             except ProviderNotFoundError as e:
@@ -311,13 +333,13 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
     @cached_property
     def winner(self) -> Optional[Competitor]:
         """The winner of this event, if available."""
-        if isinstance(self._data, ParsedEvent):
-            winner_code = self._data.winnerCode
+        if isinstance(self._data, _EventData):
+            winner_code = self._data.winner_code
             if winner_code == 1:
                 return Competitor(self._data.home.team, self._provider)
             elif winner_code == 2:
                 return Competitor(self._data.away.team, self._provider)
-        elif isinstance(self._data, ParsedStage):
+        elif isinstance(self._data, _EventData):
             if self._data.winner:
                 return Competitor(self._data.winner, self._provider)
         return None
@@ -331,12 +353,12 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
         if self._full_loaded:
             return
         try:
-            if isinstance(self._data, ParsedEvent):
-                self._data = merge_dataclasses(self._data, self._provider.get_event(self._data.id))
-            elif isinstance(self._data, ParsedStage):
-                self._data = merge_dataclasses(self._data, self._provider.get_stage_details(self._data.id))
-            if not isinstance(self._data, (ParsedEvent, ParsedStage)):
-                raise TypeError("Event data must be either ParsedEvent or ParsedStage")
+            if isinstance(self._data, _EventData):
+                self._data = merge_pydantic_models(self._data, self._provider.get_event(self._data.id))
+            elif isinstance(self._data, _StageData):
+                self._data = merge_pydantic_models(self._data, self._provider.get_stage_details(self._data.id))
+            if not isinstance(self._data, (_EventData, _StageData)):
+                raise TypeError(f"Event data must be either _EventData or _StageData after full load, got {type(self._data)}")
             self._full_loaded = True
             self._clear_cache()
         except ProviderNotFoundError:
@@ -369,9 +391,9 @@ class Event(IdentifiableEntity[ParsedEvent | ParsedStage]):
 
         data_cls = type_map_reverse[type_idx]
         try:
-            if data_cls == ParsedEvent:
+            if data_cls == _EventData:
                 parsed_data = provider.get_event(raw_id)
-            elif data_cls == ParsedStage:
+            elif data_cls == _StageData:
                 parsed_data = provider.get_stage(raw_id)
             else:
                 raise TypeError(f"Unsupported event type index {type_idx} in ID {event_id}")
