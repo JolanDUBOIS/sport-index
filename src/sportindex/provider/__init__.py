@@ -1,6 +1,18 @@
-"""Provider layer for sportindex: connectors and parsed/raw provider types.
+"""
+Provider module for translating external API data into domain models.
 
-Exports key provider interfaces used across the package.
+This module serves as an internal abstraction layer between the data provider APIs
+and the domain layer. It contains implementation details and data transformation logic
+that should not be directly imported or used by external consumers.
+
+Main exports are intended for internal use only within the sportindex package.
 """
 
-from .parsed import SofascoreProvider
+import logging
+logger = logging.getLogger(__name__)
+
+from .main import SofascoreProvider
+from .models import (
+    Amount, Score, Round, MatchPeriod,
+    PeriodStats, MomentumPoint, Promotion
+)

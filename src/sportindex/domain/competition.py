@@ -7,20 +7,20 @@ from typing import TYPE_CHECKING, Optional
 from . import logger
 from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
 from .core import Category, Sport
-from sportindex.provider.parsed import (
-    ParsedUniqueTournament, ParsedUniqueStage,
-    ParsedSeason, ParsedStage
+from sportindex.provider.models import (
+    _UniqueTournamentData, _UniqueStageData,
+    _SeasonData, _StageData
 )
-from .utils import merge_dataclasses
+from .utils import merge_pydantic_models
 from sportindex.exceptions import InsufficientDataError, ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 
 if TYPE_CHECKING:
     from .event import EventCollection
     from .leaderboard import Standings
-    from sportindex.provider.parsed import SofascoreProvider
+    from sportindex.provider import SofascoreProvider
 
 
-class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]):
+class Competition(IdentifiableEntity[_UniqueTournamentData | _UniqueStageData]):
     """A competition, e.g., 'Ligue 1', 'Rolland Garros'.
 
     Can represent either a unique tournament or a unique stage.
@@ -38,13 +38,13 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
         TypeError: If data is not UniqueTournament or UniqueStage.
     """
     _REPR_FIELDS = ("id", "name", "slug", "sport", "category")
-    _TYPE_MAP = {ParsedUniqueTournament: 1, ParsedUniqueStage: 2}
+    _TYPE_MAP = {_UniqueTournamentData: 1, _UniqueStageData: 2}
 
-    def __init__(self, data: ParsedUniqueTournament | ParsedUniqueStage, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _UniqueTournamentData | _UniqueStageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider)
 
-        if not isinstance(data, (ParsedUniqueTournament, ParsedUniqueStage)):
-            raise TypeError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
+        if not isinstance(data, (_UniqueTournamentData, _UniqueStageData)):
+            raise TypeError(f"Competition data must be either _UniqueTournamentData or _UniqueStageData, got {type(data)}")
 
         self._full_loaded = False
 
@@ -77,18 +77,18 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
     @cached_property
     def seasons(self) -> EntityCollection[Season]:
         """Fetch all seasons for this competition."""
-        if isinstance(self._data, ParsedUniqueTournament):
+        if isinstance(self._data, _UniqueTournamentData):
             return EntityCollection([
                 Season(s, self._provider, competition=self)
                 for s in self._provider.get_unique_tournament_seasons(self._data.id)
             ])
-        elif isinstance(self._data, ParsedUniqueStage):
+        elif isinstance(self._data, _UniqueStageData):
             return EntityCollection([
                 Season(s, self._provider, competition=self)
                 for s in self._provider.get_unique_stage_seasons(self._data.id)
             ])
         else:
-            raise TypeError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
+            raise TypeError(f"Competition data must be either _UniqueTournamentData or _UniqueStageData, got {type(self._data)}")
 
     def _full_load(self) -> None:
         """
@@ -99,12 +99,12 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
         if self._full_loaded:
             return
         try:
-            if isinstance(self._data, ParsedUniqueTournament):
-                self._data = merge_dataclasses(self._data, self._provider.get_unique_tournament(self._data.id))
-            elif isinstance(self._data, ParsedUniqueStage):
+            if isinstance(self._data, _UniqueTournamentData):
+                self._data = merge_pydantic_models(self._data, self._provider.get_unique_tournament(self._data.id))
+            elif isinstance(self._data, _UniqueStageData):
                 logger.debug(f"No endpoint available to fully load unique stage yet, skipping full load...")
-            if not isinstance(self._data, (ParsedUniqueTournament, ParsedUniqueStage)):
-                raise TypeError("Competition data must be either ParsedUniqueTournament or ParsedUniqueStage")
+            if not isinstance(self._data, (_UniqueTournamentData, _UniqueStageData)):
+                raise TypeError(f"Competition data must be either _UniqueTournamentData or _UniqueStageData after full load, got {type(self._data)}")
             self._full_loaded = True
             self._clear_cache()
         except ProviderNotFoundError:
@@ -133,9 +133,9 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
 
         data_cls = type_map_reverse[type_idx]
         try:
-            if data_cls == ParsedUniqueTournament:
+            if data_cls == _UniqueTournamentData:
                 parsed_data = provider.get_unique_tournament(raw_id)
-            elif data_cls == ParsedUniqueStage:
+            elif data_cls == _UniqueStageData:
                 us_seasons = provider.get_unique_stage_seasons(raw_id)
                 if us_seasons:
                     parsed_data = us_seasons[0].uniqueStage
@@ -159,14 +159,14 @@ class Competition(IdentifiableEntity[ParsedUniqueTournament | ParsedUniqueStage]
             if not all_matches:
                 break
             for item in all_matches:
-                if isinstance(item.entity, (ParsedUniqueTournament, ParsedUniqueStage)):
+                if isinstance(item.entity, (_UniqueTournamentData, _UniqueStageData)):
                     entities.append(Competition(item.entity, provider))
             if len(all_matches) > 20:
                 break
         return EntityCollection(entities[:20])
 
 
-class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
+class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
     """A season of a competition, e.g., '2023/24', '2024'.
 
     Provides access to parent competition, sport, standings, fixtures, and results.
@@ -184,13 +184,13 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
         InsufficientDataError: If season data lacks required competition info.
     """
     _REPR_FIELDS = ("id", "name", "year", "start", "sport")
-    _TYPE_MAP = {ParsedSeason: 1, ParsedStage: 2}
+    _TYPE_MAP = {_SeasonData: 1, _StageData: 2}
 
-    def __init__(self, data: ParsedSeason | ParsedStage, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _SeasonData | _StageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not isinstance(data, (ParsedSeason, ParsedStage)):
-            raise TypeError("Season data must be either ParsedSeason or ParsedStage")
+        if not isinstance(data, (_SeasonData, _StageData)):
+            raise TypeError(f"Season data must be either _SeasonData or _StageData, got {type(data)}")
 
         self._full_loaded = False
 
@@ -226,22 +226,21 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
         if "competition" in self._kwargs and isinstance(self._kwargs["competition"], Competition):
             return self._kwargs["competition"]
         else:
-            from sportindex.provider.parsed import ParsedSeason, ParsedStage
-            if isinstance(self._data, ParsedSeason):
-                # ParsedSeason doesn't contain any competition info, so it must be passed in via kwargs (either with competition key or uniqueTournament key)
+            if isinstance(self._data, _SeasonData):
+                # _SeasonData doesn't contain any competition info, so it must be passed in via kwargs (either with competition key or uniqueTournament key)
                 if "uniqueTournament" not in self._kwargs:
-                    raise InsufficientDataError("ParsedSeason requires 'competition' or 'uniqueTournament' to be passed in via kwargs")
+                    raise InsufficientDataError("Season data requires 'competition' or 'uniqueTournament' to be passed in via kwargs")
                 return Competition(self._kwargs["uniqueTournament"], self._provider)
-            elif isinstance(self._data, ParsedStage):
-                return Competition(self._data.uniqueStage, self._provider)
+            elif isinstance(self._data, _StageData):
+                return Competition(self._data.unique_stage, self._provider)
             else:
-                raise TypeError("Season data must be either ParsedSeason or ParsedStage")
+                raise TypeError(f"Season data must be either _SeasonData or _StageData, got {type(self._data)}")
 
     @property
     def standings(self) -> EntityCollection[Standings]:
         """Fetch all standings for this season (only available for current seasons)."""
         from .leaderboard import Standings
-        if isinstance(self._data, ParsedSeason):
+        if isinstance(self._data, _SeasonData):
             standings = self._provider.get_unique_tournament_standings(self.competition._data.id, self._data.id, view="total")
             try:
                 standings.extend(self._provider.get_unique_tournament_standings(self.competition._data.id, self._data.id, view="home"))
@@ -252,7 +251,7 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
             except ProviderNotFoundError as e:
                 logger.debug(f"Failed to fetch away standings for season {self.id}: {e}")
             return EntityCollection([Standings(s, self._provider) for s in standings])
-        elif isinstance(self._data, ParsedStage):
+        elif isinstance(self._data, _StageData):
             try:
                 competitors_standings = self._provider.get_stage_standings_competitors(self._data.id)
             except ProviderNotFoundError as e:
@@ -270,13 +269,13 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
 
     def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this season."""
-        if isinstance(self._data, ParsedSeason):
+        if isinstance(self._data, _SeasonData):
             return self._fetch_paginated_events(
                 self._provider.get_unique_tournament_fixtures, 
                 self.competition._data.id, 
                 self._data.id
             )
-        elif isinstance(self._data, ParsedStage):
+        elif isinstance(self._data, _StageData):
             from .event import Event, EventCollection
             substages = self._provider.get_stage_substages(self._data.id)
             future_substages = [s for s in substages if s.start >= datetime.now(tz=timezone.utc)]
@@ -284,13 +283,13 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
 
     def get_results(self, silent: bool = False) -> EventCollection:
         """Fetch all results for this season."""
-        if isinstance(self._data, ParsedSeason):
+        if isinstance(self._data, _SeasonData):
             return self._fetch_paginated_events(
                 self._provider.get_unique_tournament_results, 
                 self.competition._data.id, 
                 self._data.id
             )
-        elif isinstance(self._data, ParsedStage):
+        elif isinstance(self._data, _StageData):
             from .event import Event, EventCollection
             substages = self._provider.get_stage_substages(self._data.id)
             past_substages = [s for s in substages if s.end < datetime.now(tz=timezone.utc)]
@@ -305,19 +304,19 @@ class Season(IdentifiableEntity[ParsedSeason | ParsedStage], EventAwareMixin):
         if self._full_loaded:
             return
         try:
-            if isinstance(self._data, ParsedSeason):
+            if isinstance(self._data, _SeasonData):
                 logger.info("No endpoint available to fully load unique tournament season yet, skipping full load...")
-            elif isinstance(self._data, ParsedStage):
-                self._data = merge_dataclasses(self._data, self._provider.get_stage(self._data.id))
+            elif isinstance(self._data, _StageData):
+                self._data = merge_pydantic_models(self._data, self._provider.get_stage(self._data.id))
                 if self._data.type_ is not None and self._data.type_.get("name") != "Season":
                     logger.warning(
-                        f"ParsedStage with id {self._data.id} has type '{self._data.type_.get('name')}' "
+                        f"_StageData with id {self._data.id} has type '{self._data.type_.get('name')}' "
                         "instead of 'Season', but is being used to create a Season entity. "
                         "This could lead to incorrect data being assigned to the Season entity. "
                         "Please check the data and consider using a different entity type if appropriate."
                     )
-            if not isinstance(self._data, (ParsedSeason, ParsedStage)):
-                raise TypeError("Season data must be either ParsedSeason or ParsedStage")
+            if not isinstance(self._data, (_SeasonData, _StageData)):
+                raise TypeError(f"Season data must be either _SeasonData or _StageData after full load, got {type(self._data)}")
             self._full_loaded = True
             self._clear_cache()
         except ProviderNotFoundError:

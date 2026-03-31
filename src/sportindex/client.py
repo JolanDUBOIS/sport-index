@@ -44,19 +44,22 @@ class SportClient:
         >>> sport = client.get_sport(id=1)
 
     Raises:
+        TypeError: If an invalid provider is supplied to the constructor.
         EntityNotFoundError: If a requested entity does not exist.
         ProviderNotFoundError: If the data provider is unavailable.
     """
 
-    def __init__(self, provider: Optional[SofascoreProvider] = None):
+    def __init__(self, provider: Optional[Any] = None):
         """Initialize the SportClient.
 
         Args:
-            provider (Optional[SofascoreProvider]): Optional provider instance to fetch data.
+            provider (Optional[Any]): Optional provider instance to fetch data.
                 If not supplied, a default provider will be used.
 
         Initializes in-memory caches for all entity types.
         """
+        if not isinstance(provider, SofascoreProvider) and provider is not None:
+            raise TypeError("Provider must be an instance of SofascoreProvider or None")
         self._provider = provider or _get_default_provider()
 
         self._cache: dict[str, dict[int, Any]] = {

@@ -5,19 +5,30 @@ from typing import TYPE_CHECKING, Optional
 
 from . import logger
 from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
-from .utils import merge_dataclasses
+from .utils import merge_pydantic_models
 from sportindex.exceptions import EntityNotFoundError, DomainError, ProviderNotFoundError, FetchError
-from sportindex.provider.parsed import ParsedManager
+from sportindex.provider.models import _ManagerData, ManagerTenure as _ManagerTenure
 
 if TYPE_CHECKING:
     from .competitor import Competitor
-    from .components import ManagerTenure
     from .core import Country, Sport
     from .event import EventCollection
-    from sportindex.provider.parsed import SofascoreProvider
+    from sportindex.provider import SofascoreProvider
 
 
-class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
+class ManagerTenure(_ManagerTenure):
+    team: Competitor
+
+    @classmethod
+    def _from_base_schema(cls, data: _ManagerTenure, provider: SofascoreProvider) -> ManagerTenure:
+        from .competitor import Competitor
+        return cls(
+            **data.model_dump(by_alias=True, exclude={"team"}),
+            team=Competitor(data.team, provider)
+        )
+
+
+class Manager(IdentifiableEntity[_ManagerData], EventAwareMixin):
     """Represents a sports manager/coach (e.g., football manager, Formula 1 team principal).
 
     This entity handles basic information, associated sport and country, team affiliations,
@@ -47,11 +58,11 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
     """
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "sport", "country")
 
-    def __init__(self, data: ParsedManager, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _ManagerData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not isinstance(data, ParsedManager):
-            raise TypeError("Manager data must be of type ParsedManager")
+        if not isinstance(data, _ManagerData):
+            raise TypeError(f"Manager data must be of type _ManagerData, got {type(data)}")
 
         self._full_loaded = False
 
@@ -73,7 +84,7 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
     @property
     def short_name(self) -> str:
         """The short name of the manager, e.g. "Z. Zidane"."""
-        return self._data.shortName
+        return self._data.short_name
 
     @cached_property
     def sport(self) -> Sport:
@@ -99,9 +110,8 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
 
     @cached_property
     def performances(self) -> list[ManagerTenure]:
-        from .components import ManagerTenure
         parsed_career_history = self._provider.get_manager_career_history(self._data.id)
-        return [ManagerTenure._from_parsed(parsed, provider=self._provider) for parsed in parsed_career_history]
+        return [ManagerTenure._from_base_schema(parsed, provider=self._provider) for parsed in parsed_career_history]
 
     def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this manager."""
@@ -123,9 +133,9 @@ class Manager(IdentifiableEntity[ParsedManager], EventAwareMixin):
         if self._full_loaded:
             return
         try:
-            self._data = merge_dataclasses(self._data, self._provider.get_manager(self._data.id))
-            if not isinstance(self._data, ParsedManager):
-                raise TypeError("Manager data must be of type ParsedManager after full load")
+            self._data = merge_pydantic_models(self._data, self._provider.get_manager(self._data.id))
+            if not isinstance(self._data, _ManagerData):
+                raise TypeError(f"Manager data must be of type _ManagerData after full load, got {type(self._data)}")
             self._full_loaded = True
             self._clear_cache()
         except ProviderNotFoundError:

@@ -6,16 +6,16 @@ import pycountry
 
 from .base import BaseEntity, IdentifiableEntity, EntityCollection
 from sportindex.exceptions import EntityNotFoundError, ProviderNotFoundError, FetchError, DomainError
-from sportindex.provider.parsed import ParsedChannel, ParsedCountryChannelsResponse
+from sportindex.provider.models import _ChannelData, _CountryChannelsResponse
 
 if TYPE_CHECKING:
     from .core import Country
     from .event import EventCollection
-    from sportindex.provider.parsed import SofascoreProvider
+    from sportindex.provider import SofascoreProvider
 
 
 
-class Channel(IdentifiableEntity[ParsedChannel]):
+class Channel(IdentifiableEntity[_ChannelData]):
     """A TV channel broadcasting sports events.
 
     Provides access to the channel's name, ID, and scheduled events.
@@ -32,11 +32,11 @@ class Channel(IdentifiableEntity[ParsedChannel]):
     """
     _REPR_FIELDS = ("id", "name")
 
-    def __init__(self, data: ParsedChannel, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _ChannelData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not isinstance(data, ParsedChannel):
-            raise TypeError("Channel data must be of type ParsedChannel")
+        if not isinstance(data, _ChannelData):
+            raise TypeError(f"Channel data must be of type _ChannelData, got {type(data)}")
 
     @property
     def id(self) -> int:
@@ -71,7 +71,7 @@ class Channel(IdentifiableEntity[ParsedChannel]):
         return cls(parsed_channel_events.channel, provider)
 
 
-class EventChannels(BaseEntity[ParsedCountryChannelsResponse]):
+class EventChannels(BaseEntity[_CountryChannelsResponse]):
     """Channels broadcasting a specific event, organized by country.
 
     Allows querying which channels broadcast the event in a given country.
@@ -88,11 +88,11 @@ class EventChannels(BaseEntity[ParsedCountryChannelsResponse]):
     """
     _REPR_FIELDS = ("channels")
 
-    def __init__(self, data: ParsedCountryChannelsResponse, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _CountryChannelsResponse, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not isinstance(data, ParsedCountryChannelsResponse):
-            raise TypeError("EventChannels data must be of type ParsedCountryChannelsResponse")
+        if not isinstance(data, _CountryChannelsResponse):
+            raise TypeError(f"EventChannels data must be of type _CountryChannelsResponse, got {type(data)}")
 
     @property
     def channels(self) -> dict[str, list[int]]:

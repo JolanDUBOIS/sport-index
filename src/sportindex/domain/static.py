@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .components import Gender
-from sportindex.provider.parsed import SofascoreProvider
+from .gender import Gender
+from sportindex.provider import SofascoreProvider
 
 if TYPE_CHECKING:
     from .base import EntityCollection
@@ -63,9 +63,9 @@ def get_sports() -> EntityCollection[Sport]:
 # Mapping: sport slug → list of (ranking_id, gender | None)
 SPORT_RANKINGS: dict[str, list[tuple[int, Gender]]] = {
     "football": [
-        (1, Gender.MALE),          # UEFA Countries
-        (2, Gender.MALE),          # FIFA Rankings
-        (9, Gender.MALE),          # UEFA Clubs
+        (1, Gender.MALE),        # UEFA Countries
+        (2, Gender.MALE),        # FIFA Rankings
+        (9, Gender.MALE),        # UEFA Clubs
     ],
     "tennis": [
         (5, Gender.MALE),        # ATP Rankings
@@ -76,8 +76,8 @@ SPORT_RANKINGS: dict[str, list[tuple[int, Gender]]] = {
         (35, Gender.FEMALE),     # UTR Women
     ],
     "rugby": [
-        (3, Gender.MALE),          # Rugby Union Rankings
-        (4, Gender.MALE),          # Rugby League Rankings
+        (3, Gender.MALE),        # Rugby Union Rankings
+        (4, Gender.MALE),        # Rugby League Rankings
     ],
     "mma": [
         (11, Gender.MALE),       # UFC Flyweight

@@ -2,14 +2,14 @@
 representing sports data and their relationships (events, competitions, competitors, etc.).
 
 Main elements provided in this package:
-- Core entities: `Sport`, `Country`, `Category`, `Gender`.
+- Core entities: `Sport`, `Country`, `Category`.
 - Base types: `BaseEntity`, `IdentifiableEntity`, `EntityCollection`.
 - Competition models: `Competition`, `Season`.
 - Event models: `Event`, `EventCollection`, `Period`, `Lineups`, `Incident`,
   `EventStatistics`, `MomentumGraph`, `MatchCompetitors`, `MatchScore`, `Round`.
 - Competitors: `Competitor`, `PlayerInfo`, `Amount`.
 - Leaderboards: `Standings`, `Rankings`, `StandingsEntry`, `RankingsEntry`,
-  `Promotion`.
+  `Promotion`, `Gender`.
 - Supporting models: `Manager`, `ManagerCareerHistory`, `Referee`, `Cards`,
   `Venue`, `EventChannels`, `Channel`, `Incident`, etc.
 - Utilities: `get_sports`.
@@ -24,6 +24,8 @@ from .competition import Competition, Season
 from .competitor import Competitor, PlayerInfo
 from .core import Sport, Country, Category
 from .event import Event, EventCollection
+from .gender import Gender
+from .incident import Incident
 from .leaderboard import (
     Standings, Rankings,
     StandingsEntry, RankingsEntry,

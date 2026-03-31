@@ -5,18 +5,18 @@ from typing import TYPE_CHECKING, Optional
 
 from . import logger
 from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
-from .utils import merge_dataclasses
+from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
-from sportindex.provider.parsed import ParsedVenue, ParsedStage
+from sportindex.provider.models import _VenueData, _StageData
 
 if TYPE_CHECKING:
     from .core import Country
     from .event import EventCollection
     from .competitor import Competitor
-    from sportindex.provider.parsed import SofascoreProvider
+    from sportindex.provider import SofascoreProvider
 
 
-class Venue(IdentifiableEntity[ParsedVenue | ParsedStage], EventAwareMixin):
+class Venue(IdentifiableEntity[_VenueData | _StageData], EventAwareMixin):
     """Represents a sports venue or race stage, e.g., a stadium, tennis court, or race track.
 
     Handles basic information, location, capacity, associated teams, and provides
@@ -42,11 +42,11 @@ class Venue(IdentifiableEntity[ParsedVenue | ParsedStage], EventAwareMixin):
     """
     _REPR_FIELDS = ("id", "name")
 
-    def __init__(self, data: ParsedVenue | ParsedStage, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _VenueData | _StageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not isinstance(data, (ParsedVenue, ParsedStage)):
-            raise TypeError("Venue data must be either ParsedVenue or ParsedStage")
+        if not isinstance(data, (_VenueData, _StageData)):
+            raise TypeError(f"Venue data must be either _VenueData or _StageData, got {type(data)}")
 
         self._full_loaded = False
 
@@ -58,48 +58,48 @@ class Venue(IdentifiableEntity[ParsedVenue | ParsedStage], EventAwareMixin):
     @property
     def name(self) -> str:
         """The name of the venue."""
-        if isinstance(self._data, ParsedVenue):
+        if isinstance(self._data, _VenueData):
             return self._data.name or (self._data.stadium.name if self._data.stadium else "")
-        elif isinstance(self._data, ParsedStage):
+        elif isinstance(self._data, _StageData):
             return self._data.info.circuit if self._data.info else ""
 
     @property
     def city(self) -> Optional[str]:
         """The city where the venue is located."""
         self._full_load()
-        if isinstance(self._data, ParsedVenue):
+        if isinstance(self._data, _VenueData):
             return self._data.city
-        elif isinstance(self._data, ParsedStage):
-            return self._data.info.circuitCity if self._data.info else None
+        elif isinstance(self._data, _StageData):
+            return self._data.info.circuit_city if self._data.info else None
 
     @property
     def capacity(self) -> Optional[int]:
         """The capacity of the venue, if available."""
-        if isinstance(self._data, ParsedVenue):
+        if isinstance(self._data, _VenueData):
             self._full_load()
             return self._data.capacity or (self._data.stadium.capacity if self._data.stadium else None)
-        elif isinstance(self._data, ParsedStage):
+        elif isinstance(self._data, _StageData):
             return None
 
     @cached_property
     def country(self) -> Optional[Country]:
         """The country where the venue is located, if available."""
         self._full_load()
-        if isinstance(self._data, ParsedVenue):
+        if isinstance(self._data, _VenueData):
             return Country(self._data.country, self._provider)
-        elif isinstance(self._data, ParsedStage):
-            return Country.from_name(self._data.info.circuitCountry) if self._data.info and self._data.info.circuitCountry else None
+        elif isinstance(self._data, _StageData):
+            return Country.from_name(self._data.info.circuit_country) if self._data.info and self._data.info.circuit_country else None
 
     @cached_property
     def teams(self) -> EntityCollection[Competitor]:
         self._full_load()
         from .competitor import Competitor
-        if isinstance(self._data, ParsedVenue):
+        if isinstance(self._data, _VenueData):
             return EntityCollection([
                 Competitor(t, self._provider)
-                for t in self._data.mainTeams
+                for t in self._data.main_teams
             ])
-        elif isinstance(self._data, ParsedStage):
+        elif isinstance(self._data, _StageData):
             logger.warning("Teams for stages are not available in the current provider implementation, returning empty list")
             return EntityCollection([])
 
@@ -120,9 +120,9 @@ class Venue(IdentifiableEntity[ParsedVenue | ParsedStage], EventAwareMixin):
         if self._full_loaded:
             return
         try:
-            self._data = merge_dataclasses(self._data, self._provider.get_venue(self._data.id))
-            if not isinstance(self._data, ParsedVenue):
-                raise TypeError("Venue data must be of type ParsedVenue after full load")
+            self._data = merge_pydantic_models(self._data, self._provider.get_venue(self._data.id))
+            if not isinstance(self._data, _VenueData):
+                raise TypeError(f"Venue data must be of type _VenueData after full load, got {type(self._data)}")
             self._full_loaded = True
             self._clear_cache()
         except ProviderNotFoundError:

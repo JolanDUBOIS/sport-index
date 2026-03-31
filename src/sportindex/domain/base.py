@@ -1,30 +1,37 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable, Generic, TypeVar, Optional, Iterator, Iterable, overload
+from typing import (
+    TYPE_CHECKING, Callable, Generic,
+    TypeVar, Optional, Iterator,
+    Iterable, Any, Union, overload
+)
 
-from . import logger
-from sportindex.provider.parsed import BaseParsedModel
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import core_schema
+
+from sportindex.provider.models import BaseSchema
 if TYPE_CHECKING:
     from .event import EventCollection
-    from sportindex.provider.parsed import SofascoreProvider, ParsedEventsResponse
+    from sportindex.provider import SofascoreProvider
+    from sportindex.provider.models import _EventsResponse
 
 
-T = TypeVar("T", bound=BaseParsedModel)
+T = TypeVar("T", bound=Union[BaseSchema, list[BaseSchema]])
 
 class BaseEntity(ABC, Generic[T]):
     """Base class for all domain entities."""
-    _data: T | list[T]
+    _data: T
     _REPR_FIELDS = ()
     _ID_OFFSET_STEP = 10_000_000_000 # to avoid ID collisions across entity types when using several sofascore types for the same entity (e.g. competitions, seasons, events, competitors, etc.)
 
-    def __init__(self, data: T | list[T], provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: T, provider: SofascoreProvider, **kwargs) -> None:
         self._data = data
         self._provider = provider
         self._kwargs = kwargs
 
     @property
-    def source(self) -> T | list[T]:
+    def source(self) -> T:
         """Return the parsed data source for this entity."""
         return self._data
 
@@ -44,8 +51,20 @@ class BaseEntity(ABC, Generic[T]):
         field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')!r}" for k in self._REPR_FIELDS)
         return f"<{self.__class__.__name__} {field_str}>"
 
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        """
+        Tells Pydantic how to validate this class when used as a field type.
+        We simply tell it to enforce an `isinstance` check.
+        """
+        return core_schema.is_instance_schema(cls)
 
-class IdentifiableEntity(BaseEntity[T]):
+
+SingleT = TypeVar("SingleT", bound=BaseSchema)
+
+class IdentifiableEntity(BaseEntity[SingleT]):
     """Base class for entities that have a unique identifier."""
 
     @property
@@ -87,7 +106,7 @@ class EventAwareMixin:
         from .event import Event, EventCollection
         parsed_events = []
         for page in range(max_pages):
-            events_response: ParsedEventsResponse = provider_callable(*args, page=page)
+            events_response: _EventsResponse = provider_callable(*args, page=page)
             parsed_events.extend(events_response.events)
             
             # Use getattr safely in case the response lacks hasNextPage

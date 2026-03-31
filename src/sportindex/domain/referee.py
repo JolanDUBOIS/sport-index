@@ -1,23 +1,29 @@
 from __future__ import annotations
 
+from pydantic import BaseModel
 from functools import cached_property
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
 from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
-from .utils import merge_dataclasses
+from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
-from sportindex.provider.parsed import ParsedReferee
+from sportindex.provider.models import _RefereeData
 
 if TYPE_CHECKING:
     from .core import Country, Sport
-    from .components import Cards
     from .event import EventCollection
-    from sportindex.provider.parsed import SofascoreProvider
+    from sportindex.provider import SofascoreProvider
 
 
-class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
+class Cards(BaseModel):
+    """Represents the count of different types of cards issued by a referee."""
+    yellow: int
+    red: int
+    yellow_red: int
+
+
+class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
     """Represents a sports referee/officiator (e.g., football referee, Formula 1 race director).
 
     Handles basic information, associated sport and country, games officiated,
@@ -45,11 +51,11 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
     """
     _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
-    def __init__(self, data: ParsedReferee, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: _RefereeData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not isinstance(data, ParsedReferee):
-            raise TypeError("Referee data must be of type ParsedReferee")
+        if not isinstance(data, _RefereeData):
+            raise TypeError(f"Referee data must be of type _RefereeData, got {type(data)}")
 
         self._full_loaded = False
 
@@ -90,11 +96,10 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
     def cards(self) -> Optional[Cards]:
         """Get the number of cards this referee has given."""
         self._full_load()
-        from .components import Cards
         return Cards(
-            yellow=int(self._data.yellowCards),
-            red=int(self._data.redCards),
-            yellow_red=int(self._data.yellowRedCards)
+            yellow=int(self._data.yellow_cards),
+            red=int(self._data.red_cards),
+            yellow_red=int(self._data.yellow_red_cards)
         )
 
     def get_fixtures(self, silent: bool = False) -> EventCollection:
@@ -117,9 +122,9 @@ class Referee(IdentifiableEntity[ParsedReferee], EventAwareMixin):
         if self._full_loaded:
             return
         try:
-            self._data = merge_dataclasses(self._data, self._provider.get_referee(self._data.id))
-            if not isinstance(self._data, ParsedReferee):
-                raise TypeError("Referee data must be of type ParsedReferee after full load")
+            self._data = merge_pydantic_models(self._data, self._provider.get_referee(self._data.id))
+            if not isinstance(self._data, _RefereeData):
+                raise TypeError(f"Referee data must be of type _RefereeData after full load, got {type(self._data)}")
             self._full_loaded = True
             self._clear_cache()
         except ProviderNotFoundError:
