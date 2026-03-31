@@ -44,6 +44,7 @@ class SportClient:
         >>> sport = client.get_sport(id=1)
 
     Raises:
+        TypeError: If an invalid provider is supplied to the constructor.
         EntityNotFoundError: If a requested entity does not exist.
         ProviderNotFoundError: If the data provider is unavailable.
     """
