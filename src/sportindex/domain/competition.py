@@ -138,7 +138,7 @@ class Competition(IdentifiableEntity[_UniqueTournamentData | _UniqueStageData]):
             elif data_cls == _UniqueStageData:
                 us_seasons = provider.get_unique_stage_seasons(raw_id)
                 if us_seasons:
-                    parsed_data = us_seasons[0].uniqueStage
+                    parsed_data = us_seasons[0].unique_stage
                 else:
                     raise InsufficientDataError(f"Could not find any seasons for unique stage with ID {raw_id}, cannot construct competition")
             else:
