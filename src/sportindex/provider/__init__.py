@@ -1,6 +1,4 @@
-"""Provider layer for sportindex: connectors and parsed/raw provider types.
+import logging
+logger = logging.getLogger(__name__)
 
-Exports key provider interfaces used across the package.
-"""
-
-from .parsed import SofascoreProvider
+from .main import SofascoreProvider
