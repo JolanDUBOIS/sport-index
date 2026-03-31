@@ -33,6 +33,7 @@ from .domain import (
     # Core
     Category,
     Country,
+    Gender,
     Sport,
 
     # Competitors
@@ -43,13 +44,16 @@ from .domain import (
     Competition,
     Season,
 
+    # Channels
+    Channel,
+
     # Events
     Event,
     EventCollection,
     EventChannels,
 
-    # Channels
-    Channel,
+    # Incidents
+    Incident,
 
     # Leaderboards
     Rankings,
@@ -65,7 +69,16 @@ from .domain import (
     Venue,
 )
 
-from . import subelements
+from .provider import (
+    Amount,
+    MatchPeriod,
+    MomentumPoint,
+    PeriodStats,
+    Promotion,
+    Round, 
+    Score,
+)
+
 from . import exceptions
 
 __all__ = [
@@ -81,6 +94,7 @@ __all__ = [
     # Core
     "Category",
     "Country",
+    "Gender",
     "Sport",
 
     # Competitors
@@ -91,11 +105,16 @@ __all__ = [
     "Competition",
     "Season",
 
+    # Channels
+    "Channel",
+
     # Events
     "Event",
     "EventCollection",
     "EventChannels",
-    "Channel",
+
+    # Incidents
+    "Incident",
 
     # Leaderboards
     "Rankings",
@@ -110,7 +129,15 @@ __all__ = [
     # Venues
     "Venue",
 
+    # Provider types
+    "Amount",
+    "MatchPeriod",
+    "MomentumPoint",
+    "PeriodStats",
+    "Promotion",
+    "Round",
+    "Score",
+
     # Exceptions / submodules
     "exceptions",
-    "subelements",
 ]
