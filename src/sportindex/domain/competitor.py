@@ -160,8 +160,8 @@ class Competitor(IdentifiableEntity[_TeamData | _PlayerData], EventAwareMixin):
         self._full_load()
         if isinstance(self._data, _PlayerData) and self._data.team is not None:
             return Competitor(self._data.team, self._provider)
-        elif isinstance(self._data, _TeamData) and self._data.parentTeam is not None:
-            return Competitor(self._data.parentTeam, self._provider)
+        elif isinstance(self._data, _TeamData) and self._data.parent_team is not None:
+            return Competitor(self._data.parent_team, self._provider)
         else:
             return None
 
@@ -209,8 +209,8 @@ class Competitor(IdentifiableEntity[_TeamData | _PlayerData], EventAwareMixin):
         self._full_load()
         if isinstance(self._data, _PlayerData):
             return PlayerInfo._from_parsed_player(self._data)
-        elif isinstance(self._data, _TeamData) and self._data.playerTeamInfo is not None:
-            return PlayerInfo._from_parsed_player_team_info(self._data.playerTeamInfo)
+        elif isinstance(self._data, _TeamData) and self._data.player_team_info is not None:
+            return PlayerInfo._from_parsed_player_team_info(self._data.player_team_info)
         else:
             return None
 
