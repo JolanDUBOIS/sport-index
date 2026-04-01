@@ -1,6 +1,6 @@
 [project]
 name = "sport-index"
-version = "0.4.0"
+version = "0.4.1"
 description = "Unified clients for sports data providers"
 authors = [
     {name = "JolanDUBOIS", email = "jolan.developer@gmail.com"}
