@@ -85,10 +85,11 @@ class Venue(IdentifiableEntity[_VenueData | _StageData], EventAwareMixin):
     def country(self) -> Optional[Country]:
         """The country where the venue is located, if available."""
         self._full_load()
+        from .core import Country
         if isinstance(self._data, _VenueData):
             return Country(self._data.country, self._provider)
         elif isinstance(self._data, _StageData):
-            return Country.from_name(self._data.info.circuit_country) if self._data.info and self._data.info.circuit_country else None
+            return Country.from_name(self._data.info.circuit_country, self._provider) if self._data.info and self._data.info.circuit_country else None
 
     @cached_property
     def teams(self) -> EntityCollection[Competitor]:
