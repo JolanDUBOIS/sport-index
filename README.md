@@ -13,11 +13,11 @@ The full API Reference, domain model overview, and user guide can be found here:
 
 `sport-index` provides a coherent Python API across multiple sports domains:
 
-- Sports, categories, competitions, seasons  
-- Events (matches and races)  
-- Competitors (teams, players)  
-- Managers, referees, venues  
-- Standings and rankings  
+- Sports, categories, competitions, seasons
+- Events (matches and races)
+- Competitors (teams, players)
+- Managers, referees, venues
+- Standings and rankings
 
 Instead of manually traversing provider-specific endpoints, you work with **Python entities and relations**, e.g., `competition -> seasons -> events`.
 
@@ -127,6 +127,39 @@ In-memory entity cache by namespace:
 client.clear_cache()            # clear everything
 client.clear_cache("events")    # clear a single namespace
 ```
+
+## Offline Testing & Mocking
+
+`sport-index` ships with a built-in "Record and Replay" (VCR) fetcher. This allows you to write tests for your own applications using deterministic, local data without hitting the real API or dealing with rate limits during CI/CD.
+
+This is controlled entirely via environment variables:
+
+  * `SPORTINDEX_RECORD_MODE`: Set to `record` (fetches from API and saves to disk) or `replay` (loads from disk).
+  * `SPORTINDEX_FIXTURES_DIR`: The path where JSON mock files should be saved/loaded (defaults to `tests/fixtures`).
+
+**Recommended Pytest Setup (`conftest.py`):**
+To ensure your test suite automatically uses offline fixtures, add this to your `conftest.py`:
+
+```python
+import os
+import pytest
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_sportindex_offline():
+    os.environ["SPORTINDEX_RECORD_MODE"] = "replay"
+    os.environ["SPORTINDEX_FIXTURES_DIR"] = "tests/fixtures"
+    yield
+    os.environ.pop("SPORTINDEX_RECORD_MODE", None)
+```
+
+**Recording New Data:**
+When writing a new test that calls an unrecorded endpoint, simply run Pytest with the record mode active via the CLI:
+
+```bash
+SPORTINDEX_RECORD_MODE=record pytest
+```
+
+The SDK will intercept the HTTP requests, generate safe filenames based on the API paths, and save the exact responses to your fixtures directory. By committing these JSON files to your repository, subsequent test executions become fully deterministic, execute without network latency, and remain completely isolated from upstream rate limits or outages.
 
 ## Exceptions & Error Handling
 
