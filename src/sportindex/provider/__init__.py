@@ -11,8 +11,10 @@ Main exports are intended for internal use only within the sportindex package.
 import logging
 logger = logging.getLogger(__name__)
 
+from .fetcher import Fetcher
 from .main import SofascoreProvider
 from .models import (
     Amount, Score, Round, MatchPeriod,
     PeriodStats, MomentumPoint, Promotion
 )
+from .offline import RecordingFetcher

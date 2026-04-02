@@ -53,8 +53,8 @@ logger = logging.getLogger(__name__)
 class SofascoreProvider:
     """Provider class for Sofascore API fetching."""
 
-    def __init__(self, fetch_delay: float = 0.5):
-        self.fetcher = Fetcher()
+    def __init__(self, fetcher: Fetcher = None, fetch_delay: float = 0.5):
+        self.fetcher = fetcher or Fetcher()
         self.fetch_delay = fetch_delay
 
     # ---- Categories ---- #

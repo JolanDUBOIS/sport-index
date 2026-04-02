@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import logging
 from typing import Optional, TypeVar, Any, Iterable
 
 from .domain import (
@@ -17,15 +19,26 @@ from .domain import (
     Venue
 )
 from .exceptions import ProviderNotFoundError, EntityNotFoundError
-from .provider import SofascoreProvider
+from .provider import SofascoreProvider, Fetcher, RecordingFetcher
 
 
+logger = logging.getLogger(__name__)
 _default_provider = None
 
 def _get_default_provider() -> SofascoreProvider:
     global _default_provider
     if _default_provider is None:
-        _default_provider = SofascoreProvider()
+        record_mode = os.getenv("SPORTINDEX_RECORD_MODE")
+        fixtures_dir = os.getenv("SPORTINDEX_FIXTURES_DIR", "tests/fixtures")
+
+        if record_mode in ("record", "replay", "auto"):
+            logger.info(f"Initialized SportClient in testing mode: '{record_mode}' (Dir: {fixtures_dir})")
+            fetcher = RecordingFetcher(mode=record_mode, cache_dir=fixtures_dir)
+        else:
+            logger.info("Initialized SportClient in standard LIVE mode.")
+            fetcher = Fetcher()
+
+        _default_provider = SofascoreProvider(fetcher=fetcher)
     return _default_provider
 
 
@@ -44,23 +57,16 @@ class SportClient:
         >>> sport = client.get_sport(id=1)
 
     Raises:
-        TypeError: If an invalid provider is supplied to the constructor.
         EntityNotFoundError: If a requested entity does not exist.
         ProviderNotFoundError: If the data provider is unavailable.
     """
 
-    def __init__(self, provider: Optional[Any] = None):
+    def __init__(self):
         """Initialize the SportClient.
-
-        Args:
-            provider (Optional[Any]): Optional provider instance to fetch data.
-                If not supplied, a default provider will be used.
 
         Initializes in-memory caches for all entity types.
         """
-        if not isinstance(provider, SofascoreProvider) and provider is not None:
-            raise TypeError("Provider must be an instance of SofascoreProvider or None")
-        self._provider = provider or _get_default_provider()
+        self._provider = _get_default_provider()
 
         self._cache: dict[str, dict[int, Any]] = {
             "sports": {}, 
