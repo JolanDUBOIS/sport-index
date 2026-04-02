@@ -31,7 +31,7 @@ def _get_default_provider() -> SofascoreProvider:
         record_mode = os.getenv("SPORTINDEX_RECORD_MODE")
         fixtures_dir = os.getenv("SPORTINDEX_FIXTURES_DIR", "tests/fixtures")
 
-        if record_mode in ("record", "replay"):
+        if record_mode in ("record", "replay", "auto"):
             logger.info(f"Initialized SportClient in testing mode: '{record_mode}' (Dir: {fixtures_dir})")
             fetcher = RecordingFetcher(mode=record_mode, cache_dir=fixtures_dir)
         else:
