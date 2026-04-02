@@ -15,8 +15,9 @@ class RecordingFetcher(Fetcher):
     Used for testing without hitting the real API.
 
     Modes:
-    - "record": Fetches from the API and saves successful responses to disk.
-    - "replay": Loads responses from disk instead of making API calls.
+    - "record": Always fetches from the API and overwrites existing fixtures.
+    - "replay": Always loads from disk; raises FileNotFoundError if missing.
+    - "auto":   Loads from disk if available; otherwise fetches and records.
     """
 
     def __init__(self, mode: str, cache_dir: str):
@@ -24,6 +25,9 @@ class RecordingFetcher(Fetcher):
         self.mode = mode.lower()
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        if self.mode not in ("record", "replay", "auto"):
+            raise ValueError(f"Invalid mode '{mode}'. Must be 'record', 'replay', or 'auto'.")
 
     def fetch_url(
             self, url: str, *, params: dict = None, max_retries: int = 3,
@@ -35,15 +39,11 @@ class RecordingFetcher(Fetcher):
         if self.mode == "replay":
             if not file_path.exists():
                 raise FileNotFoundError(f"Fixture not found for URL: {url} (Filename: {filename})")
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            return self._load_fixture(file_path, url)
 
-            response = Response()
-            response.status_code = 200
-            response._content = json.dumps(data).encode("utf-8")
-            response.encoding = "utf-8"
-            response.url = url
-            return response
+
+        if self.mode == "auto" and file_path.exists():
+            return self._load_fixture(file_path, url)
 
         response = super().fetch_url(
             url, 
@@ -53,11 +53,25 @@ class RecordingFetcher(Fetcher):
             initial_delay=initial_delay
         )
 
-        if self.mode == "record" and response.status_code == 200:
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(response.json(), f, indent=2)
+        if self.mode in ("record", "auto") and response.status_code == 200:
+            self._save_fixture(file_path, response)
 
         return response
+
+    def _load_fixture(self, file_path: Path, url: str) -> Response:
+        with open(file_path, "r", encoding="utf-8") as f:
+            raw_json_text = f.read()
+
+        response = Response()
+        response.status_code = 200
+        response._content = raw_json_text.encode("utf-8")
+        response.encoding = "utf-8"
+        response.url = url
+        return response
+
+    def _save_fixture(self, file_path: Path, response: Response) -> None:
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(response.json(), f, indent=2)
 
     def _generate_filename(self, url: str, params: Optional[dict]) -> str:
         parsed_url = urllib.parse.urlparse(url)
