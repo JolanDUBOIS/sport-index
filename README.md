@@ -146,7 +146,7 @@ import pytest
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_sportindex_offline():
-    os.environ["SPORTINDEX_RECORD_MODE"] = "replay"
+    os.environ["SPORTINDEX_RECORD_MODE"] = os.environ.get("SPORTINDEX_RECORD_MODE") or "replay"
     os.environ["SPORTINDEX_FIXTURES_DIR"] = "tests/fixtures"
     yield
     os.environ.pop("SPORTINDEX_RECORD_MODE", None)
