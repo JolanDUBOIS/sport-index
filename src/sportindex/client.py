@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Optional, TypeVar, Any, Iterable
 
 from .domain import (
@@ -17,7 +18,7 @@ from .domain import (
     Venue
 )
 from .exceptions import ProviderNotFoundError, EntityNotFoundError
-from .provider import SofascoreProvider
+from .provider import SofascoreProvider, Fetcher, RecordingFetcher
 
 
 _default_provider = None
@@ -25,7 +26,15 @@ _default_provider = None
 def _get_default_provider() -> SofascoreProvider:
     global _default_provider
     if _default_provider is None:
-        _default_provider = SofascoreProvider()
+        record_mode = os.getenv("SPORTINDEX_RECORD_MODE")
+        fixtures_dir = os.getenv("SPORTINDEX_FIXTURES_DIR", "tests/fixtures")
+
+        if record_mode in ("record", "replay"):
+            fetcher = RecordingFetcher(mode=record_mode, cache_dir=fixtures_dir)
+        else:
+            fetcher = Fetcher()
+
+        _default_provider = SofascoreProvider(fetcher=fetcher)
     return _default_provider
 
 
