@@ -126,22 +126,13 @@ class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
             if not isinstance(self._data, _RefereeData):
                 raise TypeError(f"Referee data must be of type _RefereeData after full load, got {type(self._data)}")
             self._full_loaded = True
-            self._clear_cache()
         except ProviderNotFoundError:
             logger.debug(f"Referee with id {self._data.id} not found during full load")
             self._full_loaded = True
-            self._clear_cache()
         except FetchError as e:
             logger.debug(f"Network error while fully loading referee with id {self._data.id}: {e}")
             self._full_loaded = True
-            self._clear_cache()
-
-    def _clear_cache(self) -> None:
-        """Clear cached properties."""
-        self.__dict__.pop("sport", None)
-        self.__dict__.pop("country", None)
-        self.__dict__.pop("games", None)
-        self.__dict__.pop("cards", None)
+        self._clear_cache()
 
     @classmethod
     def from_id(cls, referee_id: int, provider: SofascoreProvider) -> Referee:

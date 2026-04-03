@@ -17,7 +17,7 @@ from sportindex.provider.models import (
 
 if TYPE_CHECKING:
     from .core import Sport, Category
-    from .gender import Gender
+    from .enums import Gender
     from sportindex.provider import SofascoreProvider
 
 
@@ -216,7 +216,7 @@ class Rankings(BaseEntity[_RankingsResponse]):
     @cached_property
     def gender(self) -> Optional[Gender]:
         """The gender category of these rankings, e.g. "M", "F" or "X" (mixed/other)."""
-        from .core import Gender
+        from .enums import Gender
         return Gender(self._data.ranking_type.gender) if self._data.ranking_type and self._data.ranking_type.gender else None
 
     @cached_property

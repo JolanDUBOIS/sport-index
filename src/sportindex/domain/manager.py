@@ -137,23 +137,13 @@ class Manager(IdentifiableEntity[_ManagerData], EventAwareMixin):
             if not isinstance(self._data, _ManagerData):
                 raise TypeError(f"Manager data must be of type _ManagerData after full load, got {type(self._data)}")
             self._full_loaded = True
-            self._clear_cache()
         except ProviderNotFoundError:
             logger.debug(f"Manager with id {self._data.id} not found during full load")
             self._full_loaded = True
-            self._clear_cache()
         except FetchError as e:
             logger.debug(f"Network error while fully loading manager with id {self._data.id}: {e}")
             self._full_loaded = True
-            self._clear_cache()
-
-    def _clear_cache(self) -> None:
-        """Clear cached properties."""
-        self.__dict__.pop("sport", None)
-        self.__dict__.pop("country", None)
-        self.__dict__.pop("team", None)
-        self.__dict__.pop("teams", None)
-        self.__dict__.pop("performances", None)
+        self._clear_cache()
 
     @classmethod
     def from_id(cls, manager_id: int, provider: SofascoreProvider) -> Manager:
