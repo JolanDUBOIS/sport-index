@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import (
         Round, Score, MatchPeriod, PeriodStats,
-        _LineupsResponse, MomentumPoint
+        _LineupsResponse, MomentumPoint, EventStatus
     )
 
 
@@ -70,6 +70,7 @@ class Event(IdentifiableEntity[_EventData | _StageData]):
         end (datetime | None): End time, if available.
         kind (Literal["match", "race"]): Type of event.
         round (Round | None): Event round, if applicable.
+        status (EventStatus | None): Current status of the event, if available.
         sport (Sport): Sport associated with this event.
         season (Season): Season this event belongs to.
         competition (Competition): Competition this event belongs to.
@@ -153,6 +154,11 @@ class Event(IdentifiableEntity[_EventData | _StageData]):
             ) # Not the most semantically correct way to represent stage rounds, but the best we can do with the available data...
         else:
             raise TypeError(f"Event data must be either _EventData or _StageData to determine round, got {type(self._data)}")
+
+    @property
+    def status(self) -> Optional[EventStatus]:
+        """The status of the event, if available."""
+        return self._data.status
 
     @property
     def sport(self) -> Sport:
