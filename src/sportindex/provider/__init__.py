@@ -15,6 +15,7 @@ from .fetcher import Fetcher
 from .main import SofascoreProvider
 from .models import (
     Amount, Score, Round, MatchPeriod,
-    PeriodStats, MomentumPoint, Promotion
+    PeriodStats, MomentumPoint, Promotion,
+    StageTier
 )
 from .offline import RecordingFetcher

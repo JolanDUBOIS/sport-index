@@ -11,7 +11,7 @@ from .primitives import Amount, EventStatus, Performance, Promotion, Score
 from .referee import _RefereeData
 from .responses import _TeamResponse, _UniqueTournamentSeasonsResponse, _SeasonRoundsResponse, _EventsResponse, _RankingsResponse, _ChannelScheduleResponse, _CountryChannelsResponse, _ChannelEventVotesResponse, _LineupsResponse, _EventStatisticsResponse, _MomentumGraphResponse
 from .search import _SearchResultData
-from .stage import _StageTypeData, _StageInfoData, _StageParentData, _UniqueStageData, _StageData
+from .stage import StageTier, _StageInfoData, _StageParentData, _UniqueStageData, _StageData
 from .stats_event import StatEntry, StatGroup, PeriodStats, MomentumPoint
 from .stats_player import PlayerSeasonStatsItem, PlayerSeasonStats
 from .stats_racing import RaceResults, SeasonCareerHistory, TotalCareerHistory, DriverCareerHistory, Lap, DriverPerformance
