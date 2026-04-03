@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import (
         Round, Score, MatchPeriod, PeriodStats,
-        _LineupsResponse, MomentumPoint
+        _LineupsResponse, MomentumPoint, EventStatus
     )
 
 
@@ -68,6 +68,7 @@ class Event(IdentifiableEntity[T]):
         name (str): Event name.
         slug (str): URL-friendly identifier.
         start (datetime): Start time of the event.
+        status (EventStatus | None): Current status of the event, if available.
         sport (Sport): Sport associated with this event.
 
     Abstract properties:
@@ -121,6 +122,11 @@ class Event(IdentifiableEntity[T]):
     def start(self) -> datetime:
         """The start time of the event."""
         return self._data.start
+
+    @property
+    def status(self) -> Optional[EventStatus]:
+        """The status of the event, if available."""
+        return self._data.status
 
     @property
     def sport(self) -> Sport:
