@@ -33,6 +33,7 @@ from .models import (
     _LineupsResponse,
     _MomentumGraphResponse,
     _RankingsResponse,
+    _SeasonRoundsResponse,
     _TeamResponse,
     _UniqueTournamentSeasonsResponse,
 
@@ -95,6 +96,15 @@ class SofascoreProvider:
         data = self._fetch(url)
         return [_SeasonData.model_validate(season) for season in data.get("seasons", [])]
 
+    def get_unique_tournament_rounds(self, unique_tournament_id: int, season_id: int) -> _SeasonRoundsResponse:
+        """Fetch rounds for a unique tournament + season."""
+        url = self._format(
+            "unique-tournament-rounds",
+            unique_tournament_id=unique_tournament_id,
+            season_id=season_id,
+        )
+        return _SeasonRoundsResponse.model_validate(self._fetch(url))
+
     def get_unique_tournament_standings(
         self,
         unique_tournament_id: int,
@@ -138,6 +148,25 @@ class SofascoreProvider:
             unique_tournament_id=unique_tournament_id,
             season_id=season_id,
             page=page,
+        )
+        return _EventsResponse.model_validate(self._fetch(url))
+
+    def get_unique_tournament_events_round(
+        self,
+        unique_tournament_id: int,
+        season_id: int,
+        round: int,
+        round_slug: str | None = None,
+        round_prefix: str | None = None
+    ) -> _EventsResponse:
+        """Fetch events for a unique tournament + season + round."""
+        url = self._format(
+            "unique-tournament-events-round",
+            unique_tournament_id=unique_tournament_id,
+            season_id=season_id,
+            round=round,
+            round_slug=round_slug,
+            round_prefix=round_prefix
         )
         return _EventsResponse.model_validate(self._fetch(url))
 

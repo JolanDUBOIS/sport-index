@@ -9,7 +9,7 @@ from .manager import _ManagerData, ManagerTenure
 from .player import _PlayerData, PlayerPreviousTeam, TeamPlayers
 from .primitives import Amount, EventStatus, Performance, Promotion, Score
 from .referee import _RefereeData
-from .responses import _TeamResponse, _UniqueTournamentSeasonsResponse, _EventsResponse, _RankingsResponse, _ChannelScheduleResponse, _CountryChannelsResponse, _ChannelEventVotesResponse, _LineupsResponse, _EventStatisticsResponse, _MomentumGraphResponse
+from .responses import _TeamResponse, _UniqueTournamentSeasonsResponse, _SeasonRoundsResponse, _EventsResponse, _RankingsResponse, _ChannelScheduleResponse, _CountryChannelsResponse, _ChannelEventVotesResponse, _LineupsResponse, _EventStatisticsResponse, _MomentumGraphResponse
 from .search import _SearchResultData
 from .stage import _StageTypeData, _StageInfoData, _StageParentData, _UniqueStageData, _StageData
 from .stats_event import StatEntry, StatGroup, PeriodStats, MomentumPoint
@@ -54,6 +54,7 @@ _SearchResultData.model_rebuild(_types_namespace=_shared_namespace)
 TeamPlayers.model_rebuild(_types_namespace=_shared_namespace)
 _EventsResponse.model_rebuild(_types_namespace=_shared_namespace)
 _UniqueTournamentSeasonsResponse.model_rebuild(_types_namespace=_shared_namespace)
+_SeasonRoundsResponse.model_rebuild(_types_namespace=_shared_namespace)
 
 # Standings & Stats
 _TeamStandingsData.model_rebuild(_types_namespace=_shared_namespace)
