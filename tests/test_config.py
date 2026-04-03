@@ -12,16 +12,19 @@ TEST_CONFIG = {
                 "category_id": 1465, # Europe
                 "unique_tournament_id": 7, # UEFA Champions League
                 "season_id": 76953, # 2025/2026
+                "round": {"round": 1} # Champions League Round 1
             },
             {
                 "category_id": 1465, # Europe
                 "unique_tournament_id": 7, # UEFA Champions League
                 "season_id": 61644, # 2024/2025
+                "round": {"round": 636, "round_slug": "playoff-round", "round_prefix": "Qualification"}
             },
             {
                 "category_id": 1, # England
                 "unique_tournament_id": 17, # Premier League
                 "season_id": 76986, # 2025/2026
+                "round": {"round": 1} # Premier League Day 1
             },
             {
                 "category_id": 1, # England

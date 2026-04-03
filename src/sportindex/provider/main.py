@@ -151,6 +151,25 @@ class SofascoreProvider:
         )
         return _EventsResponse.model_validate(self._fetch(url))
 
+    def get_unique_tournament_events_round(
+        self,
+        unique_tournament_id: int,
+        season_id: int,
+        round: int,
+        round_slug: str | None = None,
+        round_prefix: str | None = None
+    ) -> _EventsResponse:
+        """Fetch events for a unique tournament + season + round."""
+        url = self._format(
+            "unique-tournament-events-round",
+            unique_tournament_id=unique_tournament_id,
+            season_id=season_id,
+            round=round,
+            round_slug=round_slug,
+            round_prefix=round_prefix
+        )
+        return _EventsResponse.model_validate(self._fetch(url))
+
     # ---- Teams ---- #
 
     def get_team(self, team_id: int) -> _TeamResponse:

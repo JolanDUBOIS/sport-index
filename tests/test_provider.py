@@ -5,7 +5,7 @@ import pytest
 
 from tests.test_config import TEST_CONFIG
 from sportindex.exceptions import ProviderNotFoundError
-from sportindex.provider import SofascoreProvider
+from sportindex.provider import SofascoreProvider, RecordingFetcher
 from sportindex.provider.models import (
     _CategoryData, _UniqueTournamentData, _UniqueStageData, _SeasonData,
     _TeamStandingsData, _EventsResponse, _TeamResponse,
@@ -31,7 +31,8 @@ def ignore_not_found(context_info=""):
 
 @pytest.fixture(scope="module")
 def provider():
-    return SofascoreProvider(fetch_delay=0.1)
+    fetcher = RecordingFetcher(mode="auto", cache_dir="tests/mock_data")
+    return SofascoreProvider(fetcher=fetcher, fetch_delay=0.1)
 
 # =====================================================================
 # 1. Categories
@@ -133,6 +134,17 @@ def test_get_unique_tournament_results(provider: SofascoreProvider):
                         tourney["unique_tournament_id"], tourney["season_id"]
                     )
                     assert isinstance(result, _EventsResponse)
+
+def test_get_unique_tournament_events_round(provider: SofascoreProvider):
+    for domain, data in TEST_CONFIG.items():
+        if domain not in ["football"]: continue
+        for tourney in data.get("tournaments", []):
+            if "unique_tournament_id" in tourney and "season_id" in tourney and "round" in tourney:
+                round_info = tourney["round"]
+                result = provider.get_unique_tournament_events_round(
+                    tourney["unique_tournament_id"], tourney["season_id"], **round_info
+                )
+                assert isinstance(result, _EventsResponse)
 
 # =====================================================================
 # 3. Teams
