@@ -4,7 +4,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EntityCollection
+from .event import Event, EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import EntityNotFoundError, DomainError, ProviderNotFoundError, FetchError
 from sportindex.provider.models import _ManagerData, ManagerTenure as _ManagerTenure
@@ -12,7 +13,7 @@ from sportindex.provider.models import _ManagerData, ManagerTenure as _ManagerTe
 if TYPE_CHECKING:
     from .competitor import Competitor
     from .core import Country, Sport
-    from .event import EventCollection
+    from .event import Event, EventCollection
     from sportindex.provider import SofascoreProvider
 
 
@@ -28,7 +29,7 @@ class ManagerTenure(_ManagerTenure):
         )
 
 
-class Manager(IdentifiableEntity[_ManagerData], EventAwareMixin):
+class Manager(IdentifiableEntity, EventAwareMixin[Event]):
     """Represents a sports manager/coach (e.g., football manager, Formula 1 team principal).
 
     This entity handles basic information, associated sport and country, team affiliations,
@@ -56,6 +57,7 @@ class Manager(IdentifiableEntity[_ManagerData], EventAwareMixin):
         search(query: str, provider: SofascoreProvider) -> EntityCollection[Manager]:
             Search for managers matching a query string (up to 20 results).
     """
+    _data: _ManagerData
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "sport", "country")
 
     def __init__(self, data: _ManagerData, provider: SofascoreProvider, **kwargs) -> None:
@@ -113,14 +115,14 @@ class Manager(IdentifiableEntity[_ManagerData], EventAwareMixin):
         parsed_career_history = self._provider.get_manager_career_history(self._data.id)
         return [ManagerTenure._from_base_schema(parsed, provider=self._provider) for parsed in parsed_career_history]
 
-    def get_fixtures(self, silent: bool = False) -> EventCollection:
+    def get_fixtures(self, silent: bool = False) -> EventCollection[Event]:
         """Fetch all fixtures for this manager."""
         from .event import EventCollection
         if not silent:
             logger.warning("No fixtures endpoint available for managers, returning empty list")
         return EventCollection([])
 
-    def get_results(self, silent: bool = False) -> EventCollection:
+    def get_results(self, silent: bool = False) -> EventCollection[Event]:
         """Fetch all results for this manager."""
         return self._fetch_paginated_events(self._provider.get_manager_results, self._data.id)
 

@@ -4,7 +4,7 @@ from abc import abstractmethod
 from functools import cached_property
 from pydantic import BaseModel
 from datetime import datetime, date
-from typing import TYPE_CHECKING, Optional, TypeVar, Generic
+from typing import TYPE_CHECKING, Optional, TypeVar, TypeAlias, Generic, Callable
 
 from . import logger
 from .base import IdentifiableEntity, EntityCollection
@@ -25,7 +25,8 @@ if TYPE_CHECKING:
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import (
         Round, Score, MatchPeriod, PeriodStats,
-        _LineupsResponse, MomentumPoint, EventStatus
+        _LineupsResponse, MomentumPoint, EventStatus,
+        _EventsResponse
     )
 
 
@@ -56,9 +57,7 @@ class MatchLineups(BaseModel):
 
 # ===== Event entity =====
 
-T = TypeVar("T", _EventData, _StageData)
-
-class Event(IdentifiableEntity[T]):
+class Event(IdentifiableEntity):
     """An event in a sport, such as a football match, tennis match, or motorsport race.
 
     Provides access to event metadata, competitors, scores, lineups, incidents, statistics, and associated entities
@@ -82,6 +81,7 @@ class Event(IdentifiableEntity[T]):
     Methods:
         from_id(event_id: int, provider) -> Event: Fetch an event by its unique ID.
     """
+    _data: _EventData | _StageData
     _REPR_FIELDS = ("id", "name", "slug", "start")
     _TYPE_MAP = {_EventData: 1, _StageData: 2}
 
@@ -198,7 +198,7 @@ class Event(IdentifiableEntity[T]):
         return cls(parsed_data, provider)
 
 
-class MatchEvent(Event[_EventData]):
+class MatchEvent(Event):
     """An event representing a match between two competitors, such as a football or tennis match.
     
     Provides access to match-specific properties like score, winner, periods, lineups, incidents, statistics, 
@@ -216,6 +216,7 @@ class MatchEvent(Event[_EventData]):
         momentum_graph (list[MomentumPoint]): Data points representing match momentum.
         h2h (EventCollection): Head-to-head history between the two competitors.
     """
+    _data: _EventData
 
     def __init__(self, data: _EventData, provider: SofascoreProvider, **kwargs) -> None:
         if not isinstance(data, _EventData):
@@ -384,7 +385,7 @@ class MatchEvent(Event[_EventData]):
         self._clear_cache()
 
 
-class StageEvent(Event[_StageData]):
+class StageEvent(Event):
     """An event representing a specific stage, phase, or race within a competition.
     
     Provides access to stage-specific properties like tiers, parent-child relationships, 
@@ -397,6 +398,7 @@ class StageEvent(Event[_StageData]):
         substages (EventCollection): Any child stages contained within this stage.
         standings (EntityCollection[Standings] | None): The rankings for competitors and teams.
     """
+    _data: _StageData
 
     def __init__(self, data: _StageData, provider: SofascoreProvider, **kwargs) -> None:
         if not isinstance(data, _StageData):
@@ -524,38 +526,22 @@ class StageEvent(Event[_StageData]):
 
 # ===== Event Collection =====
 
-class MatchEventCollection(EntityCollection[MatchEvent]):
-    """A collection specifically for match events, with additional filtering capabilities."""
+E = TypeVar("E", bound=Event)
 
-    def filter_by_competitors(self, competitor_ids: list[int]) -> MatchEventCollection:
-        """Return a new MatchEventCollection filtered by competitor IDs."""
-        results = []
-        for event in self._entities:
-            if event.competitors:
-                if (event.competitors.home.id in competitor_ids) or (event.competitors.away.id in competitor_ids):
-                    results.append(event)
-        return self.__class__(results)
-
-
-class StageEventCollection(EntityCollection[StageEvent]):
-    """A collection specifically for stage events."""
-    pass
-
-
-class EventCollection(EntityCollection[Event]):
+class EventCollection(EntityCollection[E]):
     """A specialized collection for handling lists of events with common filtering and sorting needs."""
 
     @property
-    def matches(self) -> MatchEventCollection:
-        """Return a new MatchEventCollection containing only match events."""
-        return MatchEventCollection([e for e in self._entities if isinstance(e, MatchEvent)])
+    def matches(self) -> EventCollection[MatchEvent]:
+        """Return a new EventCollection containing only match events."""
+        return EventCollection([e for e in self._entities if isinstance(e, MatchEvent)])
 
     @property
-    def stages(self) -> StageEventCollection:
-        """Return a new StageEventCollection containing only stage events."""
-        return StageEventCollection([e for e in self._entities if isinstance(e, StageEvent)])
+    def stages(self) -> EventCollection[StageEvent]:
+        """Return a new EventCollection containing only stage events."""
+        return EventCollection([e for e in self._entities if isinstance(e, StageEvent)])
 
-    def filter_by_date(self, *, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> EventCollection:
+    def filter_by_date(self, *, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> EventCollection[E]:
         """Return a new EventCollection filtered by date."""
         results = self._entities
 
@@ -572,6 +558,53 @@ class EventCollection(EntityCollection[Event]):
 
         return self.__class__(results)
 
-    def sort_by_date(self, ascending: bool = True) -> EventCollection:
+    def sort_by_date(self, ascending: bool = True) -> EventCollection[E]:
         """Return a new EventCollection sorted by date."""
         return self.__class__(sorted(self._entities, key=lambda e: e.start, reverse=not ascending))
+
+    def filter_by_competitors(self, competitor_ids: list[int]) -> EventCollection[MatchEvent]:
+        """Return a new EventCollection containing only match events involving the specified competitor IDs."""
+        results = []
+        for event in self.matches:
+            if event.competitors and ((event.competitors.home.id in competitor_ids) or (event.competitors.away.id in competitor_ids)):
+                results.append(event)
+        return EventCollection(results)
+
+Events: TypeAlias = EventCollection[Event]
+
+
+# ===== Event Aware Mixin =====
+
+E = TypeVar("E", bound=Event)
+
+class EventAwareMixin(Generic[E]):
+    """
+    Toolkit for entities that fetch fixtures and results.
+    Provides shared pagination and unified date filtering.
+    """
+
+    def get_fixtures(self, silent: bool = False) -> EventCollection[E]:
+        """Override in subclass if fixtures are supported."""
+        raise NotImplementedError(f"Method get_fixtures must be implemented in the subclass {self.__class__.__name__}")
+
+    def get_results(self, silent: bool = False) -> EventCollection[E]:
+        """Override in subclass if results are supported."""
+        raise NotImplementedError(f"Method get_results must be implemented in the subclass {self.__class__.__name__}")
+
+    def get_events(self) -> EventCollection[E]:
+        """Fetch all events."""
+        events: EventCollection[E] = self.get_results(silent=True) + self.get_fixtures(silent=True)
+        return events.sort_by_date()
+
+    def _fetch_paginated_events(self, provider_callable: Callable, *args, max_pages: int = 10) -> EventCollection[E]:
+        """Internal helper to exhaust a paginated provider endpoint."""
+        parsed_events = []
+        for page in range(max_pages):
+            # TODO - Add a try/except here to catch potential ProviderNotFoundError or FetchError...
+            events_response: _EventsResponse = provider_callable(*args, page=page)
+            parsed_events.extend(events_response.events)
+            
+            if not getattr(events_response, "hasNextPage", False):
+                break
+                
+        return EventCollection([Event(e, getattr(self, "_provider")) for e in parsed_events])

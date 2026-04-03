@@ -51,6 +51,7 @@ from .domain import (
     Event,
     EventCollection,
     EventChannels,
+    EventFormat,
 
     # Incidents
     Incident,
@@ -113,6 +114,7 @@ __all__ = [
     "Event",
     "EventCollection",
     "EventChannels",
+    "EventFormat",
 
     # Incidents
     "Incident",

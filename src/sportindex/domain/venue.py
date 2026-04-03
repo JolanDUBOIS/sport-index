@@ -4,7 +4,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EntityCollection
+from .event import EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _VenueData, _StageData
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from sportindex.provider import SofascoreProvider
 
 
-class Venue(IdentifiableEntity[_VenueData | _StageData], EventAwareMixin):
+class Venue(IdentifiableEntity, EventAwareMixin):
     """Represents a sports venue or race stage, e.g., a stadium, tennis court, or race track.
 
     Handles basic information, location, capacity, associated teams, and provides
@@ -40,6 +41,7 @@ class Venue(IdentifiableEntity[_VenueData | _StageData], EventAwareMixin):
         search(query: str, provider: SofascoreProvider) -> EntityCollection[Venue]:
             Search for venues by query string (up to 20 results).
     """
+    _data: _VenueData | _StageData
     _REPR_FIELDS = ("id", "name")
 
     def __init__(self, data: _VenueData | _StageData, provider: SofascoreProvider, **kwargs) -> None:

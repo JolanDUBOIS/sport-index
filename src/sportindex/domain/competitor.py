@@ -6,7 +6,8 @@ from pydantic import BaseModel
 from typing import TYPE_CHECKING, Optional, Literal
 
 from . import logger
-from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EntityCollection
+from .event import EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _TeamData, _PlayerData
@@ -14,14 +15,14 @@ from sportindex.provider.models import _TeamData, _PlayerData
 if TYPE_CHECKING:
     from .core import Category, Country, Sport
     from .enums import Gender
-    from .event import EventCollection
+    from .event import Event, EventCollection
     from .manager import Manager
     from .venue import Venue
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import _PlayerTeamInfoData, Amount
 
 
-class Competitor(IdentifiableEntity[_TeamData | _PlayerData], EventAwareMixin):
+class Competitor(IdentifiableEntity, EventAwareMixin[Event]):
     """A sports competitor, either an individual or a team.
 
     Provides access to identity, affiliations, and related entities such as players, managers, and venues.
@@ -52,6 +53,7 @@ class Competitor(IdentifiableEntity[_TeamData | _PlayerData], EventAwareMixin):
         EntityNotFoundError: If the competitor does not exist in the provider.
         DomainError: If a network or provider error occurs during fetch.
     """
+    _data: _TeamData | _PlayerData
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name", "name_code", "national", "gender", "sport", "country", "category", "kind")
     _TYPE_MAP = {_TeamData: 1, _PlayerData: 2}
 
@@ -82,23 +84,23 @@ class Competitor(IdentifiableEntity[_TeamData | _PlayerData], EventAwareMixin):
     @property
     def short_name(self) -> str:
         """The short name of the competitor."""
-        return self._data.shortName
+        return self._data.short_name
 
     @property
     def full_name(self) -> str:
         """The full name of the competitor."""
         if isinstance(self._data, _TeamData):
-            return self._data.fullName or self._data.name
+            return self._data.full_name or self._data.name
         elif isinstance(self._data, _PlayerData):
-            first = self._data.firstName or ""
-            last = self._data.lastName or ""
+            first = self._data.first_name or ""
+            last = self._data.last_name or ""
             return f"{first} {last}".strip() or self._data.name
 
     @property
     def name_code(self) -> Optional[str]:
         """The name code of the competitor, if applicable."""
         if isinstance(self._data, _TeamData):
-            return self._data.nameCode
+            return self._data.name_code
         else:
             return None
 
@@ -109,8 +111,6 @@ class Competitor(IdentifiableEntity[_TeamData | _PlayerData], EventAwareMixin):
             return self._data.national
         else:
             return None
-
-    # --- Properties to be cached, as they require additional API calls or processing (even if they are quite light) ---
 
     @cached_property
     def gender(self) -> Optional[Gender]:
@@ -214,21 +214,19 @@ class Competitor(IdentifiableEntity[_TeamData | _PlayerData], EventAwareMixin):
         else:
             return None
 
-    # --- Properties to be recomputed each time, as they might change regularly ---
-
-    def get_fixtures(self, silent: bool = False) -> EventCollection:
+    def get_fixtures(self, silent: bool = False) -> EventCollection[Event]:
         """Fetch all fixtures for this competitor."""
+        from .event import EventCollection
         if isinstance(self._data, _PlayerData):
             if not silent:
-                logger.warning(f"No fixtures endpoint for non individual sports players like {self.name}, returning empty list")
-            from .event import EventCollection
+                logger.warning(f"No fixtures endpoint for non individual sports players like {self.name}, returning empty collection")
+            # NOTE - Should we raise ProviderNotFoundError or similar instead ?
             return EventCollection([])
         elif isinstance(self._data, _TeamData):
             return self._fetch_paginated_events(self._provider.get_team_fixtures, self._data.id)
-        from .event import EventCollection
         return EventCollection([])
 
-    def get_results(self, silent: bool = False) -> EventCollection:
+    def get_results(self, silent: bool = False) -> EventCollection[Event]:
         """Fetch all results for this competitor."""
         if isinstance(self._data, _PlayerData):
             return self._fetch_paginated_events(self._provider.get_player_results, self._data.id)

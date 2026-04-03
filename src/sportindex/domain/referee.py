@@ -5,7 +5,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EntityCollection
+from .event import EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _RefereeData
@@ -23,7 +24,7 @@ class Cards(BaseModel):
     yellow_red: int
 
 
-class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
+class Referee(IdentifiableEntity, EventAwareMixin):
     """Represents a sports referee/officiator (e.g., football referee, Formula 1 race director).
 
     Handles basic information, associated sport and country, games officiated,
@@ -49,6 +50,7 @@ class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
         search(query: str, provider: SofascoreProvider) -> EntityCollection[Referee]:
             Search for referees matching a query string (up to 20 results).
     """
+    _data: _RefereeData
     _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
     def __init__(self, data: _RefereeData, provider: SofascoreProvider, **kwargs) -> None:

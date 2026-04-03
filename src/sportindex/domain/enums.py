@@ -22,8 +22,3 @@ class Gender(str, Enum):
         # This triggers if 'value' is not "X", "M", or "F".
         logger.debug(f"Received unknown gender value '{value}', defaulting to UNSPECIFIED")
         return cls.UNSPECIFIED
-
-
-class EventFormat(Enum):
-    MATCH = "match"   # Football, Tennis, Basketball
-    STAGE = "stage"   # Cycling, WRC, Formula 1

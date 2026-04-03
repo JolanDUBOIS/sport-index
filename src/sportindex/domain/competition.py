@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from . import logger
 from .base import IdentifiableEntity, EntityCollection
+from .types import EventFormat
 from .utils import merge_pydantic_models
 from sportindex.exceptions import InsufficientDataError, ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _UniqueTournamentData, _UniqueStageData
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
     from sportindex.provider import SofascoreProvider
 
 
-class Competition(IdentifiableEntity[_UniqueTournamentData | _UniqueStageData]):
+class Competition(IdentifiableEntity):
     """A competition, e.g., 'Ligue 1', 'Rolland Garros'.
 
     Can represent either a unique tournament or a unique stage.
@@ -32,8 +33,10 @@ class Competition(IdentifiableEntity[_UniqueTournamentData | _UniqueStageData]):
     Raises:
         TypeError: If data is not UniqueTournament or UniqueStage.
     """
+    _data: _UniqueTournamentData | _UniqueStageData
     _REPR_FIELDS = ("id", "name", "slug", "sport", "category")
     _TYPE_MAP = {_UniqueTournamentData: 1, _UniqueStageData: 2}
+    _FORMAT_MAP = {_UniqueTournamentData: "match", _UniqueStageData: "stage"}
 
     def __init__(self, data: _UniqueTournamentData | _UniqueStageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider)
@@ -64,6 +67,14 @@ class Competition(IdentifiableEntity[_UniqueTournamentData | _UniqueStageData]):
         """The sport this competition belongs to."""
         return self.category.sport
 
+    @property
+    def format(self) -> EventFormat:
+        """The event format for this competition."""
+        try:
+            return self._FORMAT_MAP[type(self._data)]
+        except KeyError:
+            raise TypeError(f"Unsupported competition data type {type(self._data)}.")
+
     @cached_property
     def category(self) -> Category:
         """The category this competition belongs to."""
@@ -84,8 +95,6 @@ class Competition(IdentifiableEntity[_UniqueTournamentData | _UniqueStageData]):
                 Season(s, self._provider, competition=self)
                 for s in self._provider.get_unique_stage_seasons(self._data.id)
             ])
-        else:
-            raise TypeError(f"Competition data must be either _UniqueTournamentData or _UniqueStageData, got {type(self._data)}")
 
     def _full_load(self) -> None:
         """

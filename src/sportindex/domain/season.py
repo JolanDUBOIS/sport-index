@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from functools import cached_property
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, TypeVar, overload
 
 from . import logger
-from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EntityCollection
+from .event import EventAwareMixin
+from .types import EventFormat
 from .utils import merge_pydantic_models
 from sportindex.exceptions import InsufficientDataError, ProviderNotFoundError, FetchError
 from sportindex.provider.models import _SeasonData, _StageData
@@ -13,13 +15,15 @@ from sportindex.provider.models import _SeasonData, _StageData
 if TYPE_CHECKING:
     from .competition import Competition
     from .core import Sport
-    from .event import EventCollection
+    from .event import Event, MatchEvent, StageEvent, EventCollection
     from .leaderboard import Standings
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import Round, _SeasonRoundsResponse
 
 
-class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
+E = TypeVar("E", bound=Event)
+
+class Season(IdentifiableEntity, EventAwareMixin[E]):
     """A season of a competition, e.g., '2023/24', '2024'.
 
     Provides access to parent competition, sport, standings, fixtures, and results.
@@ -38,8 +42,21 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
     Raises:
         InsufficientDataError: If season data lacks required competition info.
     """
+    _data: _SeasonData | _StageData
     _REPR_FIELDS = ("id", "name", "year", "start", "sport")
     _TYPE_MAP = {_SeasonData: 1, _StageData: 2}
+    _FORMAT_MAP = {_SeasonData: "match", _StageData: "stage"}
+
+
+    @overload
+    def __new__(cls, data: _SeasonData, provider: SofascoreProvider, **kwargs) -> Season[MatchEvent]: ...
+
+    @overload
+    def __new__(cls, data: _StageData, provider: SofascoreProvider, **kwargs) -> Season[StageEvent]: ...
+
+    def __new__(cls, data: _SeasonData | _StageData, provider: SofascoreProvider, **kwargs):
+        return super().__new__(cls)
+
 
     def __init__(self, data: _SeasonData | _StageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -75,6 +92,14 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
         """The sport this season belongs to."""
         return self.competition.sport
 
+    @property
+    def format(self) -> EventFormat:
+        """The event format for this season."""
+        try:
+            return self._FORMAT_MAP.get(type(self._data))
+        except KeyError:
+            raise TypeError(f"Unsupported season data type {type(self._data)}.")
+
     @cached_property
     def competition(self) -> Competition:
         """The competition this season belongs to."""
@@ -88,17 +113,15 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
                 return Competition(self._kwargs["uniqueTournament"], self._provider)
             elif isinstance(self._data, _StageData):
                 return Competition(self._data.unique_stage, self._provider)
-            else:
-                raise TypeError(f"Season data must be either _SeasonData or _StageData, got {type(self._data)}")
 
     @property
     def current_round(self) -> Optional[Round]:
-        """The current round of the season, if available."""
+        """The current round of the season, if match-based season and available."""
         return self._season_rounds.current_round if self._season_rounds else None
 
     @property
     def rounds(self) -> Optional[list[Round]]:
-        """The list of rounds in the season, if available."""
+        """The list of rounds in the season, if match-based season and available."""
         return self._season_rounds.rounds if self._season_rounds else None
 
     @cached_property
@@ -108,8 +131,6 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
         elif isinstance(self._data, _StageData):
             logger.debug(f"No rounds for stages, skipping fetch...")
             return None
-        else:
-            raise TypeError(f"Season data must be either _SeasonData or _StageData, got {type(self._data)}")
 
     @property
     def standings(self) -> EntityCollection[Standings]:
@@ -142,7 +163,7 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
                 Standings(teams_standings, self._provider, name=f"Teams {self.name}", kind="teams")
             ])
 
-    def get_fixtures(self, silent: bool = False) -> EventCollection:
+    def get_fixtures(self, silent: bool = False) -> EventCollection[E]:
         """Fetch all fixtures for this season."""
         if isinstance(self._data, _SeasonData):
             return self._fetch_paginated_events(
@@ -156,7 +177,7 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
             future_substages = [s for s in substages if s.start >= datetime.now(tz=timezone.utc)]
             return EventCollection([Event(s, self._provider) for s in future_substages])
 
-    def get_results(self, silent: bool = False) -> EventCollection:
+    def get_results(self, silent: bool = False) -> EventCollection[E]:
         """Fetch all results for this season."""
         if isinstance(self._data, _SeasonData):
             return self._fetch_paginated_events(
