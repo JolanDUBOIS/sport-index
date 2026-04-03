@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from enum import Enum
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Annotated
 
-from pydantic import Field
+from pydantic import Field, BeforeValidator
 
 from .base import BaseSchema
 
@@ -17,9 +18,37 @@ if TYPE_CHECKING:
 # Primitives
 # ===========================================================================
 
-class _StageTypeData(BaseSchema):
-    id: int
-    name: str  # "Season", "Event", or other values
+class StageTier(Enum):
+    SPORT = 0
+    SEASON = 1
+    EVENT = 2
+    PRACTICE = 3
+    QUALIFYING = 4
+    QUALIFYING_PART = 5
+    RACE = 6
+    LAP = 7
+    STAGE = 8
+    PROLOGUE = 9
+
+    @classmethod
+    def from_payload(cls, value: Any) -> Any:
+        if not isinstance(value, dict) or "name" not in value or "id" not in value:
+            raise ValueError(f"Invalid tier payload, expected dict with 'name' and 'id', got: {value}")
+
+        enum_key = str(value["name"]).upper().replace(" ", "_")
+        provided_id = value["id"]
+
+        try:
+            tier_member = cls[enum_key]
+        except KeyError:
+            raise ValueError(f"Unrecognized StageTier name: '{value['name']}'")
+
+        if tier_member.value != provided_id:
+            raise ValueError(f"StageTier mismatch: '{value['name']}' expects id {tier_member.value}, got {provided_id}")
+
+        return tier_member
+
+StageTierField = Annotated[StageTier, BeforeValidator(StageTier.from_payload)]
 
 
 class _StageInfoData(BaseSchema):
@@ -75,7 +104,7 @@ class _StageData(BaseSchema):
     year: str | None = None
     season_stage_name: str | None = None
     unique_stage: _UniqueStageData
-    type_: _StageTypeData | None = Field(default=None, alias="type")
+    tier: StageTierField | None = Field(default=None, alias="type")
     status: EventStatus | None = None
     flag: str | None = None
     country: _CountryData | None = None
