@@ -14,11 +14,12 @@ ENDPOINTS = {
     # Unique Tournaments
     # ------------------------------------------------------------------
     "unique-tournament": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}",
+    "unique-tournament-seasons": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/seasons",
+    "unique-tournament-rounds": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/rounds",
     "unique-tournament-standings": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/standings/{{view}}",
     "unique-tournament-fixtures": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/events/next/{{page}}",
     "unique-tournament-results": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/events/last/{{page}}",
     "unique-tournament-events-round": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/events/round/{{round}}",
-    "unique-tournament-seasons": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/seasons",
     "unique-tournament-season-info": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/info", # NOTE - Not implemented to provider yet
 
     # ------------------------------------------------------------------
