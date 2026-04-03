@@ -254,8 +254,6 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
         elif isinstance(self._data, _StageData):
             logger.debug(f"No rounds for stages, skipping fetch...")
             return None
-        else:
-            raise TypeError(f"Season data must be either _SeasonData or _StageData, got {type(self._data)}")
 
     @property
     def standings(self) -> EntityCollection[Standings]:
@@ -315,6 +313,22 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
             substages = self._provider.get_stage_substages(self._data.id)
             past_substages = [s for s in substages if s.end < datetime.now(tz=timezone.utc)]
             return EventCollection([Event(s, self._provider) for s in past_substages])
+
+    def get_round_events(self, round: Round) -> EventCollection:
+        """Fetch events for a specific round."""
+        if isinstance(self._data, _SeasonData):
+            from .event import Event, EventCollection
+            events_response = self._provider.get_unique_tournament_events_round(
+                self.competition._data.id, 
+                self._data.id, 
+                round.value,
+                round_slug=round.slug,
+                round_prefix=round.prefix
+            )
+            return EventCollection([Event(e, self._provider) for e in events_response.events])
+        elif isinstance(self._data, _StageData):
+            logger.debug(f"No rounds for stages, skipping fetch...")
+            return EventCollection([])
 
     def _full_load(self) -> None:
         """
