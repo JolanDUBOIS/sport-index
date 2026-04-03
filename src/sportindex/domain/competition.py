@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from .event import EventCollection
     from .leaderboard import Standings
     from sportindex.provider import SofascoreProvider
+    from sportindex.provider.models import Round, _SeasonRoundsResponse
 
 
 class Competition(IdentifiableEntity[_UniqueTournamentData | _UniqueStageData]):
@@ -237,6 +238,26 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
                 raise TypeError(f"Season data must be either _SeasonData or _StageData, got {type(self._data)}")
 
     @property
+    def current_round(self) -> Optional[Round]:
+        """The current round of the season, if available."""
+        return self._season_rounds.current_round if self._season_rounds else None
+
+    @property
+    def rounds(self) -> Optional[list[Round]]:
+        """The list of rounds in the season, if available."""
+        return self._season_rounds.rounds if self._season_rounds else None
+
+    @cached_property
+    def _season_rounds(self) -> Optional[_SeasonRoundsResponse]:
+        if isinstance(self._data, _SeasonData):
+            return self._provider.get_unique_tournament_rounds(self.competition._data.id, self._data.id)
+        elif isinstance(self._data, _StageData):
+            logger.debug(f"No rounds for stages, skipping fetch...")
+            return None
+        else:
+            raise TypeError(f"Season data must be either _SeasonData or _StageData, got {type(self._data)}")
+
+    @property
     def standings(self) -> EntityCollection[Standings]:
         """Fetch all standings for this season (only available for current seasons)."""
         from .leaderboard import Standings
@@ -331,3 +352,4 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
     def _clear_cache(self) -> None:
         """Clear cached properties."""
         self.__dict__.pop("competition", None)
+        self.__dict__.pop("_season_rounds", None)

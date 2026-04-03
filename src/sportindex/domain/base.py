@@ -23,7 +23,6 @@ class BaseEntity(ABC, Generic[T]):
     """Base class for all domain entities."""
     _data: T
     _REPR_FIELDS = ()
-    _ID_OFFSET_STEP = 10_000_000_000 # to avoid ID collisions across entity types when using several sofascore types for the same entity (e.g. competitions, seasons, events, competitors, etc.)
 
     def __init__(self, data: T, provider: SofascoreProvider, **kwargs) -> None:
         self._data = data
@@ -34,18 +33,6 @@ class BaseEntity(ABC, Generic[T]):
     def source(self) -> T:
         """Return the parsed data source for this entity."""
         return self._data
-
-    @classmethod
-    def encode_id(cls, raw_id: int, type_idx: int) -> int:
-        """Creates a globally unique SDK ID by combining the raw ID with a type index."""
-        return (type_idx * cls._ID_OFFSET_STEP) + raw_id
-
-    @classmethod
-    def decode_id(cls, sdk_id: int) -> tuple[int, int]:
-        """Splits an SDK ID back into its raw ID and type index components."""
-        raw_id = sdk_id % cls._ID_OFFSET_STEP
-        type_idx = sdk_id // cls._ID_OFFSET_STEP
-        return raw_id, type_idx
 
     def __repr__(self):
         field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')!r}" for k in self._REPR_FIELDS)
@@ -66,12 +53,25 @@ SingleT = TypeVar("SingleT", bound=BaseSchema)
 
 class IdentifiableEntity(BaseEntity[SingleT]):
     """Base class for entities that have a unique identifier."""
+    _ID_OFFSET_STEP = 10_000_000_000 # to avoid ID collisions across entity types when using several sofascore types for the same entity (e.g. competitions, seasons, events, competitors, etc.)
 
     @property
     @abstractmethod
     def id(self) -> int:
         """The unique ID of the entity, encoded as a globally unique SDK ID."""
         raise NotImplementedError("Subclasses of IdentifiableEntity must implement the id property")
+
+    @classmethod
+    def encode_id(cls, raw_id: int, type_idx: int) -> int:
+        """Creates a globally unique SDK ID by combining the raw ID with a type index."""
+        return (type_idx * cls._ID_OFFSET_STEP) + raw_id
+
+    @classmethod
+    def decode_id(cls, sdk_id: int) -> tuple[int, int]:
+        """Splits an SDK ID back into its raw ID and type index components."""
+        raw_id = sdk_id % cls._ID_OFFSET_STEP
+        type_idx = sdk_id // cls._ID_OFFSET_STEP
+        return raw_id, type_idx
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, type(self)):

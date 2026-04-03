@@ -8,7 +8,7 @@ from .base import BaseSchema
 
 if TYPE_CHECKING:
     from .channel import _ChannelData
-    from .event import _EventData
+    from .event import _EventData, Round
     from .leaderboard import _RankingEntryData, _RankingTypeData
     from .lineup import Lineup
     from .stage import _StageData
@@ -34,6 +34,11 @@ class _TeamResponse(BaseSchema):
 class _UniqueTournamentSeasonsResponse(BaseSchema):
     unique_tournament: _UniqueTournamentData
     seasons: list[_SeasonData] = Field(default_factory=list)
+
+
+class _SeasonRoundsResponse(BaseSchema):
+    current_round: Round | None = None
+    rounds: list[Round] = Field(default_factory=list)
 
 
 # =====================================================================

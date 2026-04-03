@@ -33,6 +33,7 @@ from .models import (
     _LineupsResponse,
     _MomentumGraphResponse,
     _RankingsResponse,
+    _SeasonRoundsResponse,
     _TeamResponse,
     _UniqueTournamentSeasonsResponse,
 
@@ -94,6 +95,15 @@ class SofascoreProvider:
         url = self._format("unique-tournament-seasons", unique_tournament_id=unique_tournament_id)
         data = self._fetch(url)
         return [_SeasonData.model_validate(season) for season in data.get("seasons", [])]
+
+    def get_unique_tournament_rounds(self, unique_tournament_id: int, season_id: int) -> _SeasonRoundsResponse:
+        """Fetch rounds for a unique tournament + season."""
+        url = self._format(
+            "unique-tournament-rounds",
+            unique_tournament_id=unique_tournament_id,
+            season_id=season_id,
+        )
+        return _SeasonRoundsResponse.model_validate(self._fetch(url))
 
     def get_unique_tournament_standings(
         self,

@@ -13,7 +13,7 @@ from sportindex.provider.models import (
     _StageData, RaceResults, DriverCareerHistory, RaceResults,
     _PlayerData, PlayerSeasonStats, _ManagerData, ManagerTenure,
     _RefereeData, _VenueData, _EventData, _LineupsResponse, _EventStatisticsResponse, 
-    _CountryChannelsResponse, _RankingsResponse, 
+    _CountryChannelsResponse, _RankingsResponse, _SeasonRoundsResponse,
     _SearchResultData, _RacingStandingsEntryData,
     _ChannelData, _ChannelScheduleResponse
 )
@@ -88,6 +88,17 @@ def test_get_unique_tournament_seasons(provider: SofascoreProvider):
                 assert isinstance(result, list)
                 if result:
                     assert isinstance(result[0], _SeasonData)
+
+def test_get_unique_tournament_rounds(provider: SofascoreProvider):
+    for domain, data in TEST_CONFIG.items():
+        if domain in ["misc", "errors"]: continue
+        for tourney in data.get("tournaments", []):
+            if "unique_tournament_id" in tourney and "season_id" in tourney:
+                with ignore_not_found(f"Domain: {domain}, Tournament ID: {tourney['unique_tournament_id']}, Season ID: {tourney['season_id']}"):
+                    result = provider.get_unique_tournament_rounds(
+                        tourney["unique_tournament_id"], tourney["season_id"]
+                    )
+                    assert isinstance(result, _SeasonRoundsResponse)
 
 def test_get_unique_tournament_standings(provider: SofascoreProvider):
     for domain, data in TEST_CONFIG.items():
