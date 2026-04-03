@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 class Round(BaseSchema):
     name: str | None = None
     slug: str | None = None
+    prefix: str | None = None
     value: int | None = Field(default=None, alias="round")
 
 

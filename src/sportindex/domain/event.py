@@ -146,8 +146,8 @@ class Event(IdentifiableEntity[_EventData | _StageData]):
         if isinstance(self._data, _EventData):
             return self._data.round
         elif isinstance(self._data, _StageData):
-            # TODO - Needs to be checked, I'm not sure what description and stage_round are in most cases...
-            return self._data.description or (self._data.info.stage_round if self._data.info else None)
+            from sportindex.provider.models import Round
+            return Round(value=self._data.info.stage_round) if self._data.info else None
         return None
 
     @property
