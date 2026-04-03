@@ -24,7 +24,7 @@ from .competition import Competition, Season
 from .competitor import Competitor, PlayerInfo
 from .core import Sport, Country, Category
 from .event import Event, EventCollection
-from .gender import Gender
+from .enums import Gender
 from .incident import Incident
 from .leaderboard import (
     Standings, Rankings,
