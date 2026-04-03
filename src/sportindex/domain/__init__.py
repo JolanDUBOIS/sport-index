@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 from .base import BaseEntity, IdentifiableEntity, EventAwareMixin, EntityCollection
 from .channel import EventChannels, Channel
-from .competition import Competition, Season
+from .competition import Competition
 from .competitor import Competitor, PlayerInfo
 from .core import Sport, Country, Category
 from .event import Event, EventCollection
@@ -32,5 +32,6 @@ from .leaderboard import (
 )
 from .manager import Manager
 from .referee import Referee
+from .season import Season
 from .static import get_sports
 from .venue import Venue

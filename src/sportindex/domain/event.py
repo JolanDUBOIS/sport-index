@@ -15,11 +15,12 @@ from sportindex.provider.models import _EventData, _StageData, StageTier
 
 if TYPE_CHECKING:
     from .channel import EventChannels
-    from .competition import Competition, Season
+    from .competition import Competition
     from .competitor import Competitor
     from .incident import Incident
     from .leaderboard import Standings
     from .referee import Referee
+    from .season import Season
     from .venue import Venue
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import (
@@ -111,7 +112,7 @@ class Event(IdentifiableEntity[T]):
     @abstractmethod
     def name(self) -> str:
         """The name of the event."""
-        raise NotImplementedError
+        raise NotImplementedError("Property name must be implemented in subclasses")
 
     @property
     def slug(self) -> str:
@@ -137,31 +138,31 @@ class Event(IdentifiableEntity[T]):
     @abstractmethod
     def competition(self) -> Optional[Competition]:
         """The competition this event belongs to, if available."""
-        raise NotImplementedError
+        raise NotImplementedError("Property competition must be implemented in subclasses")
 
     @property
     @abstractmethod
     def season(self) -> Season:
         """The season this event belongs to."""
-        raise NotImplementedError
+        raise NotImplementedError("Property season must be implemented in subclasses")
 
     @property
     @abstractmethod
     def venue(self) -> Optional[Venue]:
         """The venue where this event takes place, if available."""
-        raise NotImplementedError
+        raise NotImplementedError("Property venue must be implemented in subclasses")
 
     @property
     @abstractmethod
     def channels(self) -> EventChannels:
         """Get the channels broadcasting this event."""
-        raise NotImplementedError
+        raise NotImplementedError("Property channels must be implemented in subclasses")
 
     @property
     @abstractmethod
     def winner(self) -> Optional[Competitor]:
         """The winner of this event, if available."""
-        raise NotImplementedError
+        raise NotImplementedError("Property winner must be implemented in subclasses")
 
     @abstractmethod
     def _full_load(self) -> None:
@@ -170,7 +171,7 @@ class Event(IdentifiableEntity[T]):
         Called automatically when accessing properties that require full details
         missing from the initial lightweight API response.
         """
-        raise NotImplementedError
+        raise NotImplementedError("Method _full_load method must be implemented in subclasses")
 
     @classmethod
     def from_id(cls, event_id: int, provider: SofascoreProvider) -> Event:
@@ -244,7 +245,7 @@ class MatchEvent(Event[_EventData]):
     def season(self) -> Season:
         """The season this event belongs to."""
         self._full_load()
-        from .competition import Season
+        from .season import Season
         return Season(self._data.season, self._provider, uniqueTournament=self._data.tournament.unique_tournament)
 
     @cached_property
@@ -439,7 +440,7 @@ class StageEvent(Event[_StageData]):
             if node_data.parent.id == node_data.id:
                 logger.debug(f"Reached top level stage without finding season for event {self.id}.")
                 return None
-        from .competition import Season
+        from .season import Season
         return Season(node_data, self._provider)
 
     @cached_property
