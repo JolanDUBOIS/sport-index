@@ -97,7 +97,7 @@ class EventAwareMixin:
         raise NotImplementedError(f"Method get_results must be implemented in the subclass {self.__class__.__name__}")
 
     def get_events(self) -> EventCollection:
-        """Fetch all events and apply filters."""
+        """Fetch all events."""
         events: EventCollection = self.get_results(silent=True) + self.get_fixtures(silent=True)
         return events.sort_by_date()
 

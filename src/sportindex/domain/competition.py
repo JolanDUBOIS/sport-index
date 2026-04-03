@@ -179,6 +179,8 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
         start (Optional[datetime]): Start date of the season.
         sport (Sport): Parent sport.
         competition (Competition): Parent competition (lazy-loaded).
+        current_round (Optional[Round]): Current round of the season, if available.
+        rounds (Optional[list[Round]]): List of rounds in the season, if available.
         standings (EntityCollection[Standings]): Standings for this season.
 
     Raises:
