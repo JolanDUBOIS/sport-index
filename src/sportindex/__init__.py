@@ -77,6 +77,7 @@ from .provider import (
     Promotion,
     Round, 
     Score,
+    StageTier
 )
 
 from . import exceptions
@@ -137,6 +138,7 @@ __all__ = [
     "Promotion",
     "Round",
     "Score",
+    "StageTier",
 
     # Exceptions / submodules
     "exceptions",

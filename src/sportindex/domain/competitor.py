@@ -13,8 +13,8 @@ from sportindex.provider.models import _TeamData, _PlayerData
 
 if TYPE_CHECKING:
     from .core import Category, Country, Sport
+    from .enums import Gender
     from .event import EventCollection
-    from .gender import Gender
     from .manager import Manager
     from .venue import Venue
     from sportindex.provider import SofascoreProvider
@@ -115,7 +115,7 @@ class Competitor(IdentifiableEntity[_TeamData | _PlayerData], EventAwareMixin):
     @cached_property
     def gender(self) -> Optional[Gender]:
         """The gender of the competitor, if applicable."""
-        from .gender import Gender
+        from .enums import Gender
         return Gender(self._data.gender)
 
     @cached_property
@@ -253,29 +253,13 @@ class Competitor(IdentifiableEntity[_TeamData | _PlayerData], EventAwareMixin):
             if not isinstance(self._data, (_PlayerData, _TeamData)):
                 raise TypeError("Competitor data must be either _PlayerData or _TeamData.")
             self._full_loaded = True
-            self._clear_cache()
         except ProviderNotFoundError:
             logger.debug(f"Competitor with id {self._data.id} not found during full load.")
             self._full_loaded = True
-            self._clear_cache()
         except FetchError as e:
             logger.debug(f"Network error while fully loading competitor with id {self._data.id}: {e}")
             self._full_loaded = True
-            self._clear_cache()
-
-    def _clear_cache(self) -> None:
-        """Clear cached properties."""
-        self.__dict__.pop("gender", None)
-        self.__dict__.pop("sport", None)
-        self.__dict__.pop("country", None)
-        self.__dict__.pop("category", None)
-        self.__dict__.pop("kind", None)
-        self.__dict__.pop("parent", None)
-        self.__dict__.pop("players", None)
-        self.__dict__.pop("drivers", None)
-        self.__dict__.pop("manager", None)
-        self.__dict__.pop("venue", None)
-        self.__dict__.pop("player_info", None)
+        self._clear_cache()
 
     @classmethod
     def from_id(cls, competitor_id: int, provider: SofascoreProvider) -> Competitor:

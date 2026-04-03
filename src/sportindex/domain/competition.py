@@ -107,20 +107,13 @@ class Competition(IdentifiableEntity[_UniqueTournamentData | _UniqueStageData]):
             if not isinstance(self._data, (_UniqueTournamentData, _UniqueStageData)):
                 raise TypeError(f"Competition data must be either _UniqueTournamentData or _UniqueStageData after full load, got {type(self._data)}")
             self._full_loaded = True
-            self._clear_cache()
         except ProviderNotFoundError:
             logger.debug(f"Competition with id {self._data.id} not found during full load")
             self._full_loaded = True
-            self._clear_cache()
         except FetchError as e:
             logger.debug(f"Network error while fully loading competition with id {self._data.id}: {e}")
             self._full_loaded = True
-            self._clear_cache()
-
-    def _clear_cache(self) -> None:
-        """Clear cached properties."""
-        self.__dict__.pop("category", None)
-        self.__dict__.pop("seasons", None)
+        self._clear_cache()
 
     @classmethod
     def from_id(cls, competition_id: int, provider: SofascoreProvider) -> Competition:
@@ -341,17 +334,10 @@ class Season(IdentifiableEntity[_SeasonData | _StageData], EventAwareMixin):
             if not isinstance(self._data, (_SeasonData, _StageData)):
                 raise TypeError(f"Season data must be either _SeasonData or _StageData after full load, got {type(self._data)}")
             self._full_loaded = True
-            self._clear_cache()
         except ProviderNotFoundError:
             logger.debug(f"Season with id {self._data.id} not found during full load")
             self._full_loaded = True
-            self._clear_cache()
         except FetchError as e:
             logger.debug(f"Network error while fully loading season with id {self._data.id}: {e}")
             self._full_loaded = True
-            self._clear_cache()
-
-    def _clear_cache(self) -> None:
-        """Clear cached properties."""
-        self.__dict__.pop("competition", None)
-        self.__dict__.pop("_season_rounds", None)
+        self._clear_cache()

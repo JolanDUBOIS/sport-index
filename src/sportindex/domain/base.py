@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from functools import cached_property
 from typing import (
     TYPE_CHECKING, Callable, Generic,
     TypeVar, Optional, Iterator,
@@ -33,6 +34,12 @@ class BaseEntity(ABC, Generic[T]):
     def source(self) -> T:
         """Return the parsed data source for this entity."""
         return self._data
+
+    def _clear_cache(self) -> None:
+        for cls in type(self).mro():
+            for attr_name, attr_value in vars(cls).items():
+                if isinstance(attr_value, cached_property):
+                    self.__dict__.pop(attr_name, None)
 
     def __repr__(self):
         field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')!r}" for k in self._REPR_FIELDS)

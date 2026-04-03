@@ -125,20 +125,14 @@ class Venue(IdentifiableEntity[_VenueData | _StageData], EventAwareMixin):
             if not isinstance(self._data, _VenueData):
                 raise TypeError(f"Venue data must be of type _VenueData after full load, got {type(self._data)}")
             self._full_loaded = True
-            self._clear_cache()
         except ProviderNotFoundError:
             logger.debug(f"Venue with id {self._data.id} not found during full load")
             self._full_loaded = True
-            self._clear_cache()
         except FetchError as e:
             logger.debug(f"Network error while fully loading venue with id {self._data.id}: {e}")
             self._full_loaded = True
-            self._clear_cache()
+        self._clear_cache()
 
-    def _clear_cache(self) -> None:
-        """Clear cached properties."""
-        self.__dict__.pop("country", None)
-        self.__dict__.pop("teams", None)
     @classmethod
     def from_id(cls, venue_id: int, provider: SofascoreProvider) -> Venue:
         """Fetch a venue by its ID."""

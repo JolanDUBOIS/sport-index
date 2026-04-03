@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .gender import Gender
+from .enums import Gender
 from sportindex.provider import SofascoreProvider
 
 if TYPE_CHECKING:
