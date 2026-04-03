@@ -6,7 +6,7 @@ from datetime import datetime, date
 from typing import TYPE_CHECKING, Optional, Literal
 
 from . import logger
-from .base import IdentifiableEntity, EntityCollection
+from .base import BaseEntity, IdentifiableEntity, EntityCollection
 from .core import Sport
 from .competition import Season
 from .utils import merge_pydantic_models
@@ -147,8 +147,12 @@ class Event(IdentifiableEntity[_EventData | _StageData]):
             return self._data.round
         elif isinstance(self._data, _StageData):
             from sportindex.provider.models import Round
-            return Round(value=self._data.info.stage_round) if self._data.info else None
-        return None
+            return Round(
+                name=self._data.description,
+                value=self._data.info.stage_round if self._data.info else None
+            ) # Not the most semantically correct way to represent stage rounds, but the best we can do with the available data...
+        else:
+            raise TypeError(f"Event data must be either _EventData or _StageData to determine round, got {type(self._data)}")
 
     @property
     def sport(self) -> Sport:
