@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 import pycountry
 
@@ -61,7 +61,7 @@ class Channel(IdentifiableEntity):
         ])
 
     @classmethod
-    def from_id(cls, channel_id: int, provider: SofascoreProvider) -> Channel:
+    def from_id(cls, channel_id: int, provider: SofascoreProvider) -> Self:
         """Fetch a channel by its ID."""
         try:
             parsed_channel_events = provider.get_channel_schedule(channel_id)

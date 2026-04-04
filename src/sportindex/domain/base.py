@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import (
-    TYPE_CHECKING, Generic, Callable,
-    TypeVar, Optional, Iterator,
+    TYPE_CHECKING, Generic, Callable, Literal,
+    TypeVar, Optional, Iterator, Self,
     Iterable, Any, Sequence, overload
 )
 
@@ -12,7 +12,7 @@ from pydantic import GetCoreSchemaHandler
 from pydantic_core import core_schema
 
 from . import logger
-from sportindex.exceptions import ProviderNotFoundError
+from sportindex.exceptions import ProviderNotFoundError, EntityNotFoundError
 from sportindex.provider.models import BaseSchema
 if TYPE_CHECKING:
     from sportindex.provider import SofascoreProvider
@@ -60,7 +60,7 @@ class BaseEntity(ABC):
 
 class IdentifiableEntity(BaseEntity):
     """Base class for entities that have a unique identifier."""
-    _ID_OFFSET_STEP = 10_000_000_000 # to avoid ID collisions across entity types when using several sofascore types for the same entity (e.g. competitions, seasons, events, competitors, etc.)
+    _N_TYPES: int = 1
 
     @property
     @abstractmethod
@@ -70,15 +70,23 @@ class IdentifiableEntity(BaseEntity):
 
     @classmethod
     def encode_id(cls, raw_id: int, type_idx: int) -> int:
-        """Creates a globally unique SDK ID by combining the raw ID with a type index."""
-        return (type_idx * cls._ID_OFFSET_STEP) + raw_id
+        """Encodes the raw provider ID and type index into a single unique SDK ID."""
+        if type_idx > cls._N_TYPES or type_idx < 1:
+            raise ValueError(f"type_idx {type_idx} exceeds maximum _N_TYPES ({cls._N_TYPES}) for {cls.__name__}")
+        return (raw_id * cls._N_TYPES) + (type_idx - 1)
 
     @classmethod
     def decode_id(cls, sdk_id: int) -> tuple[int, int]:
-        """Splits an SDK ID back into its raw ID and type index components."""
-        raw_id = sdk_id % cls._ID_OFFSET_STEP
-        type_idx = sdk_id // cls._ID_OFFSET_STEP
+        """Decodes the combined SDK ID into (raw_id, type_idx)."""
+        raw_id = sdk_id // cls._N_TYPES
+        type_idx = (sdk_id % cls._N_TYPES) + 1
         return raw_id, type_idx
+
+    @classmethod
+    @abstractmethod
+    def from_id(cls, entity_id: int, provider: SofascoreProvider) -> Self:
+        """Create an instance of the entity from its unique ID."""
+        raise NotImplementedError("Subclasses of IdentifiableEntity must implement the from_id class method")
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, type(self)):
@@ -141,11 +149,34 @@ class EntityCollection(Generic[E]):
             return self.__class__(self._entities[key])
         return self._entities[key]
 
-    def get(self, **kwargs) -> Optional[E]:
-        """Get an entity by arbitrary attributes (e.g. id=1, name="Football")."""
+    @overload
+    def get(self, *, strict: Literal[True], **kwargs: Any) -> E: ...
+
+    @overload
+    def get(self, strict: Literal[False] = False, **kwargs: Any) -> Optional[E]: ...
+
+    def get(self, strict: bool = False,**kwargs) -> Optional[E]:
+        """
+        Get an entity by arbitrary attributes (e.g. id=1, name="Football").
+
+        Args:
+            strict: If True, raise EntityNotFoundError if no match is found instead of returning None.
+            **kwargs: Attribute filters to match against the entity.
+        
+        Returns:
+            The matching entity, or None if no match is found and strict=False.
+
+        Raises:
+            EntityNotFoundError: If strict=True and no matching entity is found.
+        """
         for e in self._entities:
             if all(getattr(e, k, None) == v for k, v in kwargs.items()):
                 return e
+
+        if strict:
+            filter_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
+            raise EntityNotFoundError(f"No entity found in collection matching: {filter_str}")
+
         return None
 
     def search(self, query: str, by: str = "name") -> EntityCollection[E]:
@@ -222,8 +253,15 @@ class EntityCollection(Generic[E]):
 
 # ===== Searchable Mixin =====
 
-class SearchableMixin:
-    """Mixin for entities that can be searched via pagination."""
+I = TypeVar("I", bound=IdentifiableEntity)
+
+class SearchableMixin(ABC, Generic[I]):
+    """
+    Mixin for entities that can be searched via pagination.
+
+    Methods:
+        search() -> EntityCollection[I]: Search for entities matching a query, with pagination support.
+    """
 
     @classmethod
     def _paginate_search(
@@ -233,7 +271,7 @@ class SearchableMixin:
         search_func: Callable,
         valid_types: tuple[type, ...] | None = None,
         max_results: int = 20,
-    ) -> EntityCollection:
+    ) -> EntityCollection[I]:
         entities = []
         for page in range(51):
             try:
@@ -256,3 +294,9 @@ class SearchableMixin:
                 break
                 
         return EntityCollection(entities[:max_results])
+
+    @classmethod
+    @abstractmethod
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[I]:
+        """Search for entities matching the query using the provider's search functionality."""
+        raise NotImplementedError("Subclasses of SearchableMixin must implement the search class method")

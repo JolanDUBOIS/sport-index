@@ -12,13 +12,12 @@ Main elements provided in this package:
   `Promotion`, `Gender`.
 - Supporting models: `Manager`, `ManagerCareerHistory`, `Referee`, `Cards`,
   `Venue`, `EventChannels`, `Channel`, `Incident`, etc.
-- Utilities: `get_sports`.
 """
 
 import logging
 logger = logging.getLogger(__name__)
 
-from .base import BaseEntity, IdentifiableEntity, EntityCollection
+from .base import BaseEntity, IdentifiableEntity, EntityCollection, SearchableMixin
 from .channel import EventChannels, Channel
 from .competition import Competition
 from .competitor import Competitor, Team, Player, PlayerInfo
@@ -33,6 +32,5 @@ from .leaderboard import (
 from .manager import Manager
 from .referee import Referee
 from .season import Season
-from .static import get_sports
 from .types import EventFormat
 from .venue import Venue

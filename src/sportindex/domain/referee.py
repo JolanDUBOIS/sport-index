@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Self
 
 from . import logger
 from .base import IdentifiableEntity, EntityCollection, SearchableMixin
@@ -133,7 +133,7 @@ class Referee(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         self._clear_cache()
 
     @classmethod
-    def from_id(cls, referee_id: int, provider: SofascoreProvider) -> Referee:
+    def from_id(cls, referee_id: int, provider: SofascoreProvider) -> Self:
         """Fetch a referee by its ID."""
         try:
             parsed_data = provider.get_referee(referee_id)

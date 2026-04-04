@@ -57,6 +57,7 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     """
     _data: _TeamData | _PlayerData
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name")
+    _N_TYPES: int = 2
     _TYPE_MAP: dict[type[BaseSchema], int] = {_TeamData: 1, _PlayerData: 2}
     _REVERSE_TYPE_MAP: dict[int, type[BaseSchema]] = {1: _TeamData, 2: _PlayerData}
 
@@ -169,7 +170,7 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         if self._full_loaded:
             return
 
-        self._data = merge_pydantic_models(self._data, self._fetch_entity(self._data.id, self._provider, type(self._data), strict=False))
+        self._data = merge_pydantic_models(self._data, self._fetch_entity(self.id, self._provider, strict=False))
 
         self._full_loaded = True
         self._clear_cache()
@@ -177,13 +178,7 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     @classmethod
     def from_id(cls, competitor_id: int, provider: SofascoreProvider) -> Self:
         """Fetch a competitor by its ID."""
-        raw_id, type_idx = cls.decode_id(competitor_id)
-
-        if type_idx not in cls._REVERSE_TYPE_MAP:
-            raise TypeError(f"Invalid competitor ID {competitor_id}: unknown type index {type_idx}")
-
-        data_cls = cls._REVERSE_TYPE_MAP[type_idx]
-        entity_data = cls._fetch_entity(raw_id, provider, data_cls)
+        entity_data = cls._fetch_entity(competitor_id, provider)
 
         instance = cls(entity_data, provider)
         if not issubclass(type(instance), cls):
@@ -191,7 +186,6 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
                 f"ID {competitor_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
                 f"Use {type(instance).__name__}.from_id() instead."
             )
-
         return instance
 
     @classmethod
@@ -202,41 +196,46 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
 
     @overload
     @classmethod
-    def _fetch_entity(cls, entity_id: int, provider: SofascoreProvider, data_cls: type[_TeamData | _PlayerData], strict: Literal[True] = True) -> _TeamData | _PlayerData: ...
+    def _fetch_entity(cls, entity_id: int, provider: SofascoreProvider, strict: Literal[True] = True) -> _TeamData | _PlayerData: ...
 
     @overload
     @classmethod
-    def _fetch_entity(cls, entity_id: int, provider: SofascoreProvider, data_cls: type[_TeamData | _PlayerData], strict: Literal[False]) -> Optional[_TeamData | _PlayerData]: ...
+    def _fetch_entity(cls, entity_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_TeamData | _PlayerData]: ...
 
     @classmethod
-    def _fetch_entity(cls, entity_id: int, provider: SofascoreProvider, data_cls: type[_TeamData | _PlayerData], strict: bool = True) -> Optional[_TeamData | _PlayerData]:
-        """Fetch the complete event data from the provider by its raw ID and data class."""
+    def _fetch_entity(cls, competitor_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_TeamData | _PlayerData]:
+        """Fetch the complete event data from the provider."""
+        raw_id, type_idx = cls.decode_id(competitor_id)
+
         try:
-            if data_cls == _TeamData:
-                return cls._fetch_td(entity_id, provider)
-            elif data_cls == _PlayerData:
-                return cls._fetch_pd(entity_id, provider)
+            if type_idx == 1:
+                return cls._fetch_team_data(raw_id, provider)
+            elif type_idx == 2:
+                return cls._fetch_player_data(raw_id, provider)
             else:
-                raise TypeError(f"Unsupported data class {data_cls} for competitor entity fetch")
+                raise TypeError(f"Invalid competitor ID {competitor_id}: unknown type index {type_idx}")
+
         except ProviderNotFoundError:
-            logger.debug(f"Competitor entity with id {entity_id} and data class {data_cls} not found during fetch")
+            logger.debug(f"Competitor with id {competitor_id} not found during fetch")
             if strict:
-                raise EntityNotFoundError(f"Competitor entity with id {entity_id} not found") from None
+                raise EntityNotFoundError(f"Competitor with id {competitor_id} not found during fetch") from None
+
         except FetchError as e:
-            logger.debug(f"Network error while fetching competitor entity with id {entity_id} and data class {data_cls}: {e}")
+            logger.debug(f"Network error while fetching competitor with id {competitor_id}: {e}")
             if strict:
-                raise DomainError(f"Network error while fetching competitor entity with id {entity_id}") from e
+                raise DomainError(f"Network error while fetching competitor with id {competitor_id}") from e
+
         return None
 
     @staticmethod
-    def _fetch_td(raw_id: int, provider: SofascoreProvider) -> _TeamData:
+    def _fetch_team_data(team_id: int, provider: SofascoreProvider) -> _TeamData:
         """Fetch a team by its ID."""
-        return provider.get_team(raw_id).team
+        return provider.get_team(team_id).team
 
     @staticmethod
-    def _fetch_pd(raw_id: int, provider: SofascoreProvider) -> _PlayerData:
+    def _fetch_player_data(player_id: int, provider: SofascoreProvider) -> _PlayerData:
         """Fetch a player by its ID."""
-        return provider.get_player(raw_id)
+        return provider.get_player(player_id)
 
 
 class Team(Competitor):

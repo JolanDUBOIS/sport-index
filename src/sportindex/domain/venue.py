@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Self, Literal, overload
 
 from . import logger
 from .base import IdentifiableEntity, EntityCollection, SearchableMixin
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from .event import EventCollection
     from .competitor import Competitor
     from sportindex.provider import SofascoreProvider
+    from sportindex.provider.models import BaseSchema
 
 
 class Venue(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
@@ -43,6 +44,8 @@ class Venue(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     """
     _data: _VenueData | _StageData
     _REPR_FIELDS = ("id", "name")
+    _N_TYPES: int = 2
+    _TYPE_MAP: dict[type[BaseSchema], int] = {_VenueData: 1, _StageData: 2}
 
     def __init__(self, data: _VenueData | _StageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -55,7 +58,8 @@ class Venue(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     @property
     def id(self) -> int:
         """The unique ID of the venue."""
-        return self._data.id
+        type_idx = self._TYPE_MAP[type(self._data)]
+        return self.encode_id(self._data.id, type_idx)
 
     @property
     def name(self) -> str:
@@ -132,22 +136,70 @@ class Venue(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         self._clear_cache()
 
     @classmethod
-    def from_id(cls, venue_id: int, provider: SofascoreProvider) -> Venue:
+    def from_id(cls, venue_id: int, provider: SofascoreProvider) -> Self:
         """Fetch a venue by its ID."""
-        try:
-            parsed_data = provider.get_venue(venue_id)
-        except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Venue with id {venue_id} not found") from e
-        except FetchError as e:
-            raise DomainError(f"Network error while fetching venue {venue_id}") from e
-        return cls(parsed_data, provider)
+        entity_data = cls._fetch_entity(venue_id, provider)
+        
+        instance = cls(entity_data, provider)
+        if not issubclass(type(instance), cls):
+            raise TypeError(
+                f"ID {venue_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
+                f"Use {type(instance).__name__}.from_id() instead."
+            )
+        return instance
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Venue]:
-        """Search for venues matching the given query, returning up to max_results results."""
+        """
+        Search for venues matching the given query, returning up to max_results results.
+        Stage related venues (such as circuits) are not currently included in search results due to provider limitations.
+        """
         return cls._paginate_search(
             query=query,
             provider=provider,
             search_func=provider.search_venues,
             max_results=max_results
         )
+
+    @overload
+    @classmethod
+    def _fetch_entity(cls, venue_id: int, provider: SofascoreProvider, strict: Literal[True] = True) -> _VenueData | _StageData: ...
+
+    @overload
+    @classmethod
+    def _fetch_entity(cls, venue_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_VenueData | _StageData]: ...
+
+    @classmethod
+    def _fetch_entity(cls, venue_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_VenueData | _StageData]:
+        """Fetch the complete venue data from the provider by its ID."""
+        raw_id, type_idx = cls.decode_id(venue_id)
+
+        try:
+            if type_idx == 1:
+                return cls._fetch_raw_venue(raw_id, provider)
+            elif type_idx == 2:
+                return cls._fetch_raw_stage(raw_id, provider)
+            else:
+                raise TypeError(f"Invalid venue ID {venue_id}: unknown type index {type_idx}")
+
+        except ProviderNotFoundError:
+            logger.debug(f"Venue with ID {venue_id} not found during fetch")
+            if strict:
+                raise EntityNotFoundError(f"Venue with ID {venue_id} not found during fetch") from None
+
+        except FetchError as e:
+            logger.debug(f"Network error while fetching venue with ID {venue_id}: {e}")
+            if strict:
+                raise DomainError(f"Network error while fetching venue with ID {venue_id}") from e
+
+        return None
+
+    @staticmethod
+    def _fetch_raw_venue(venue_id: int, provider: SofascoreProvider) -> _VenueData:
+        """Fetch _VenueData by its ID."""
+        return provider.get_venue(venue_id)
+
+    @staticmethod
+    def _fetch_raw_stage(stage_id: int, provider: SofascoreProvider) -> _StageData:
+        """Fetch _StageData by its ID."""
+        return provider.get_stage(stage_id)
