@@ -204,20 +204,16 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
                 logger.info("No endpoint available to fully load unique tournament season yet, skipping full load...")
             elif isinstance(self._data, _StageData):
                 self._data = merge_pydantic_models(self._data, self._provider.get_stage(self._data.id))
-                if self._data.type_ is not None and self._data.type_.get("name") != "Season":
+                if self._data.tier is not None and self._data.tier.name.lower() != "season":
                     logger.warning(
-                        f"_StageData with id {self._data.id} has type '{self._data.type_.get('name')}' "
+                        f"_StageData with id {self._data.id} has tier '{self._data.tier.name}' "
                         "instead of 'Season', but is being used to create a Season entity. "
                         "This could lead to incorrect data being assigned to the Season entity. "
-                        "Please check the data and consider using a different entity type if appropriate."
+                        "Please check the data and consider using a different entity tier if appropriate."
                     )
-            if not isinstance(self._data, (_SeasonData, _StageData)):
-                raise TypeError(f"Season data must be either _SeasonData or _StageData after full load, got {type(self._data)}")
-            self._full_loaded = True
         except ProviderNotFoundError:
             logger.debug(f"Season with id {self._data.id} not found during full load")
-            self._full_loaded = True
         except FetchError as e:
             logger.debug(f"Network error while fully loading season with id {self._data.id}: {e}")
-            self._full_loaded = True
+        self._full_loaded = True
         self._clear_cache()
