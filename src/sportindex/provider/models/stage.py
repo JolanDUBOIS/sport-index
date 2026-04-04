@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import IntEnum
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Annotated
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # Primitives
 # ===========================================================================
 
-class StageTier(Enum):
+class StageTier(IntEnum):
     SPORT = 0
     SEASON = 1
     EVENT = 2
