@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import (
-    TYPE_CHECKING, Generic,
+    TYPE_CHECKING, Generic, Callable,
     TypeVar, Optional, Iterator,
     Iterable, Any, Sequence, overload
 )
@@ -11,6 +11,8 @@ from typing import (
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import core_schema
 
+from . import logger
+from sportindex.exceptions import ProviderNotFoundError
 from sportindex.provider.models import BaseSchema
 if TYPE_CHECKING:
     from sportindex.provider import SofascoreProvider
@@ -87,6 +89,8 @@ class IdentifiableEntity(BaseEntity):
     def __hash__(self) -> int:
         return hash(self.id)
 
+
+# ===== Entity Collection =====
 
 E = TypeVar("E", bound=BaseEntity)
 
@@ -215,3 +219,41 @@ class EntityCollection(Generic[E]):
         if len(self._entities) > 10:
             lines.append(f"  ... and {len(self._entities) - 10} more")
         return "\n".join(lines)
+
+
+# ===== Searchable Mixin =====
+
+class SearchableMixin:
+    """Mixin for entities that can be searched via pagination."""
+
+    @classmethod
+    def _paginate_search(
+        cls,
+        query: str,
+        provider: SofascoreProvider,
+        search_func: Callable,
+        valid_types: tuple[type, ...] | None = None,
+        max_results: int = 20,
+    ) -> EntityCollection:
+        entities = []
+        for page in range(51):
+            try:
+                matches = search_func(query=query, page=page)
+            except ProviderNotFoundError as e:
+                logger.debug(f"Search for query '{query}' not found on page {page}: {e}")
+                break
+                
+            if not matches:
+                break
+                
+            for item in matches:
+                if valid_types is None or isinstance(item.entity, valid_types):
+                    entities.append(cls(item.entity, provider))
+                    
+                if len(entities) >= max_results:
+                    break
+            
+            if len(entities) >= max_results:
+                break
+                
+        return EntityCollection(entities[:max_results])

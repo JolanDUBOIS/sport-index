@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Optional, Literal, overload
 from nameparser import HumanName
 
 from . import logger
-from .base import IdentifiableEntity, EntityCollection
-from .event import EventAwareMixin
+from .base import IdentifiableEntity, EntityCollection, SearchableMixin
+from .event import Event, EventAwareMixin
 from .types import CompetitorKind
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
@@ -19,14 +19,14 @@ from sportindex.provider.models import _TeamData, _PlayerData
 if TYPE_CHECKING:
     from .core import Category, Country, Sport
     from .enums import Gender
-    from .event import Event, EventCollection
+    from .event import EventCollection
     from .manager import Manager
     from .venue import Venue
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import _PlayerTeamInfoData, Amount
 
 
-class Competitor(IdentifiableEntity, EventAwareMixin[Event]):
+class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     """A sports competitor, either an individual or a team.
 
     Provides access to identity, affiliations, and related entities such as players, managers, and venues.
@@ -59,6 +59,9 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event]):
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name")
     _TYPE_MAP = {_TeamData: 1, _PlayerData: 2}
 
+    @overload
+    def __new__(cls, data: _PlayerData, provider: SofascoreProvider, **kwargs) -> Player: ...
+
     def __new__(cls, data: _TeamData | _PlayerData, provider: SofascoreProvider, **kwargs):
         if cls is Competitor:
             if isinstance(data, _PlayerData) or (isinstance(data, _TeamData) and data.player_team_info is not None):
@@ -69,7 +72,6 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event]):
                 raise TypeError("Competitor data must be either _TeamData or _PlayerData")
         else:
             return super().__new__(cls)
-
 
     def __init__(self, data: _TeamData | _PlayerData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -186,23 +188,10 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event]):
         return cls(entity_data, provider)
 
     @classmethod
+    @abstractmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Competitor]:
         """Search for competitors matching the given query, returning up to max_results results."""
-        entities = []
-        for page in range(51):
-            try:
-                all_matches = provider.search_all(query=query, page=page)
-            except (ProviderNotFoundError, FetchError):
-                logger.debug(f"Failed to fetch search results for query '{query}' on page {page}, stopping pagination")
-                break
-            if not all_matches:
-                break
-            for item in all_matches:
-                if isinstance(item.entity, (_TeamData, _PlayerData)):
-                    entities.append(Competitor(item.entity, provider))
-            if len(all_matches) > max_results:
-                break
-        return EntityCollection(entities[:max_results])
+        raise NotImplementedError("Method search must be implemented in subclasses")
 
     @overload
     @classmethod
@@ -262,6 +251,8 @@ class Team(Competitor):
 
         if not isinstance(data, _TeamData):
             raise TypeError("Team data must be of type _TeamData")
+        if data.player_team_info is not None:
+            raise TypeError("Team data with player_team_info should be represented as a Player, not a Team")
 
     @property
     def full_name(self) -> str:
@@ -331,6 +322,16 @@ class Team(Competitor):
         from .venue import Venue
         return Venue(self._data.venue, self._provider) if self._data.venue else None
 
+    @classmethod
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Team]:
+        """Search for teams matching the given query, returning up to max_results results."""
+        return cls._paginate_search(
+            query=query,
+            provider=provider,
+            search_func=provider.search_teams,
+            max_results=max_results
+        )
+
 
 class Player(Competitor):
     """
@@ -347,6 +348,9 @@ class Player(Competitor):
 
     def __init__(self, data: _TeamData | _PlayerData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
+
+        if isinstance(data, _TeamData) and data.player_team_info is None:
+            raise TypeError("Team data without player_team_info should be represented as a Team, not a Player")
 
     @property
     def full_name(self) -> str:
@@ -416,6 +420,16 @@ class Player(Competitor):
             return PlayerInfo._from_parsed_player(self._data)
         elif isinstance(self._data, _TeamData) and self._data.player_team_info is not None:
             return PlayerInfo._from_parsed_player_team_info(self._data.player_team_info)
+
+    @classmethod
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Player]:
+        """Search for players matching the given query, returning up to max_results results."""
+        return cls._paginate_search(
+            query=query,
+            provider=provider,
+            search_func=provider.search_player_team_persons,
+            max_results=max_results
+        )
 
 
 class PlayerInfo(BaseModel):

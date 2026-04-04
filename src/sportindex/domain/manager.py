@@ -4,7 +4,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import IdentifiableEntity, EntityCollection
+from .base import IdentifiableEntity, EntityCollection, SearchableMixin
 from .event import Event, EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import EntityNotFoundError, DomainError, ProviderNotFoundError, FetchError
@@ -13,7 +13,7 @@ from sportindex.provider.models import _ManagerData, ManagerTenure as _ManagerTe
 if TYPE_CHECKING:
     from .competitor import Competitor
     from .core import Country, Sport
-    from .event import Event, EventCollection
+    from .event import EventCollection
     from sportindex.provider import SofascoreProvider
 
 
@@ -29,7 +29,7 @@ class ManagerTenure(_ManagerTenure):
         )
 
 
-class Manager(IdentifiableEntity, EventAwareMixin[Event]):
+class Manager(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     """Represents a sports manager/coach (e.g., football manager, Formula 1 team principal).
 
     This entity handles basic information, associated sport and country, team affiliations,
@@ -157,13 +157,9 @@ class Manager(IdentifiableEntity, EventAwareMixin[Event]):
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Manager]:
         """Search for managers matching the given query, returning up to max_results results."""
-        entities = []
-        for page in range(51): # Sofascore has a maximum of 50 pages of search results
-            matches = provider.search_managers(query=query, page=page)
-            if not matches:
-                break
-            for item in matches:
-                entities.append(Manager(item.entity, provider))
-            if len(matches) > max_results:
-                break
-        return EntityCollection(entities[:max_results])
+        return cls._paginate_search(
+            query=query,
+            provider=provider,
+            search_func=provider.search_managers,
+            max_results=max_results
+        )

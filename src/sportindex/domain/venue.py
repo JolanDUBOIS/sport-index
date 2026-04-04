@@ -4,8 +4,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import IdentifiableEntity, EntityCollection
-from .event import EventAwareMixin
+from .base import IdentifiableEntity, EntityCollection, SearchableMixin
+from .event import Event, EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _VenueData, _StageData
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from sportindex.provider import SofascoreProvider
 
 
-class Venue(IdentifiableEntity, EventAwareMixin):
+class Venue(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     """Represents a sports venue or race stage, e.g., a stadium, tennis court, or race track.
 
     Handles basic information, location, capacity, associated teams, and provides
@@ -106,11 +106,11 @@ class Venue(IdentifiableEntity, EventAwareMixin):
             logger.warning("Teams for stages are not available in the current provider implementation, returning empty list")
             return EntityCollection([])
 
-    def get_fixtures(self) -> EventCollection:
+    def get_fixtures(self) -> EventCollection[Event]:
         """Fetch all fixtures for this venue."""
         return self._fetch_paginated_events(self._provider.get_venue_fixtures, self._data.id)
 
-    def get_results(self) -> EventCollection:
+    def get_results(self) -> EventCollection[Event]:
         """Fetch all results for this venue."""
         return self._fetch_paginated_events(self._provider.get_venue_results, self._data.id)
 
@@ -145,13 +145,9 @@ class Venue(IdentifiableEntity, EventAwareMixin):
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Venue]:
         """Search for venues matching the given query, returning up to max_results results."""
-        entities = []
-        for page in range(51): # Sofascore has a maximum of 50 pages of search results
-            matches = provider.search_venues(query=query, page=page)
-            if not matches:
-                break
-            for item in matches:
-                entities.append(Venue(item.entity, provider))
-            if len(matches) > max_results:
-                break
-        return EntityCollection(entities[:max_results])
+        return cls._paginate_search(
+            query=query,
+            provider=provider,
+            search_func=provider.search_venues,
+            max_results=max_results
+        )

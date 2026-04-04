@@ -4,7 +4,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional, Literal, overload
 
 from . import logger
-from .base import IdentifiableEntity, EntityCollection
+from .base import IdentifiableEntity, EntityCollection, SearchableMixin
 from .types import EventFormat
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from sportindex.provider import SofascoreProvider
 
 
-class Competition(IdentifiableEntity):
+class Competition(IdentifiableEntity, SearchableMixin):
     """A competition, e.g., 'Ligue 1', 'Rolland Garros'.
 
     Can represent either a unique tournament or a unique stage.
@@ -127,17 +127,13 @@ class Competition(IdentifiableEntity):
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Competition]:
         """Search for competitions matching the given query, returning up to max_results results."""
-        entities = []
-        for page in range(51): # Sofascore has a maximum of 50 pages of search results
-            all_matches = provider.search_all(query=query, page=page)
-            if not all_matches:
-                break
-            for item in all_matches:
-                if isinstance(item.entity, (_UniqueTournamentData, _UniqueStageData)):
-                    entities.append(Competition(item.entity, provider))
-            if len(entities) >= max_results:
-                break
-        return EntityCollection(entities[:max_results])
+        return cls._paginate_search(
+            query=query,
+            provider=provider,
+            search_func=provider.search_all,
+            valid_types=(_UniqueTournamentData, _UniqueStageData),
+            max_results=max_results
+        )
 
     @overload
     @classmethod
