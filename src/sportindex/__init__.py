@@ -28,7 +28,7 @@ from .domain import (
     BaseEntity,
     EntityCollection,
     IdentifiableEntity,
-    EventAwareMixin,
+    SearchableMixin,
 
     # Core
     Category,
@@ -56,6 +56,7 @@ from .domain import (
     EventCollection,
     EventChannels,
     EventFormat,
+    EventAwareMixin,
 
     # Incidents
     Incident,
@@ -95,7 +96,7 @@ __all__ = [
     "BaseEntity",
     "EntityCollection",
     "IdentifiableEntity",
-    "EventAwareMixin",
+    "SearchableMixin",
 
     # Core
     "Category",
@@ -123,6 +124,7 @@ __all__ = [
     "EventCollection",
     "EventChannels",
     "EventFormat",
+    "EventAwareMixin",
 
     # Incidents
     "Incident",
