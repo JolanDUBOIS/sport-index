@@ -4,7 +4,7 @@ from abc import abstractmethod
 from datetime import date
 from functools import cached_property
 from pydantic import BaseModel
-from typing import TYPE_CHECKING, Optional, Literal, overload
+from typing import TYPE_CHECKING, Optional, Literal, Self, overload
 
 from nameparser import HumanName
 
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from .manager import Manager
     from .venue import Venue
     from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import _PlayerTeamInfoData, Amount
+    from sportindex.provider.models import BaseSchema, _PlayerTeamInfoData, Amount
 
 
 class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
@@ -57,7 +57,8 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     """
     _data: _TeamData | _PlayerData
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name")
-    _TYPE_MAP = {_TeamData: 1, _PlayerData: 2}
+    _TYPE_MAP: dict[type[BaseSchema], int] = {_TeamData: 1, _PlayerData: 2}
+    _REVERSE_TYPE_MAP: dict[int, type[BaseSchema]] = {1: _TeamData, 2: _PlayerData}
 
     @overload
     def __new__(cls, data: _PlayerData, provider: SofascoreProvider, **kwargs) -> Player: ...
@@ -174,18 +175,24 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         self._clear_cache()
 
     @classmethod
-    def from_id(cls, competitor_id: int, provider: SofascoreProvider) -> Competitor:
+    def from_id(cls, competitor_id: int, provider: SofascoreProvider) -> Self:
         """Fetch a competitor by its ID."""
         raw_id, type_idx = cls.decode_id(competitor_id)
-        type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
 
-        if type_idx not in type_map_reverse:
+        if type_idx not in cls._REVERSE_TYPE_MAP:
             raise TypeError(f"Invalid competitor ID {competitor_id}: unknown type index {type_idx}")
 
-        data_cls = type_map_reverse[type_idx]
-        entity_data = cls._fetch_entity(raw_id, provider, data_cls, strict=False)
+        data_cls = cls._REVERSE_TYPE_MAP[type_idx]
+        entity_data = cls._fetch_entity(raw_id, provider, data_cls)
 
-        return cls(entity_data, provider)
+        instance = cls(entity_data, provider)
+        if not issubclass(type(instance), cls):
+            raise TypeError(
+                f"ID {competitor_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
+                f"Use {type(instance).__name__}.from_id() instead."
+            )
+
+        return instance
 
     @classmethod
     @abstractmethod
@@ -478,12 +485,11 @@ class PlayerInfo(BaseModel):
     def _from_parsed_player_team_info(cls, data: _PlayerTeamInfoData) -> PlayerInfo:
         """Create a PlayerInfo instance from _PlayerTeamInfoData data."""
         return cls(
-            weight=float(data.weight) if data.weight else None,
-            height=int(data.height * 100) if data.height else None,
+            weight=float(data.weight) if data.weight is not None else None,
+            height=int(data.height * 100) if data.height is not None else None,
             date_of_birth=data.birth_date.date() if data.birth_date else None,
             place_of_birth=data.birthplace,
-            number=int(data.number) if data.number else None,
-            preferred_foot=data.plays, # Note: probably never populated, as there are not single sport using the foot preference field...
+            number=int(data.number) if data.number is not None else None,
             preferred_hand=data.plays,
             total_prizes=data.prize_total,
         )
@@ -492,12 +498,12 @@ class PlayerInfo(BaseModel):
     def _from_parsed_player(cls, data: _PlayerData) -> PlayerInfo:
         """Create a PlayerInfo instance from _PlayerData data."""
         return cls(
-            weight=float(data.weight) if data.weight else None,
-            height=int(data.height) if data.height else None,
+            weight=float(data.weight) if data.weight is not None else None,
+            height=int(data.height) if data.height is not None else None,
             date_of_birth=data.date_of_birth.date() if data.date_of_birth else None,
             retired=data.retired,
             deceased=data.deceased,
-            number=int(data.shirt_number) if data.shirt_number else None,
+            number=int(data.shirt_number) if data.shirt_number is not None else None,
             preferred_foot=data.preferred_foot,
             preferred_hand=data.preferred_hand,
             positions=data.positions_detailed or [data.position] or [data.primary_position] or None,

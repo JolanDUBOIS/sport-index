@@ -7,7 +7,7 @@ from datetime import datetime, date
 from typing import (
     TYPE_CHECKING, Optional, TypeVar,
     TypeAlias, Generic, Callable,
-    Literal, overload
+    Literal, Self, overload
 )
 
 from . import logger
@@ -89,8 +89,14 @@ class Event(IdentifiableEntity):
     """
     _data: _EventData | _StageData
     _REPR_FIELDS = ("id", "name", "slug", "start")
-    _TYPE_MAP = {_EventData: 1, _StageData: 2}
-    _DOMAIN_MAP: dict[int, type[Event]] = {}
+    _REGISTRY: dict[int, type[Event]] = {}
+    _TYPE_IDX: int 
+
+    def __init_subclass__(cls, **kwargs):
+        """Automatically registers subclasses when the file is loaded."""
+        super().__init_subclass__(**kwargs)
+        if hasattr(cls, "_TYPE_IDX"):
+            Event._REGISTRY[cls._TYPE_IDX] = cls
 
     def __new__(cls, data: _EventData | _StageData, provider: SofascoreProvider, **kwargs):
         """Create the correct subclass based on the data type."""
@@ -112,8 +118,7 @@ class Event(IdentifiableEntity):
     @property
     def id(self) -> int:
         """The unique ID of the event."""
-        type_idx = self._TYPE_MAP[type(self._data)]
-        return self.encode_id(self._data.id, type_idx)
+        return self.encode_id(self._data.id, type(self)._TYPE_IDX)
 
     @property
     @abstractmethod
@@ -192,16 +197,20 @@ class Event(IdentifiableEntity):
         self._clear_cache()
 
     @classmethod
-    def from_id(cls, event_id: int, provider: SofascoreProvider) -> Event:
+    def from_id(cls, event_id: int, provider: SofascoreProvider) -> Self:
         """Fetch an event by its ID."""
         raw_id, type_idx = cls.decode_id(event_id)
 
-        if type_idx not in cls._DOMAIN_MAP:
+        target_subclass = cls._REGISTRY.get(type_idx)
+        if not target_subclass:
             raise TypeError(f"Invalid event ID {event_id}: unknown type index {type_idx}")
+        if not issubclass(target_subclass, cls):
+            raise TypeError(
+                f"ID {event_id} belongs to a {target_subclass.__name__}, but was initialized as a {cls.__name__}. "
+                f"Use {target_subclass.__name__}.from_id() instead."
+            )
 
-        target_subclass = cls._DOMAIN_MAP[type_idx]
-        entity_data = target_subclass._fetch_entity(raw_id, provider, strict=False)
-
+        entity_data = target_subclass._fetch_entity(raw_id, provider)
         return cls(entity_data, provider)
 
     @overload
@@ -238,6 +247,8 @@ class MatchEvent(Event):
         h2h (EventCollection): Head-to-head history between the two competitors.
     """
     _data: _EventData
+    _REPR_FIELDS = ("id", "name", "slug", "round", "format", "start")
+    _TYPE_IDX = 1
 
     def __init__(self, data: _EventData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -262,7 +273,7 @@ class MatchEvent(Event):
         """The format of the event, either 'match' or 'stage'."""
         return "match"
 
-    @property
+    @cached_property
     def competition(self) -> Optional[Competition]:
         """The competition this event belongs to, if available."""
         self._full_load()
@@ -428,6 +439,8 @@ class StageEvent(Event):
         standings (EntityCollection[Standings] | None): The rankings for competitors and teams.
     """
     _data: _StageData
+    _REPR_FIELDS = ("id", "name", "slug", "tier", "format", "start", "end")
+    _TYPE_IDX = 2
 
     def __init__(self, data: _StageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -445,9 +458,9 @@ class StageEvent(Event):
         return self._data.name or self._data.slug.replace("-", " ").title()
 
     @property
-    def end(self) -> Optional[datetime]:
-        """The end time of the stage event."""
-        return self._data.end
+    def format(self) -> EventFormat:
+        """The format of the event, either 'match' or 'stage'."""
+        return "stage"
 
     @cached_property
     def tier(self) -> StageTier:
@@ -456,9 +469,9 @@ class StageEvent(Event):
         return self._data.tier
 
     @property
-    def format(self) -> EventFormat:
-        """The format of the event, either 'match' or 'stage'."""
-        return "stage"
+    def end(self) -> Optional[datetime]:
+        """The end time of the stage event."""
+        return self._data.end
 
     @cached_property
     def competition(self) -> Optional[Competition]:
@@ -566,12 +579,6 @@ class StageEvent(Event):
             if strict:
                 raise DomainError(f"Network error while fetching stage with id {entity_id}") from e
         return None
-
-
-Event._DOMAIN_MAP = {
-    1: MatchEvent,
-    2: StageEvent
-}
 
 
 # ===== Event Collection =====

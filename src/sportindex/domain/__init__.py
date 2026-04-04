@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 from .base import BaseEntity, IdentifiableEntity, EntityCollection
 from .channel import EventChannels, Channel
 from .competition import Competition
-from .competitor import Competitor, PlayerInfo
+from .competitor import Competitor, Team, Player, PlayerInfo
 from .core import Sport, Country, Category
-from .event import Event, EventCollection, EventAwareMixin
+from .event import Event, MatchEvent, StageEvent, EventCollection, EventAwareMixin
 from .enums import Gender
 from .incident import Incident
 from .leaderboard import (

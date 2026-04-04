@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from .event import MatchEvent, StageEvent, EventCollection
     from .leaderboard import Standings
     from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import Round, _SeasonRoundsResponse
+    from sportindex.provider.models import BaseSchema, Round, _SeasonRoundsResponse
 
 
 E = TypeVar("E", bound=Event)
@@ -44,8 +44,8 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
     """
     _data: _SeasonData | _StageData
     _REPR_FIELDS = ("id", "name", "year", "start", "sport")
-    _TYPE_MAP = {_SeasonData: 1, _StageData: 2}
-    _FORMAT_MAP = {_SeasonData: "match", _StageData: "stage"}
+    _TYPE_MAP: dict[type[BaseSchema], int] = {_SeasonData: 1, _StageData: 2}
+    _FORMAT_MAP: dict[type[BaseSchema], str] = {_SeasonData: "match", _StageData: "stage"}
 
     @overload
     def __new__(cls, data: _SeasonData, provider: SofascoreProvider, **kwargs) -> Season[MatchEvent]: ...
@@ -101,6 +101,7 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
     @cached_property
     def competition(self) -> Competition:
         """The competition this season belongs to."""
+        from .competition import Competition
         if "competition" in self._kwargs and isinstance(self._kwargs["competition"], Competition):
             return self._kwargs["competition"]
         else:

@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from .core import Category, Sport
     from .season import Season
     from sportindex.provider import SofascoreProvider
+    from sportindex.provider.models import BaseSchema
 
 
 class Competition(IdentifiableEntity, SearchableMixin):
@@ -35,8 +36,9 @@ class Competition(IdentifiableEntity, SearchableMixin):
     """
     _data: _UniqueTournamentData | _UniqueStageData
     _REPR_FIELDS = ("id", "name", "slug", "sport", "category")
-    _TYPE_MAP = {_UniqueTournamentData: 1, _UniqueStageData: 2}
-    _FORMAT_MAP = {_UniqueTournamentData: "match", _UniqueStageData: "stage"}
+    _TYPE_MAP: dict[type[BaseSchema], int] = {_UniqueTournamentData: 1, _UniqueStageData: 2}
+    _REVERSE_TYPE_MAP: dict[int, type[BaseSchema]] = {1: _UniqueTournamentData, 2: _UniqueStageData}
+    _FORMAT_MAP: dict[type[BaseSchema], str] = {_UniqueTournamentData: "match", _UniqueStageData: "stage"}
 
     def __init__(self, data: _UniqueTournamentData | _UniqueStageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider)
@@ -114,13 +116,12 @@ class Competition(IdentifiableEntity, SearchableMixin):
     def from_id(cls, competition_id: int, provider: SofascoreProvider) -> Competition:
         """Fetch a competition by its ID."""
         raw_id, type_idx = cls.decode_id(competition_id)
-        type_map_reverse = {v: k for k, v in cls._TYPE_MAP.items()}
 
-        if type_idx not in type_map_reverse:
+        if type_idx not in cls._REVERSE_TYPE_MAP:
             raise TypeError(f"Invalid competition ID {competition_id}: unknown type index {type_idx}")
 
-        data_cls = type_map_reverse[type_idx]
-        entity_data = cls._fetch_entity(raw_id, provider, data_cls, strict=False)
+        data_cls = cls._REVERSE_TYPE_MAP[type_idx]
+        entity_data = cls._fetch_entity(raw_id, provider, data_cls)
 
         return cls(entity_data, provider)
 

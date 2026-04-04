@@ -60,7 +60,6 @@ class BaseEntity(ABC):
 
 class IdentifiableEntity(BaseEntity):
     """Base class for entities that have a unique identifier."""
-    _TYPE_MAP: dict[type[BaseSchema], int] # mapping of BaseSchema types to unique type indices for ID encoding
     _ID_OFFSET_STEP = 10_000_000_000 # to avoid ID collisions across entity types when using several sofascore types for the same entity (e.g. competitions, seasons, events, competitors, etc.)
 
     @property

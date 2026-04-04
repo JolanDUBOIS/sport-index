@@ -38,6 +38,8 @@ from .domain import (
 
     # Competitors
     Competitor,
+    Team,
+    Player,
     PlayerInfo,
 
     # Competition / seasons
@@ -49,6 +51,8 @@ from .domain import (
 
     # Events
     Event,
+    MatchEvent,
+    StageEvent,
     EventCollection,
     EventChannels,
     EventFormat,
@@ -101,6 +105,8 @@ __all__ = [
 
     # Competitors
     "Competitor",
+    "Team",
+    "Player",
     "PlayerInfo",
 
     # Competition / seasons
@@ -112,6 +118,8 @@ __all__ = [
 
     # Events
     "Event",
+    "MatchEvent",
+    "StageEvent",
     "EventCollection",
     "EventChannels",
     "EventFormat",
