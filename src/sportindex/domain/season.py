@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional, TypeVar, overload
 
 from . import logger
 from .base import IdentifiableEntity, EntityCollection
-from .event import EventAwareMixin
+from .event import Event, EventAwareMixin
 from .types import EventFormat
 from .utils import merge_pydantic_models
 from sportindex.exceptions import InsufficientDataError, ProviderNotFoundError, FetchError
@@ -15,7 +15,7 @@ from sportindex.provider.models import _SeasonData, _StageData
 if TYPE_CHECKING:
     from .competition import Competition
     from .core import Sport
-    from .event import Event, MatchEvent, StageEvent, EventCollection
+    from .event import MatchEvent, StageEvent, EventCollection
     from .leaderboard import Standings
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import Round, _SeasonRoundsResponse
@@ -47,7 +47,6 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
     _TYPE_MAP = {_SeasonData: 1, _StageData: 2}
     _FORMAT_MAP = {_SeasonData: "match", _StageData: "stage"}
 
-
     @overload
     def __new__(cls, data: _SeasonData, provider: SofascoreProvider, **kwargs) -> Season[MatchEvent]: ...
 
@@ -56,7 +55,6 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
 
     def __new__(cls, data: _SeasonData | _StageData, provider: SofascoreProvider, **kwargs):
         return super().__new__(cls)
-
 
     def __init__(self, data: _SeasonData | _StageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
