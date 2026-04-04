@@ -4,7 +4,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EntityCollection, SearchableMixin
+from .event import Event, EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _VenueData, _StageData
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from sportindex.provider import SofascoreProvider
 
 
-class Venue(IdentifiableEntity[_VenueData | _StageData], EventAwareMixin):
+class Venue(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     """Represents a sports venue or race stage, e.g., a stadium, tennis court, or race track.
 
     Handles basic information, location, capacity, associated teams, and provides
@@ -40,6 +41,7 @@ class Venue(IdentifiableEntity[_VenueData | _StageData], EventAwareMixin):
         search(query: str, provider: SofascoreProvider) -> EntityCollection[Venue]:
             Search for venues by query string (up to 20 results).
     """
+    _data: _VenueData | _StageData
     _REPR_FIELDS = ("id", "name")
 
     def __init__(self, data: _VenueData | _StageData, provider: SofascoreProvider, **kwargs) -> None:
@@ -104,11 +106,11 @@ class Venue(IdentifiableEntity[_VenueData | _StageData], EventAwareMixin):
             logger.warning("Teams for stages are not available in the current provider implementation, returning empty list")
             return EntityCollection([])
 
-    def get_fixtures(self) -> EventCollection:
+    def get_fixtures(self) -> EventCollection[Event]:
         """Fetch all fixtures for this venue."""
         return self._fetch_paginated_events(self._provider.get_venue_fixtures, self._data.id)
 
-    def get_results(self) -> EventCollection:
+    def get_results(self) -> EventCollection[Event]:
         """Fetch all results for this venue."""
         return self._fetch_paginated_events(self._provider.get_venue_results, self._data.id)
 
@@ -122,15 +124,11 @@ class Venue(IdentifiableEntity[_VenueData | _StageData], EventAwareMixin):
             return
         try:
             self._data = merge_pydantic_models(self._data, self._provider.get_venue(self._data.id))
-            if not isinstance(self._data, _VenueData):
-                raise TypeError(f"Venue data must be of type _VenueData after full load, got {type(self._data)}")
-            self._full_loaded = True
         except ProviderNotFoundError:
             logger.debug(f"Venue with id {self._data.id} not found during full load")
-            self._full_loaded = True
         except FetchError as e:
             logger.debug(f"Network error while fully loading venue with id {self._data.id}: {e}")
-            self._full_loaded = True
+        self._full_loaded = True
         self._clear_cache()
 
     @classmethod
@@ -145,15 +143,11 @@ class Venue(IdentifiableEntity[_VenueData | _StageData], EventAwareMixin):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Venue]:
-        """Search for venues matching the given query (up to the first 20 matches)."""
-        entities = []
-        for page in range(51): # Sofascore has a maximum of 50 pages of search results
-            matches = provider.search_venues(query=query, page=page)
-            if not matches:
-                break
-            for item in matches:
-                entities.append(Venue(item.entity, provider))
-            if len(matches) > 20:
-                break
-        return EntityCollection(entities[:20])
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Venue]:
+        """Search for venues matching the given query, returning up to max_results results."""
+        return cls._paginate_search(
+            query=query,
+            provider=provider,
+            search_func=provider.search_venues,
+            max_results=max_results
+        )

@@ -3,35 +3,35 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import (
-    TYPE_CHECKING, Callable, Generic,
+    TYPE_CHECKING, Generic, Callable,
     TypeVar, Optional, Iterator,
-    Iterable, Any, Union, overload
+    Iterable, Any, Sequence, overload
 )
 
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import core_schema
 
+from . import logger
+from sportindex.exceptions import ProviderNotFoundError
 from sportindex.provider.models import BaseSchema
 if TYPE_CHECKING:
-    from .event import EventCollection
     from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import _EventsResponse
 
 
-T = TypeVar("T", bound=Union[BaseSchema, list[BaseSchema]])
+# ===== Base Entity =====
 
-class BaseEntity(ABC, Generic[T]):
+class BaseEntity(ABC):
     """Base class for all domain entities."""
-    _data: T
+    _data: BaseSchema | Sequence[BaseSchema]
     _REPR_FIELDS = ()
 
-    def __init__(self, data: T, provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: BaseSchema | Sequence[BaseSchema], provider: SofascoreProvider, **kwargs) -> None:
         self._data = data
         self._provider = provider
         self._kwargs = kwargs
 
     @property
-    def source(self) -> T:
+    def source(self) -> BaseSchema | Sequence[BaseSchema]:
         """Return the parsed data source for this entity."""
         return self._data
 
@@ -56,9 +56,9 @@ class BaseEntity(ABC, Generic[T]):
         return core_schema.is_instance_schema(cls)
 
 
-SingleT = TypeVar("SingleT", bound=BaseSchema)
+# ===== Identifiable Entity =====
 
-class IdentifiableEntity(BaseEntity[SingleT]):
+class IdentifiableEntity(BaseEntity):
     """Base class for entities that have a unique identifier."""
     _ID_OFFSET_STEP = 10_000_000_000 # to avoid ID collisions across entity types when using several sofascore types for the same entity (e.g. competitions, seasons, events, competitors, etc.)
 
@@ -89,40 +89,7 @@ class IdentifiableEntity(BaseEntity[SingleT]):
         return hash(self.id)
 
 
-class EventAwareMixin:
-    """
-    Toolkit for entities that fetch fixtures and results.
-    Provides shared pagination and unified date filtering.
-    """
-
-    def get_fixtures(self, silent: bool = False) -> EventCollection:
-        """Override in subclass if fixtures are supported."""
-        raise NotImplementedError(f"Method get_fixtures must be implemented in the subclass {self.__class__.__name__}")
-
-    def get_results(self, silent: bool = False) -> EventCollection:
-        """Override in subclass if results are supported."""
-        raise NotImplementedError(f"Method get_results must be implemented in the subclass {self.__class__.__name__}")
-
-    def get_events(self) -> EventCollection:
-        """Fetch all events."""
-        events: EventCollection = self.get_results(silent=True) + self.get_fixtures(silent=True)
-        return events.sort_by_date()
-
-    def _fetch_paginated_events(self, provider_callable: Callable, *args, max_pages: int = 10) -> EventCollection:
-        """Internal helper to exhaust a paginated provider endpoint."""
-        from .event import Event, EventCollection
-        parsed_events = []
-        for page in range(max_pages):
-            events_response: _EventsResponse = provider_callable(*args, page=page)
-            parsed_events.extend(events_response.events)
-            
-            # Use getattr safely in case the response lacks hasNextPage
-            if not getattr(events_response, "hasNextPage", False):
-                break
-                
-        # self._provider exists because this mixin will be attached to BaseEntity subclasses
-        return EventCollection([Event(e, getattr(self, "_provider")) for e in parsed_events])
-
+# ===== Entity Collection =====
 
 E = TypeVar("E", bound=BaseEntity)
 
@@ -251,3 +218,41 @@ class EntityCollection(Generic[E]):
         if len(self._entities) > 10:
             lines.append(f"  ... and {len(self._entities) - 10} more")
         return "\n".join(lines)
+
+
+# ===== Searchable Mixin =====
+
+class SearchableMixin:
+    """Mixin for entities that can be searched via pagination."""
+
+    @classmethod
+    def _paginate_search(
+        cls,
+        query: str,
+        provider: SofascoreProvider,
+        search_func: Callable,
+        valid_types: tuple[type, ...] | None = None,
+        max_results: int = 20,
+    ) -> EntityCollection:
+        entities = []
+        for page in range(51):
+            try:
+                matches = search_func(query=query, page=page)
+            except ProviderNotFoundError as e:
+                logger.debug(f"Search for query '{query}' not found on page {page}: {e}")
+                break
+                
+            if not matches:
+                break
+                
+            for item in matches:
+                if valid_types is None or isinstance(item.entity, valid_types):
+                    entities.append(cls(item.entity, provider))
+                    
+                if len(entities) >= max_results:
+                    break
+            
+            if len(entities) >= max_results:
+                break
+                
+        return EntityCollection(entities[:max_results])

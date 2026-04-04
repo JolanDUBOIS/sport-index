@@ -4,7 +4,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EntityCollection, SearchableMixin
+from .event import Event, EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import EntityNotFoundError, DomainError, ProviderNotFoundError, FetchError
 from sportindex.provider.models import _ManagerData, ManagerTenure as _ManagerTenure
@@ -28,7 +29,7 @@ class ManagerTenure(_ManagerTenure):
         )
 
 
-class Manager(IdentifiableEntity[_ManagerData], EventAwareMixin):
+class Manager(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     """Represents a sports manager/coach (e.g., football manager, Formula 1 team principal).
 
     This entity handles basic information, associated sport and country, team affiliations,
@@ -56,6 +57,7 @@ class Manager(IdentifiableEntity[_ManagerData], EventAwareMixin):
         search(query: str, provider: SofascoreProvider) -> EntityCollection[Manager]:
             Search for managers matching a query string (up to 20 results).
     """
+    _data: _ManagerData
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "sport", "country")
 
     def __init__(self, data: _ManagerData, provider: SofascoreProvider, **kwargs) -> None:
@@ -113,14 +115,14 @@ class Manager(IdentifiableEntity[_ManagerData], EventAwareMixin):
         parsed_career_history = self._provider.get_manager_career_history(self._data.id)
         return [ManagerTenure._from_base_schema(parsed, provider=self._provider) for parsed in parsed_career_history]
 
-    def get_fixtures(self, silent: bool = False) -> EventCollection:
+    def get_fixtures(self, silent: bool = False) -> EventCollection[Event]:
         """Fetch all fixtures for this manager."""
         from .event import EventCollection
         if not silent:
             logger.warning("No fixtures endpoint available for managers, returning empty list")
         return EventCollection([])
 
-    def get_results(self, silent: bool = False) -> EventCollection:
+    def get_results(self, silent: bool = False) -> EventCollection[Event]:
         """Fetch all results for this manager."""
         return self._fetch_paginated_events(self._provider.get_manager_results, self._data.id)
 
@@ -134,15 +136,11 @@ class Manager(IdentifiableEntity[_ManagerData], EventAwareMixin):
             return
         try:
             self._data = merge_pydantic_models(self._data, self._provider.get_manager(self._data.id))
-            if not isinstance(self._data, _ManagerData):
-                raise TypeError(f"Manager data must be of type _ManagerData after full load, got {type(self._data)}")
-            self._full_loaded = True
         except ProviderNotFoundError:
             logger.debug(f"Manager with id {self._data.id} not found during full load")
-            self._full_loaded = True
         except FetchError as e:
             logger.debug(f"Network error while fully loading manager with id {self._data.id}: {e}")
-            self._full_loaded = True
+        self._full_loaded = True
         self._clear_cache()
 
     @classmethod
@@ -157,15 +155,11 @@ class Manager(IdentifiableEntity[_ManagerData], EventAwareMixin):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Manager]:
-        """Search for managers matching the given query (up to the first 20 matches)."""
-        entities = []
-        for page in range(51): # Sofascore has a maximum of 50 pages of search results
-            matches = provider.search_managers(query=query, page=page)
-            if not matches:
-                break
-            for item in matches:
-                entities.append(Manager(item.entity, provider))
-            if len(matches) > 20:
-                break
-        return EntityCollection(entities[:20])
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Manager]:
+        """Search for managers matching the given query, returning up to max_results results."""
+        return cls._paginate_search(
+            query=query,
+            provider=provider,
+            search_func=provider.search_managers,
+            max_results=max_results
+        )

@@ -203,16 +203,13 @@ class SportClient:
 
         Returns:
             Optional[Competition]: The competition if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the data provider is unavailable.
         """
         if cached := self._get_cached("competitions", id, Competition):
             return cached
         try:
             entity = Competition.from_id(id, self._provider)
             return self._set_cached("competitions", entity)
-        except ProviderNotFoundError:
+        except EntityNotFoundError:
             return None
 
     def list_competitions(self, sport_id: int, category_id: int) -> EntityCollection[Competition]:
@@ -235,6 +232,18 @@ class SportClient:
         if category is None:
             raise EntityNotFoundError(f"Category with ID {category_id} not found")
         return self._hydrate_cache("competitions", category.competitions)
+
+    def search_competitions(self, query: str) -> EntityCollection[Competition]:
+        """Search for competitions by name.
+
+        Args:
+            query (str): Partial or full competition name.
+        
+        Returns:
+            EntityCollection[Competition]: Competitions that match the query.
+        """
+        results = Competition.search(query, self._provider)
+        return self._hydrate_cache("competitions", results)
 
     # --- Seasons ---
 
@@ -265,16 +274,13 @@ class SportClient:
 
         Returns:
             Optional[Event]: Event object if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the provider is unavailable.
         """
         if cached := self._get_cached("events", id, Event):
             return cached
         try:
             entity = Event.from_id(id, self._provider)
             return self._set_cached("events", entity)
-        except ProviderNotFoundError:
+        except EntityNotFoundError:
             return None
 
     # --- Competitors ---
@@ -287,16 +293,13 @@ class SportClient:
 
         Returns:
             Optional[Competitor]: Competitor if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the provider is unavailable.
         """
         if cached := self._get_cached("competitors", id, Competitor):
             return cached
         try:
             entity = Competitor.from_id(id, self._provider)
             return self._set_cached("competitors", entity)
-        except ProviderNotFoundError:
+        except EntityNotFoundError:
             return None
 
     def search_competitors(self, query: str) -> EntityCollection[Competitor]:
@@ -321,16 +324,13 @@ class SportClient:
 
         Returns:
             Optional[Manager]: Manager if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the provider is unavailable.
         """
         if cached := self._get_cached("managers", id, Manager):
             return cached
         try:
             entity = Manager.from_id(id, self._provider)
             return self._set_cached("managers", entity)
-        except ProviderNotFoundError:
+        except EntityNotFoundError:
             return None
 
     def search_managers(self, query: str) -> EntityCollection[Manager]:
@@ -355,16 +355,13 @@ class SportClient:
 
         Returns:
             Optional[Referee]: Referee if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the provider is unavailable.
         """
         if cached := self._get_cached("referees", id, Referee):
             return cached
         try:
             entity = Referee.from_id(id, self._provider)
             return self._set_cached("referees", entity)
-        except ProviderNotFoundError:
+        except EntityNotFoundError:
             return None
 
     def search_referees(self, query: str) -> EntityCollection[Referee]:
@@ -389,16 +386,13 @@ class SportClient:
 
         Returns:
             Optional[Venue]: Venue if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the provider is unavailable.
         """
         if cached := self._get_cached("venues", id, Venue):
             return cached
         try:
             entity = Venue.from_id(id, self._provider)
             return self._set_cached("venues", entity)
-        except ProviderNotFoundError:
+        except EntityNotFoundError:
             return None
 
     def search_venues(self, query: str) -> EntityCollection[Venue]:

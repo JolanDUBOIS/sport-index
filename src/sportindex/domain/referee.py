@@ -5,7 +5,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 from . import logger
-from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
+from .base import IdentifiableEntity, EntityCollection, SearchableMixin
+from .event import Event, EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _RefereeData
@@ -23,7 +24,7 @@ class Cards(BaseModel):
     yellow_red: int
 
 
-class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
+class Referee(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     """Represents a sports referee/officiator (e.g., football referee, Formula 1 race director).
 
     Handles basic information, associated sport and country, games officiated,
@@ -49,6 +50,7 @@ class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
         search(query: str, provider: SofascoreProvider) -> EntityCollection[Referee]:
             Search for referees matching a query string (up to 20 results).
     """
+    _data: _RefereeData
     _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
     def __init__(self, data: _RefereeData, provider: SofascoreProvider, **kwargs) -> None:
@@ -102,14 +104,14 @@ class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
             yellow_red=int(self._data.yellow_red_cards)
         )
 
-    def get_fixtures(self, silent: bool = False) -> EventCollection:
+    def get_fixtures(self, silent: bool = False) -> EventCollection[Event]:
         """Fetch all fixtures for this referee."""
         from .event import EventCollection
         if not silent:
             logger.warning("No fixtures endpoint available for referees, returning empty list")
         return EventCollection([])
 
-    def get_results(self, silent: bool = False) -> EventCollection:
+    def get_results(self, silent: bool = False) -> EventCollection[Event]:
         """Fetch all results for this referee."""
         return self._fetch_paginated_events(self._provider.get_referee_results, self._data.id)
 
@@ -123,15 +125,11 @@ class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
             return
         try:
             self._data = merge_pydantic_models(self._data, self._provider.get_referee(self._data.id))
-            if not isinstance(self._data, _RefereeData):
-                raise TypeError(f"Referee data must be of type _RefereeData after full load, got {type(self._data)}")
-            self._full_loaded = True
         except ProviderNotFoundError:
             logger.debug(f"Referee with id {self._data.id} not found during full load")
-            self._full_loaded = True
         except FetchError as e:
             logger.debug(f"Network error while fully loading referee with id {self._data.id}: {e}")
-            self._full_loaded = True
+        self._full_loaded = True
         self._clear_cache()
 
     @classmethod
@@ -146,15 +144,11 @@ class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Referee]:
-        """Search for referees matching the given query (up to the first 20 matches)."""
-        entities = []
-        for page in range(51): # Sofascore has a maximum of 50 pages of search results
-            matches = provider.search_referees(query=query, page=page)
-            if not matches:
-                break
-            for item in matches:
-                entities.append(Referee(item.entity, provider))
-            if len(matches) > 20:
-                break
-        return EntityCollection(entities[:20])
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Referee]:
+        """Search for referees matching the given query, returning up to max_results results."""
+        return cls._paginate_search(
+            query=query,
+            provider=provider,
+            search_func=provider.search_referees,
+            max_results=max_results
+        )

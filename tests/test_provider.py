@@ -5,12 +5,12 @@ import pytest
 
 from tests.test_config import TEST_CONFIG
 from sportindex.exceptions import ProviderNotFoundError
-from sportindex.provider import SofascoreProvider
+from sportindex.provider import SofascoreProvider, RecordingFetcher
 from sportindex.provider.models import (
     _CategoryData, _UniqueTournamentData, _UniqueStageData, _SeasonData,
-    _TeamStandingsData, _EventsResponse, _TeamResponse,
+    _TeamStandingsData, _EventsResponse, _TeamResponse, _TeamData,
     _UniqueTournamentSeasonsResponse, TeamPlayers, TeamYearSurfaceStats,
-    _StageData, RaceResults, DriverCareerHistory, RaceResults,
+    _StageData, RaceResults, DriverCareerHistory, RaceResults, 
     _PlayerData, PlayerSeasonStats, _ManagerData, ManagerTenure,
     _RefereeData, _VenueData, _EventData, _LineupsResponse, _EventStatisticsResponse, 
     _CountryChannelsResponse, _RankingsResponse, _SeasonRoundsResponse,
@@ -31,7 +31,8 @@ def ignore_not_found(context_info=""):
 
 @pytest.fixture(scope="module")
 def provider():
-    return SofascoreProvider(fetch_delay=0.1)
+    fetcher = RecordingFetcher(mode="auto", cache_dir="tests/mock_data")
+    return SofascoreProvider(fetcher=fetcher, fetch_delay=0.1)
 
 # =====================================================================
 # 1. Categories
@@ -382,11 +383,19 @@ def test_search_endpoints(provider: SofascoreProvider):
         assert isinstance(res_teams, list)
         if res_teams:
             assert isinstance(res_teams[0], _SearchResultData)
+            assert isinstance(res_teams[0].entity, _TeamData)
 
         res_players = provider.search_players(query)
         assert isinstance(res_players, list)
         if res_players:
             assert isinstance(res_players[0], _SearchResultData)
+            assert isinstance(res_players[0].entity, _PlayerData)
+
+        res_persons = provider.search_player_team_persons(query)
+        assert isinstance(res_persons, list)
+        if res_persons:
+            assert isinstance(res_persons[0], _SearchResultData)
+            assert isinstance(res_persons[0].entity, (_PlayerData, _TeamData))
 
 # =====================================================================
 # 9. Boundaries / Errors

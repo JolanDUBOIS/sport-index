@@ -103,4 +103,5 @@ ENDPOINTS = {
     "search-managers": f"{BASE_API_URL}/search/managers",
     "search-referees": f"{BASE_API_URL}/search/referees",
     "search-venues": f"{BASE_API_URL}/search/venues",
+    "search-player-team-persons": f"{BASE_API_URL}/search/player-team-persons",
 }

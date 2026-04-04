@@ -7,6 +7,7 @@ import pycountry
 
 from .base import BaseEntity, IdentifiableEntity, EntityCollection
 from .static import SPORT_RANKINGS
+from .types import EventFormat
 from sportindex.exceptions import ProviderNotFoundError
 from sportindex.provider.models import (
     _SportData,
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     from sportindex.provider import SofascoreProvider
 
 
-class Sport(IdentifiableEntity[_SportData]):
+class Sport(IdentifiableEntity):
     """A sport (e.g., football, tennis, motorsport).
 
     Provides access to its categories and official rankings, and can be instantiated from minimal raw data without fetching full details.
@@ -29,11 +30,13 @@ class Sport(IdentifiableEntity[_SportData]):
         id (int): Unique sport ID.
         name (str): Official sport name.
         slug (str): URL-friendly identifier.
+        format (EventFormat): The event format for this sport (match-based or stage-based).
         categories (EntityCollection[Category]): All categories associated with this sport.
 
     Methods:
         get_rankings(gender: Optional[str] = None) -> list[Rankings]: Fetch official rankings for the sport.
     """
+    _data: _SportData
     _REPR_FIELDS = ("id", "name", "slug")
 
     def __init__(self, data: _SportData, provider: SofascoreProvider, **kwargs) -> None:
@@ -58,6 +61,12 @@ class Sport(IdentifiableEntity[_SportData]):
         return self._data.slug or self._data.name.lower().replace(" ", "-")
 
     @cached_property
+    def format(self) -> EventFormat:
+        """Determine the event format for this sport (match-based or stage-based)."""
+        # TODO - This information will be imported from static one way or another...
+        raise NotImplementedError("Sport format detection is not implemented yet")
+
+    @cached_property
     def categories(self) -> EntityCollection[Category]:
         """Fetch all categories for this sport."""
         return EntityCollection([
@@ -79,14 +88,24 @@ class Sport(IdentifiableEntity[_SportData]):
 
     @classmethod
     def _from_tuple(cls, data: tuple[int, str, str], provider: SofascoreProvider) -> Sport:
-        """Create a Sport instance from a raw tuple (id, slug, name). This is used to build the initial list of sports without needing to fetch categories or rankings."""
+        """
+        Create a Sport instance from a raw tuple (id, slug, name).
+        This is used to build the initial list of sports without needing to fetch categories or rankings.
+        """
         sid, slug, name = data
         return cls(_SportData(id=sid, slug=slug, name=name), provider)
 
-    # Events ? 
+    @classmethod
+    def from_id(cls, sport_id: int, provider: SofascoreProvider) -> Optional[Sport]:
+        """Create a Sport instance from its unique ID."""
+        from .static import _SPORTS_DATA
+        data = next((s for s in _SPORTS_DATA if s[0] == sport_id), None)
+        return cls._from_tuple(data, provider) if data else None
+
+    # NOTE - Look for a way to get fixtures for a sport if possible (without any category or competition context)...
 
 
-class Country(BaseEntity[_CountryData]):
+class Country(BaseEntity):
     """A country (e.g., France, England, Spain).
 
     Provides standard identifiers (name, slug, alpha-2, alpha-3) and can be instantiated from a name or alpha code.
@@ -101,6 +120,7 @@ class Country(BaseEntity[_CountryData]):
         from_alpha(alpha: str, provider) -> Optional[Country]: Create from alpha code.
         from_name(name: str, provider) -> Optional[Country]: Create from country name.
     """
+    _data: _CountryData
     _REPR_FIELDS = ("name", "slug", "alpha2", "alpha3")
 
     def __init__(self, data: _CountryData, provider: SofascoreProvider, **kwargs) -> None:
@@ -170,7 +190,7 @@ class Country(BaseEntity[_CountryData]):
         return None
 
 
-class Category(IdentifiableEntity[_CategoryData]):
+class Category(IdentifiableEntity):
     """A category within a sport (e.g., 'France Amateur', 'Formula 1', 'International').
 
     Provides access to its sport, country (if applicable), and competitions.
@@ -180,9 +200,11 @@ class Category(IdentifiableEntity[_CategoryData]):
         name (str): Category name.
         slug (str): URL-friendly identifier.
         sport (Sport): The sport this category belongs to.
+        format (EventFormat): The event format for this category, derived from its sport.
         country (Country | None): The country this category belongs to, or None if international.
         competitions (EntityCollection[Competition]): All competitions under this category.
     """
+    _data: _CategoryData
     _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
     def __init__(self, data: _CategoryData, provider: SofascoreProvider, **kwargs) -> None:
@@ -210,6 +232,11 @@ class Category(IdentifiableEntity[_CategoryData]):
     def sport(self) -> Sport:
         """The sport this category belongs to."""
         return Sport(self._data.sport, self._provider)
+
+    @property
+    def format(self) -> EventFormat:
+        """Determine the event format for this category based on its sport."""
+        return self.sport.format
 
     @cached_property
     def country(self) -> Optional[Country]:
