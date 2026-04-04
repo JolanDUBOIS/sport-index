@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Optional, TypeVar, TypeAlias, Generic, Callabl
 from . import logger
 from .base import IdentifiableEntity, EntityCollection
 from .core import Sport
+from .types import EventFormat
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _EventData, _StageData, StageTier
@@ -136,6 +137,12 @@ class Event(IdentifiableEntity):
 
     @property
     @abstractmethod
+    def format(self) -> EventFormat:
+        """The format of the event, either 'match' or 'stage'."""
+        raise NotImplementedError("Property format must be implemented in subclasses")
+
+    @property
+    @abstractmethod
     def competition(self) -> Optional[Competition]:
         """The competition this event belongs to, if available."""
         raise NotImplementedError("Property competition must be implemented in subclasses")
@@ -234,6 +241,11 @@ class MatchEvent(Event):
     def round(self) -> Optional[Round]:
         """The round of the match event, if available."""
         return self._data.round
+
+    @property
+    def format(self) -> EventFormat:
+        """The format of the event, either 'match' or 'stage'."""
+        return "match"
 
     @property
     def competition(self) -> Optional[Competition]:
@@ -422,6 +434,11 @@ class StageEvent(Event):
         """The category of the stage event."""
         self._full_load()
         return self._data.tier
+
+    @property
+    def format(self) -> EventFormat:
+        """The format of the event, either 'match' or 'stage'."""
+        return "stage"
 
     @cached_property
     def competition(self) -> Optional[Competition]:
