@@ -136,15 +136,11 @@ class Manager(IdentifiableEntity, EventAwareMixin[Event]):
             return
         try:
             self._data = merge_pydantic_models(self._data, self._provider.get_manager(self._data.id))
-            if not isinstance(self._data, _ManagerData):
-                raise TypeError(f"Manager data must be of type _ManagerData after full load, got {type(self._data)}")
-            self._full_loaded = True
         except ProviderNotFoundError:
             logger.debug(f"Manager with id {self._data.id} not found during full load")
-            self._full_loaded = True
         except FetchError as e:
             logger.debug(f"Network error while fully loading manager with id {self._data.id}: {e}")
-            self._full_loaded = True
+        self._full_loaded = True
         self._clear_cache()
 
     @classmethod
@@ -159,8 +155,8 @@ class Manager(IdentifiableEntity, EventAwareMixin[Event]):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Manager]:
-        """Search for managers matching the given query (up to the first 20 matches)."""
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Manager]:
+        """Search for managers matching the given query, returning up to max_results results."""
         entities = []
         for page in range(51): # Sofascore has a maximum of 50 pages of search results
             matches = provider.search_managers(query=query, page=page)
@@ -168,6 +164,6 @@ class Manager(IdentifiableEntity, EventAwareMixin[Event]):
                 break
             for item in matches:
                 entities.append(Manager(item.entity, provider))
-            if len(matches) > 20:
+            if len(matches) > max_results:
                 break
-        return EntityCollection(entities[:20])
+        return EntityCollection(entities[:max_results])

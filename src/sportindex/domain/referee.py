@@ -125,15 +125,11 @@ class Referee(IdentifiableEntity, EventAwareMixin):
             return
         try:
             self._data = merge_pydantic_models(self._data, self._provider.get_referee(self._data.id))
-            if not isinstance(self._data, _RefereeData):
-                raise TypeError(f"Referee data must be of type _RefereeData after full load, got {type(self._data)}")
-            self._full_loaded = True
         except ProviderNotFoundError:
             logger.debug(f"Referee with id {self._data.id} not found during full load")
-            self._full_loaded = True
         except FetchError as e:
             logger.debug(f"Network error while fully loading referee with id {self._data.id}: {e}")
-            self._full_loaded = True
+        self._full_loaded = True
         self._clear_cache()
 
     @classmethod
@@ -148,8 +144,8 @@ class Referee(IdentifiableEntity, EventAwareMixin):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Referee]:
-        """Search for referees matching the given query (up to the first 20 matches)."""
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Referee]:
+        """Search for referees matching the given query, returning up to max_results results."""
         entities = []
         for page in range(51): # Sofascore has a maximum of 50 pages of search results
             matches = provider.search_referees(query=query, page=page)
@@ -157,6 +153,6 @@ class Referee(IdentifiableEntity, EventAwareMixin):
                 break
             for item in matches:
                 entities.append(Referee(item.entity, provider))
-            if len(matches) > 20:
+            if len(matches) > max_results:
                 break
-        return EntityCollection(entities[:20])
+        return EntityCollection(entities[:max_results])

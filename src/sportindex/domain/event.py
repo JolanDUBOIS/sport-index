@@ -77,6 +77,7 @@ class Event(IdentifiableEntity):
         sport (Sport): Sport associated with this event.
 
     Abstract properties:
+        format (Literal["match", "stage"]): The format of the event, either 'match' or 'stage'.
         competition (Competition | None): Competition this event belongs to.
         season (Season): Season this event belongs to.
         venue (Venue | None): Venue where the event takes place.
@@ -214,7 +215,7 @@ class Event(IdentifiableEntity):
     @classmethod
     @abstractmethod
     def _fetch_entity(cls, entity_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_EventData | _StageData]:
-        """Fetch the complete event data from the provider by its raw ID and data class."""
+        """Fetch the complete event data from the provider by its raw ID."""
         raise NotImplementedError("Method _fetch_entity must be implemented in subclasses")
 
 
@@ -399,7 +400,7 @@ class MatchEvent(Event):
 
     @classmethod
     def _fetch_entity(cls, entity_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_EventData]:
-        """Fetch the complete event data from the provider by its raw ID and data class."""
+        """Fetch the complete event data from the provider by its raw ID."""
         try:
             return provider.get_event(entity_id)
         except ProviderNotFoundError:
@@ -553,7 +554,7 @@ class StageEvent(Event):
 
     @classmethod
     def _fetch_entity(cls, entity_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_StageData]:
-        """Fetch the complete event data from the provider by its raw ID and data class."""
+        """Fetch the complete event data from the provider by its raw ID."""
         try:
             return provider.get_stage(entity_id)
         except ProviderNotFoundError:
@@ -649,10 +650,16 @@ class EventAwareMixin(Generic[E]):
         """Internal helper to exhaust a paginated provider endpoint."""
         parsed_events = []
         for page in range(max_pages):
-            # TODO - Add a try/except here to catch potential ProviderNotFoundError or FetchError...
-            events_response: _EventsResponse = provider_callable(*args, page=page)
-            parsed_events.extend(events_response.events)
-            
+            try:
+                events_response: _EventsResponse = provider_callable(*args, page=page)
+                parsed_events.extend(events_response.events)
+            except ProviderNotFoundError:
+                logger.debug(f"No events found for page {page}. Ending pagination.")
+                break
+            except FetchError as e:
+                logger.warning(f"Network error while fetching events for page {page}: {e}. Ending pagination.")
+                break
+
             if not getattr(events_response, "hasNextPage", False):
                 break
                 
