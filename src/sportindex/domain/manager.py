@@ -91,11 +91,13 @@ class Manager(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     @cached_property
     def sport(self) -> Sport:
         """The sport this manager is associated with."""
+        from .core import Sport
         return Sport(self._data.sport, self._provider)
 
     @cached_property
     def country(self) -> Optional[Country]:
         """The country this manager is associated with, if any."""
+        from .core import Country
         return Country(self._data.country, self._provider) if self._data.country else None
 
     @cached_property
