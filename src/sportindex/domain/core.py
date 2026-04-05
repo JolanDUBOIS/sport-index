@@ -134,7 +134,7 @@ class Country(IdentifiableEntity):
         ValueError: If the country cannot be found in the pycountry database.
     """
     _data: _CountryData
-    _REPR_FIELDS = ("name", "slug", "alpha2", "alpha3")
+    _REPR_FIELDS = ("id", "name", "slug", "alpha2", "alpha3")
 
     def __init__(self, data: _CountryData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)

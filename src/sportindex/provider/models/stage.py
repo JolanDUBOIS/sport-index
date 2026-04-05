@@ -32,6 +32,9 @@ class StageTier(IntEnum):
 
     @classmethod
     def from_payload(cls, value: Any) -> Any:
+        if isinstance(value, cls):
+            return value
+
         if not isinstance(value, dict) or "name" not in value or "id" not in value:
             raise ValueError(f"Invalid tier payload, expected dict with 'name' and 'id', got: {value}")
 
