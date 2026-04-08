@@ -3,7 +3,6 @@ from contextlib import contextmanager
 
 import pytest
 
-from tests.test_config import TEST_CONFIG
 from sportindex.exceptions import ProviderNotFoundError
 from sportindex.provider import SofascoreProvider, RecordingFetcher
 from sportindex.provider.models import (
@@ -17,6 +16,7 @@ from sportindex.provider.models import (
     _SearchResultData, _RacingStandingsEntryData,
     _ChannelData, _ChannelScheduleResponse
 )
+from tests.unit.test_config import TEST_CONFIG
 
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ def ignore_not_found(context_info=""):
 
 @pytest.fixture(scope="module")
 def provider():
-    fetcher = RecordingFetcher(mode="auto", cache_dir="tests/mock_data")
+    fetcher = RecordingFetcher(mode="auto", cache_dir="tests/mock_cache")
     return SofascoreProvider(fetcher=fetcher, fetch_delay=0.1)
 
 # =====================================================================
