@@ -1,5 +1,5 @@
 ![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat-square)
-![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg?style=flat-square)
+![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg?style=flat-square)
 
 # sport-index
 

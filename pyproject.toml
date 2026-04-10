@@ -6,7 +6,7 @@ authors = [
     {name = "JolanDUBOIS", email = "jolan.developer@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.12,<4.0"
+requires-python = ">=3.11,<4.0"
 dependencies = [
     "requests (>=2.32.5,<3.0.0)",
     "beautifulsoup4 (>=4.14.3,<5.0.0)",
