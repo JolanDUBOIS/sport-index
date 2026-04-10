@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Literal, overload
+from typing import TYPE_CHECKING, Optional, Literal, Self, overload
 
 from . import logger
 from .base import IdentifiableEntity, EntityCollection, SearchableMixin
@@ -36,6 +36,7 @@ class Competition(IdentifiableEntity, SearchableMixin):
     """
     _data: _UniqueTournamentData | _UniqueStageData
     _REPR_FIELDS = ("id", "name", "slug", "sport", "category")
+    _N_TYPES: int = 2
     _TYPE_MAP: dict[type[BaseSchema], int] = {_UniqueTournamentData: 1, _UniqueStageData: 2}
     _REVERSE_TYPE_MAP: dict[int, type[BaseSchema]] = {1: _UniqueTournamentData, 2: _UniqueStageData}
     _FORMAT_MAP: dict[type[BaseSchema], str] = {_UniqueTournamentData: "match", _UniqueStageData: "stage"}
@@ -107,23 +108,23 @@ class Competition(IdentifiableEntity, SearchableMixin):
         if self._full_loaded:
             return
 
-        self._data = merge_pydantic_models(self._data, self._fetch_entity(self._data.id, self._provider, type(self._data), strict=False))
+        self._data = merge_pydantic_models(self._data, self._fetch_entity(self.id, self._provider, strict=False))
 
         self._full_loaded = True
         self._clear_cache()
 
     @classmethod
-    def from_id(cls, competition_id: int, provider: SofascoreProvider) -> Competition:
-        """Fetch a competition by its ID."""
-        raw_id, type_idx = cls.decode_id(competition_id)
-
-        if type_idx not in cls._REVERSE_TYPE_MAP:
-            raise TypeError(f"Invalid competition ID {competition_id}: unknown type index {type_idx}")
-
-        data_cls = cls._REVERSE_TYPE_MAP[type_idx]
-        entity_data = cls._fetch_entity(raw_id, provider, data_cls)
-
-        return cls(entity_data, provider)
+    def from_id(cls, competition_id: int, provider: SofascoreProvider) -> Self:
+        """Fetch a competition by its domain ID."""
+        entity_data = cls._fetch_entity(competition_id, provider)
+        
+        instance = cls(entity_data, provider)
+        if not issubclass(type(instance), cls):
+            raise TypeError(
+                f"ID {competition_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
+                f"Use {type(instance).__name__}.from_id() instead."
+            )
+        return instance
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Competition]:
@@ -138,41 +139,46 @@ class Competition(IdentifiableEntity, SearchableMixin):
 
     @overload
     @classmethod
-    def _fetch_entity(cls, raw_id: int, provider: SofascoreProvider, data_cls: type[_UniqueTournamentData | _UniqueStageData], strict: Literal[True] = True) -> _UniqueTournamentData | _UniqueStageData: ...
+    def _fetch_entity(cls, competition_id: int, provider: SofascoreProvider, strict: Literal[True] = True) -> _UniqueTournamentData | _UniqueStageData: ...
 
     @overload
     @classmethod
-    def _fetch_entity(cls, raw_id: int, provider: SofascoreProvider, data_cls: type[_UniqueTournamentData | _UniqueStageData], strict: Literal[False]) -> Optional[_UniqueTournamentData | _UniqueStageData]: ...
+    def _fetch_entity(cls, competition_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_UniqueTournamentData | _UniqueStageData]: ...
 
     @classmethod
-    def _fetch_entity(cls, raw_id: int, provider: SofascoreProvider, data_cls: type[_UniqueTournamentData | _UniqueStageData], strict: bool = True) -> Optional[_UniqueTournamentData | _UniqueStageData]:
-        """Fetch the complete competition data from the provider by its raw ID and data class."""
+    def _fetch_entity(cls, competition_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_UniqueTournamentData | _UniqueStageData]:
+        """Fetch the complete competition data from the provider by its ID."""
+        raw_id, type_idx = cls.decode_id(competition_id)
+
         try:
-            if data_cls == _UniqueTournamentData:
-                return cls._fetch_ut(raw_id, provider)
-            elif data_cls == _UniqueStageData:
-                return cls._fetch_us(raw_id, provider)
+            if type_idx == 1:
+                return cls._fetch_unique_tournament(raw_id, provider)
+            elif type_idx == 2:
+                return cls._fetch_unique_stage(raw_id, provider)
             else:
-                raise TypeError(f"Unsupported data class {data_cls} for competition entity fetch")
+                raise TypeError(f"Invalid competition ID {competition_id}: unknown type index {type_idx}")
+
         except ProviderNotFoundError:
-            logger.debug(f"Competition entity with id {raw_id} and data class {data_cls} not found during fetch")
+            logger.debug(f"Competition with ID {competition_id} not found during fetch")
             if strict:
-                raise EntityNotFoundError(f"Competition entity with id {raw_id} not found") from None
+                raise EntityNotFoundError(f"Competition with ID {competition_id} not found during fetch") from None
+
         except FetchError as e:
-            logger.debug(f"Network error while fetching competition entity with id {raw_id} and data class {data_cls}: {e}")
+            logger.debug(f"Network error while fetching competition with ID {competition_id}: {e}")
             if strict:
-                raise DomainError(f"Network error while fetching competition entity with id {raw_id}") from e
+                raise DomainError(f"Network error while fetching competition with ID {competition_id}") from e
+
         return None
 
     @staticmethod
-    def _fetch_ut(raw_id: int, provider: SofascoreProvider) -> _UniqueTournamentData:
-        """Fetch a unique tournament by its ID."""
-        return provider.get_unique_tournament(raw_id)
+    def _fetch_unique_tournament(unique_tournament_id: int, provider: SofascoreProvider) -> _UniqueTournamentData:
+        """Fetch _UniqueTournamentData by its ID."""
+        return provider.get_unique_tournament(unique_tournament_id)
 
     @staticmethod
-    def _fetch_us(raw_id: int, provider: SofascoreProvider) -> _UniqueStageData:
-        """Fetch a unique stage by its ID."""
-        us_seasons = provider.get_unique_stage_seasons(raw_id)
+    def _fetch_unique_stage(unique_stage_id: int, provider: SofascoreProvider) -> _UniqueStageData:
+        """Fetch _UniqueStageData by its ID."""
+        us_seasons = provider.get_unique_stage_seasons(unique_stage_id)
         if not us_seasons:
-            raise ProviderNotFoundError(f"Unique stage with id {raw_id} not found")
+            raise ProviderNotFoundError(f"Unique stage with id {unique_stage_id} not found")
         return us_seasons[0].unique_stage

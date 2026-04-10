@@ -8,57 +8,40 @@ can be imported before ``BaseEntity.configure()`` has been called.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Final, NamedTuple
 
 from .enums import Gender
-from sportindex.provider import SofascoreProvider
-
-if TYPE_CHECKING:
-    from .base import EntityCollection
-    from .core import Sport
 
 
-# (id, slug, name) — raw tuples, no Sport instantiation at import time.
-# Used later to lazily build Sport objects when needed
-_SPORTS_DATA: tuple[tuple[int, str, str], ...] = (
-    (1, "football", "Football"),
-    (2, "basketball", "Basketball"),
-    (4, "ice-hockey", "Ice Hockey"),
-    (5, "tennis", "Tennis"),
-    (6, "handball", "Handball"),
-    (11, "motorsport", "Motorsport"),
-    (12, "rugby", "Rugby"),
-    (15, "bandy", "Bandy"),
-    (19, "snooker", "Snooker"),
-    (20, "table-tennis", "Table Tennis"),
-    (22, "darts", "Darts"),
-    (23, "volleyball", "Volleyball"),
-    (26, "waterpolo", "Waterpolo"),
-    (29, "futsal", "Futsal"),
-    (31, "badminton", "Badminton"),
-    (34, "beach-volley", "Beach Volleyball"),
-    (62, "cricket", "Cricket"),
-    (63, "american-football", "American Football"),
-    (65, "cycling", "Cycling"),
-    (72, "esports", "Esports"),
-    (76, "mma", "MMA"),
-    (109, "minifootball", "Minifootball"),
+class SportEntry(NamedTuple):
+    id: int
+    slug: str
+    name: str
+
+SPORTS_REGISTRY: Final[tuple[SportEntry, ...]] = (
+    SportEntry(1, "football", "Football"),
+    SportEntry(2, "basketball", "Basketball"),
+    SportEntry(4, "ice-hockey", "Ice Hockey"),
+    SportEntry(5, "tennis", "Tennis"),
+    SportEntry(6, "handball", "Handball"),
+    SportEntry(11, "motorsport", "Motorsport"),
+    SportEntry(12, "rugby", "Rugby"),
+    SportEntry(15, "bandy", "Bandy"),
+    SportEntry(19, "snooker", "Snooker"),
+    SportEntry(20, "table-tennis", "Table Tennis"),
+    SportEntry(22, "darts", "Darts"),
+    SportEntry(23, "volleyball", "Volleyball"),
+    SportEntry(26, "waterpolo", "Waterpolo"),
+    SportEntry(29, "futsal", "Futsal"),
+    SportEntry(31, "badminton", "Badminton"),
+    SportEntry(34, "beach-volley", "Beach Volleyball"),
+    SportEntry(62, "cricket", "Cricket"),
+    SportEntry(63, "american-football", "American Football"),
+    SportEntry(65, "cycling", "Cycling"),
+    SportEntry(72, "esports", "Esports"),
+    SportEntry(76, "mma", "MMA"),
+    SportEntry(109, "minifootball", "Minifootball"),
 )
-
-_sports_cache: list[Sport] | None = None
-
-def get_sports() -> EntityCollection[Sport]:
-    """Return the list of known sports, building Sport objects on first call."""
-    global _sports_cache
-    provider = SofascoreProvider()
-    if _sports_cache is None:
-        from .core import Sport
-        _sports_cache = [
-            Sport._from_tuple(data, provider)
-            for data in _SPORTS_DATA
-        ]
-    from .base import EntityCollection
-    return EntityCollection(_sports_cache)
 
 # Mapping: sport slug → list of (ranking_id, gender | None)
 SPORT_RANKINGS: dict[str, list[tuple[int, Gender]]] = {

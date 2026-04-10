@@ -42,12 +42,19 @@ poetry shell
 ## Quick Start
 
 ```python
-from sportindex import SportClient
+from sportindex import SportClient, Sport, Competition
 
 client = SportClient()
 
-# List available sports
-sports = client.list_sports()
+UCL = client.get(Competition, 14)
+
+print(UCL)
+
+UCl = client.search(Competition, "UEFA Champions League")[0]
+
+print(UCL)
+
+sports = client.list(Sport)
 football = sports.search("football").get(name="Football")
 
 print(football)
@@ -62,12 +69,12 @@ The **core experience starts once you navigate entity relationships**.
 client = SportClient()
 
 # Pick a sport
-sport = client.list_sports().search("football")[0]
+sport = client.list(Sport).search("football")[0]
 
 # Navigate domain relationships
 category = sport.categories[0]
 competition = category.competitions[0]
-season = competition.seasons[0]
+season = competition.seasons[0] # Generally current season
 
 # Access season data
 standings = season.standings
@@ -76,7 +83,7 @@ results = season.get_results()
 
 # Inspect events
 event = (results or fixtures)[0]
-print(event.name, event.lineups, event.h2h)
+print(event.name, event.lineups, event.h2h) # if MatchEvent
 ```
 
 All network-backed fields are **lazy-loaded**: data is fetched when accessed.
@@ -85,15 +92,15 @@ All network-backed fields are **lazy-loaded**: data is fetched when accessed.
 
 ```python
 # Search competitors
-competitors = client.search_competitors("Paris Saint-Germain")
+competitors = client.search(Competitor, "Paris Saint-Germain")
 if competitors:
     team = competitors[0]
     print(team.name, len(team.get_results()), len(team.get_fixtures()))
 
 # Search managers, referees, venues
-print(client.search_managers("Luis Enrique")[:3])
-print(client.search_referees("Turpin")[:3])
-print(client.search_venues("Parc des Princes")[:3])
+print(client.search(Manager, "Luis Enrique")[:3])
+print(client.search(Referee, "Turpin")[:3])
+print(client.search(Venue, "Parc des Princes")[:3])
 ```
 
 ## Domain Model Overview
@@ -109,15 +116,9 @@ This **graph-like navigation** is the core of `sport-index`.
 
 `SportClient` provides finder and bootstrap utilities:
 
-* `list_sports()`, `get_sport()`, `search_sports()`
-* `list_categories(sport_id)`
-* `list_competitions(sport_id, category_id)`, `get_competition()`
-* `list_seasons(competition_id)`
-* `get_event()`
-* `get_competitor()`, `search_competitors()`
-* `get_manager()`, `search_managers()`
-* `get_referee()`, `search_referees()`
-* `get_venue()`, `search_venues()`
+* `get(entity_cls, entity_id, strict=False)`
+* `list(entity_cls, **kwargs)`
+* `search(entity_cls, query, max_results=20)`
 * `clear_cache(namespace=None)`
 
 Most usage happens **via domain entities**, not direct client calls.
@@ -199,20 +200,25 @@ from sportindex.exceptions import (
 **Best practices:**
 
 ```python
-# Tolerant lookup
-event = client.get_event(12345)
+# Tolerant or strict lookup
+event = client.get(Event, 12345)
 if event is None:
+    print("Event not found")
+
+try:
+    event = client.get(Event, 12345, strict=True)
+except EntityNotFoundError:
     print("Event not found")
 
 # Strict listing (raises on missing)
 try:
-    competitions = client.list_competitions(sport_id=1, category_id=2)
+    competitions = client.list(Competition, category_id=2, sport_id=1)
 except EntityNotFoundError:
     print("Invalid sport or category")
 
 # Handle provider/network issues
 try:
-    ev = client.get_event(12345)
+    ev = client.get(Event, 12345)
 except (ProviderNotFoundError, FetchError, RateLimitError) as exc:
     # retry or propagate
     raise

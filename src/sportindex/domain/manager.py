@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Self
 
 from . import logger
 from .base import IdentifiableEntity, EntityCollection, SearchableMixin
@@ -91,11 +91,13 @@ class Manager(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     @cached_property
     def sport(self) -> Sport:
         """The sport this manager is associated with."""
+        from .core import Sport
         return Sport(self._data.sport, self._provider)
 
     @cached_property
     def country(self) -> Optional[Country]:
         """The country this manager is associated with, if any."""
+        from .core import Country
         return Country(self._data.country, self._provider) if self._data.country else None
 
     @cached_property
@@ -144,7 +146,7 @@ class Manager(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         self._clear_cache()
 
     @classmethod
-    def from_id(cls, manager_id: int, provider: SofascoreProvider) -> Manager:
+    def from_id(cls, manager_id: int, provider: SofascoreProvider) -> Self:
         """Fetch a manager by its ID."""
         try:
             parsed_data = provider.get_manager(manager_id)

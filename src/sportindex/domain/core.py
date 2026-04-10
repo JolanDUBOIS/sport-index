@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Self, Any
 
 import pycountry
 
-from .base import BaseEntity, IdentifiableEntity, EntityCollection
-from .static import SPORT_RANKINGS
+from .base import IdentifiableEntity, EntityCollection
 from .types import EventFormat
-from sportindex.exceptions import ProviderNotFoundError
+from sportindex.exceptions import ProviderNotFoundError, EntityNotFoundError
 from sportindex.provider.models import (
     _SportData,
     _CountryData,
@@ -35,6 +34,10 @@ class Sport(IdentifiableEntity):
 
     Methods:
         get_rankings(gender: Optional[str] = None) -> list[Rankings]: Fetch official rankings for the sport.
+    
+    Class Methods:
+        all(provider) -> EntityCollection[Sport]: Returns a collection of all supported sports.
+        from_id(sport_id, provider) -> Sport: Create a Sport instance from its unique ID.
     """
     _data: _SportData
     _REPR_FIELDS = ("id", "name", "slug")
@@ -77,6 +80,7 @@ class Sport(IdentifiableEntity):
     def get_rankings(self, gender: Optional[str] = None) -> list[Rankings]:
         """Fetch all rankings for this sport."""
         from .leaderboard import Rankings
+        from .static import SPORT_RANKINGS
         rankings = []
         for ranking_id, ranking_gender in SPORT_RANKINGS.get(self.slug, []):
             if gender is None or ranking_gender == gender:
@@ -87,41 +91,50 @@ class Sport(IdentifiableEntity):
         return rankings
 
     @classmethod
-    def _from_tuple(cls, data: tuple[int, str, str], provider: SofascoreProvider) -> Sport:
-        """
-        Create a Sport instance from a raw tuple (id, slug, name).
-        This is used to build the initial list of sports without needing to fetch categories or rankings.
-        """
-        sid, slug, name = data
-        return cls(_SportData(id=sid, slug=slug, name=name), provider)
+    def all(cls, provider: SofascoreProvider) -> EntityCollection[Sport]:
+        """Returns a collection of all supported sports."""
+        from .static import SPORTS_REGISTRY
+        from sportindex.provider.models import _SportData
+
+        return EntityCollection([
+            cls(_SportData(id=s.id, slug=s.slug, name=s.name), provider)
+            for s in SPORTS_REGISTRY
+        ])
 
     @classmethod
-    def from_id(cls, sport_id: int, provider: SofascoreProvider) -> Optional[Sport]:
+    def from_id(cls, sport_id: int, provider: SofascoreProvider) -> Self:
         """Create a Sport instance from its unique ID."""
-        from .static import _SPORTS_DATA
-        data = next((s for s in _SPORTS_DATA if s[0] == sport_id), None)
-        return cls._from_tuple(data, provider) if data else None
+        sport = cls.all(provider).get(id=sport_id)
+        if not sport:
+            raise EntityNotFoundError(f"Sport with ID {sport_id} not found")
+        return sport
 
     # NOTE - Look for a way to get fixtures for a sport if possible (without any category or competition context)...
 
 
-class Country(BaseEntity):
+class Country(IdentifiableEntity):
     """A country (e.g., France, England, Spain).
 
     Provides standard identifiers (name, slug, alpha-2, alpha-3) and can be instantiated from a name or alpha code.
 
     Attributes:
+        id (int): The unique ID of the country.
         name (str): Official country name.
         slug (str): URL-friendly identifier.
         alpha2 (str | None): ISO alpha-2 code.
         alpha3 (str | None): ISO alpha-3 code.
 
-    Methods:
+    Class Methods:
+        all(provider) -> EntityCollection[Country]: Fetch all countries.
+        from_id(country_id: int, provider) -> Optional[Country]: Create from domain ID.
         from_alpha(alpha: str, provider) -> Optional[Country]: Create from alpha code.
         from_name(name: str, provider) -> Optional[Country]: Create from country name.
+
+    Raises:
+        ValueError: If the country cannot be found in the pycountry database.
     """
     _data: _CountryData
-    _REPR_FIELDS = ("name", "slug", "alpha2", "alpha3")
+    _REPR_FIELDS = ("id", "name", "slug", "alpha2", "alpha3")
 
     def __init__(self, data: _CountryData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -129,9 +142,31 @@ class Country(BaseEntity):
         if not isinstance(data, _CountryData):
             raise TypeError(f"Country data must be of type _CountryData, got {type(data)}")
 
-        self._country = next(
-            (c for c in pycountry.countries if c.name.lower() == self.name.lower()), None
-        )
+        self._pycountry_obj = kwargs.get("pycountry_obj")
+        if not self._pycountry_obj:
+            self._initialize_pycountry()
+
+    def _initialize_pycountry(self) -> None:
+        """Helper method to create _pycountry_obj from available data."""
+        if self._data.alpha2:
+            self._pycountry_obj = pycountry.countries.get(alpha_2=self._data.alpha2.upper())
+        elif self._data.alpha3:
+            self._pycountry_obj = pycountry.countries.get(alpha_3=self._data.alpha3.upper())
+    
+        if not self._pycountry_obj:
+            search_name = self.name.lower()
+            self._pycountry_obj = next(
+                (c for c in pycountry.countries if c.name.lower() == search_name), 
+                None
+            )
+
+        if not self._pycountry_obj:
+            raise ValueError(f"Country '{self.name}' (slug: {self.slug}) not found in pycountry database")
+
+    @property
+    def id(self) -> int:
+        """The ISO 3166-1 numeric code of the country."""
+        return int(self._pycountry_obj.numeric)
 
     @property
     def name(self) -> str:
@@ -146,48 +181,61 @@ class Country(BaseEntity):
     @property
     def alpha2(self) -> Optional[str]:
         """The alpha-2 code of the country (e.g. 'FR' for France)."""
-        return self._data.alpha2 or (self._country.alpha_2 if self._country else None)
+        return self._data.alpha2 or (self._pycountry_obj.alpha_2 if self._pycountry_obj else None)
 
     @property
     def alpha3(self) -> Optional[str]:
         """The alpha-3 code of the country (e.g. 'FRA' for France)."""
-        return self._data.alpha3 or (self._country.alpha_3 if self._country else None)
+        return self._data.alpha3 or (self._pycountry_obj.alpha_3 if self._pycountry_obj else None)
 
     @classmethod
-    def from_alpha(cls, alpha: str, provider: SofascoreProvider) -> Optional[Country]:
+    def all(cls, provider: SofascoreProvider) -> EntityCollection[Country]:
+        """Fetch all countries."""
+        return EntityCollection([
+            cls._from_pycountry(c, provider)
+            for c in pycountry.countries
+        ])
+
+    @classmethod
+    def from_id(cls, country_id: int, provider: SofascoreProvider) -> Country:
+        """Fetch a Country by its domain ID."""
+        pycountry_obj = pycountry.countries.get(numeric=str(country_id).zfill(3))
+        if not pycountry_obj:
+            raise EntityNotFoundError(f"Country with ID '{country_id}' not found in pycountry database")
+        return cls._from_pycountry(pycountry_obj, provider)
+
+    @classmethod
+    def from_alpha(cls, alpha: str, provider: SofascoreProvider) -> Country:
         """Create a Country instance from an alpha-2 or alpha-3 code."""
-        country = next(
-            (c for c in pycountry.countries if c.alpha_2 == alpha.upper() or c.alpha_3 == alpha.upper()), None
-        )
-        if country:
-            return cls(
-                data=_CountryData(
-                    name=country.name,
-                    slug=country.name.lower().replace(" ", "-"),
-                    alpha2=country.alpha_2,
-                    alpha3=country.alpha_3
-                ),
-                provider=provider
-            )
-        return None
+        pycountry_obj = pycountry.countries.get(alpha_2=alpha.upper()) or pycountry.countries.get(alpha_3=alpha.upper())
+        if not pycountry_obj:
+            raise EntityNotFoundError(f"Country with alpha code '{alpha}' not found in pycountry database")
+        return cls._from_pycountry(pycountry_obj, provider)
 
     @classmethod
-    def from_name(cls, name: str, provider: SofascoreProvider) -> Optional[Country]:
+    def from_name(cls, name: str, provider: SofascoreProvider) -> Country:
         """Create a Country instance from a country name."""
-        country = next(
-            (c for c in pycountry.countries if c.name.lower() == name.lower()), None
-        )
-        if country:
-            return cls(
-                data=_CountryData(
-                    name=country.name,
-                    slug=country.name.lower().replace(" ", "-"),
-                    alpha2=country.alpha_2,
-                    alpha3=country.alpha_3
-                ),
-                provider=provider
+        try:
+            pycountry_obj = next(
+                (c for c in pycountry.countries if c.name.lower() == name.lower())
             )
-        return None
+            return cls._from_pycountry(pycountry_obj, provider)
+        except StopIteration:
+            raise EntityNotFoundError(f"Country with name '{name}' not found in pycountry database")
+
+    @classmethod
+    def _from_pycountry(cls, pycountry_obj: Any, provider: SofascoreProvider) -> Country:
+        """Helper method to populate country data from a pycountry object."""
+        return cls(
+            data=_CountryData(
+                name=pycountry_obj.name,
+                slug=pycountry_obj.name.lower().replace(" ", "-"),
+                alpha2=pycountry_obj.alpha_2,
+                alpha3=pycountry_obj.alpha_3
+            ),
+            provider=provider,
+            pycountry_obj=pycountry_obj
+        )
 
 
 class Category(IdentifiableEntity):
@@ -203,9 +251,14 @@ class Category(IdentifiableEntity):
         format (EventFormat): The event format for this category, derived from its sport.
         country (Country | None): The country this category belongs to, or None if international.
         competitions (EntityCollection[Competition]): All competitions under this category.
+    
+    Class Methods:
+        all(provider) -> EntityCollection[Category]: Fetch all categories across all sports (expensive).
+        from_id(category_id, provider) -> Category: Create a Category instance from its ID (expensive).
     """
     _data: _CategoryData
     _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
+    _all_cache: dict[int, EntityCollection[Category]] = {}
 
     def __init__(self, data: _CategoryData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -263,3 +316,30 @@ class Category(IdentifiableEntity):
         ] + [
             Competition(s, self._provider) for s in unique_stages
         ])
+
+    @classmethod
+    def all(cls, provider: SofascoreProvider) -> EntityCollection[Category]:
+        """
+        Returns a collection of all categories across all sports.
+        Warning: This requires N API calls (one per sport) on the first call to build the cache.
+        """
+        provider_key = id(provider)
+
+        if provider_key not in cls._all_cache:
+            all_categories = []
+            for sport in Sport.all(provider):
+                all_categories.extend(sport.categories)
+            cls._all_cache[provider_key] = EntityCollection(all_categories)
+
+        return cls._all_cache[provider_key]
+
+    @classmethod
+    def from_id(cls, category_id: int, provider: SofascoreProvider) -> Self:
+        """
+        Create a Category instance from its ID.
+        Warning: This requires N API calls (one per sport) on the first call to build the cache.
+        """
+        category = cls.all(provider).get(id=category_id)
+        if not category:
+            raise EntityNotFoundError(f"Category with ID {category_id} not found")
+        return category
