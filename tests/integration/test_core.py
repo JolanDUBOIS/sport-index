@@ -16,7 +16,7 @@ def test_sport(provider: SofascoreProvider):
     assert football.id == 1
     assert football.slug == "football"
     assert football.name == "Football"
-    assert football.format == "match"
+    assert football.event_format == "match"
 
     football_cats = football.categories
     assert len(football_cats) > 0
@@ -33,15 +33,15 @@ def test_sport(provider: SofascoreProvider):
     # Test other sports to ensure they also have categories
     basketball = Sport.from_id(2, provider)
     assert len(basketball.categories) > 0
-    assert basketball.format == "match"
+    assert basketball.event_format == "match"
 
     motorsport = Sport.from_id(11, provider)
     assert len(motorsport.categories) > 0
-    assert motorsport.format == "stage"
+    assert motorsport.event_format == "stage"
 
     cycling = Sport.from_id(65, provider)
     assert len(cycling.categories) > 0
-    assert cycling.format == "stage"
+    assert cycling.event_format == "stage"
 
 
 def test_country(provider: SofascoreProvider):
@@ -77,7 +77,7 @@ def test_category(client: SportClient, provider: SofascoreProvider):
     assert football_eu.name == "Europe"
     assert football_eu.slug == "europe"
     assert football_eu.sport.id == 1
-    assert football_eu.format == "match"
+    assert football_eu.event_format == "match"
     assert football_eu.country is None
     assert len(football_eu.competitions) > 0 and any(comp.id == 14 and comp.name == "UEFA Champions League" for comp in football_eu.competitions)
 

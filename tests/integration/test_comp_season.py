@@ -11,8 +11,8 @@ def test_competition(provider: SofascoreProvider):
     assert ucl.slug == "uefa-champions-league"
     assert ucl.name == "UEFA Champions League"
     assert ucl.sport.id == 1
-    assert ucl.format == "match"
-    assert ucl.format == ucl.sport.format
+    assert ucl.event_format == "match"
+    assert ucl.event_format == ucl.sport.event_format
     assert ucl.category.id == 1465
     assert len(ucl.seasons) > 0
 
@@ -25,7 +25,7 @@ def test_season(provider: SofascoreProvider):
     assert ucl_24_25.year == "24/25"
     assert isinstance(ucl_24_25.start, datetime) or ucl_24_25.start is None
     assert ucl_24_25.sport.id == 1
-    assert ucl_24_25.format == "match"
+    assert ucl_24_25.event_format == "match"
     assert ucl_24_25.competition.id == 14
     assert ucl_24_25.current_round.name == "Final"
     assert len(ucl_24_25.rounds) > 0

@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import pytest
 
 from sportindex.exceptions import ProviderNotFoundError
-from sportindex.provider import SofascoreProvider, RecordingFetcher
+from sportindex.provider import SofascoreProvider
 from sportindex.provider.models import (
     _CategoryData, _UniqueTournamentData, _UniqueStageData, _SeasonData,
     _TeamStandingsData, _EventsResponse, _TeamResponse, _TeamData,
@@ -29,10 +29,6 @@ def ignore_not_found(context_info=""):
     except ProviderNotFoundError as e:
         logger.warning(f"Ignored expected 404: {context_info} | Details: {e}")
 
-@pytest.fixture(scope="module")
-def provider():
-    fetcher = RecordingFetcher(mode="auto", cache_dir="tests/mock_cache")
-    return SofascoreProvider(fetcher=fetcher, fetch_delay=0.1)
 
 # =====================================================================
 # 1. Categories
