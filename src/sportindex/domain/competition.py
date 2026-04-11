@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Literal, Self, overload
+from typing import TYPE_CHECKING, Optional, Literal, Self, Generic, overload
+
+from typing_extensions import TypeVar
 
 from . import logger
-from .base import IdentifiableEntity, EntityCollection, SearchableMixin
+from .base import SearchableMixin
+from .collections import EntityCollection, ScoredEntityCollection
 from .types import EventFormat
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
@@ -12,12 +15,15 @@ from sportindex.provider.models import _UniqueTournamentData, _UniqueStageData
 
 if TYPE_CHECKING:
     from .core import Category, Sport
+    from .event import Event, MatchEvent, StageEvent
     from .season import Season
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import BaseSchema
 
 
-class Competition(IdentifiableEntity, SearchableMixin):
+E = TypeVar("E", bound="Event", default="Event")
+
+class Competition(SearchableMixin, Generic[E]):
     """A competition, e.g., 'Ligue 1', 'Rolland Garros'.
 
     Can represent either a unique tournament or a unique stage.
@@ -28,8 +34,13 @@ class Competition(IdentifiableEntity, SearchableMixin):
         name (str): Competition name.
         slug (str): URL-friendly slug.
         sport (Sport): Parent sport.
+        event_format (EventFormat): The event format for this competition, either "match" or "stage".
         category (Category): Parent category (lazy-loaded).
-        seasons (EntityCollection[Season]): Seasons of this competition (lazy-loaded).
+        seasons (EntityCollection[Season[E]]): Seasons of this competition (lazy-loaded).
+
+    Methods:
+        from_id(competition_id, provider) -> Competition: Fetch a competition by its ID.
+        search(query, provider) -> ScoredEntityCollection: Search for competitions matching a query string
 
     Raises:
         TypeError: If data is not UniqueTournament or UniqueStage.
@@ -39,7 +50,15 @@ class Competition(IdentifiableEntity, SearchableMixin):
     _N_TYPES: int = 2
     _TYPE_MAP: dict[type[BaseSchema], int] = {_UniqueTournamentData: 1, _UniqueStageData: 2}
     _REVERSE_TYPE_MAP: dict[int, type[BaseSchema]] = {1: _UniqueTournamentData, 2: _UniqueStageData}
-    _FORMAT_MAP: dict[type[BaseSchema], str] = {_UniqueTournamentData: "match", _UniqueStageData: "stage"}
+
+    @overload
+    def __new__(cls, data: _UniqueTournamentData, provider: SofascoreProvider, **kwargs) -> Competition[MatchEvent]: ...
+
+    @overload
+    def __new__(cls, data: _UniqueStageData, provider: SofascoreProvider, **kwargs) -> Competition[StageEvent]: ...
+
+    def __new__(cls, data: _UniqueTournamentData | _UniqueStageData, provider: SofascoreProvider, **kwargs):
+        return super().__new__(cls)
 
     def __init__(self, data: _UniqueTournamentData | _UniqueStageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider)
@@ -66,26 +85,28 @@ class Competition(IdentifiableEntity, SearchableMixin):
         return self._data.slug
 
     @property
-    def sport(self) -> Sport:
+    def sport(self) -> Sport[E]:
         """The sport this competition belongs to."""
         return self.category.sport
 
     @property
-    def format(self) -> EventFormat:
+    def event_format(self) -> EventFormat:
         """The event format for this competition."""
-        try:
-            return self._FORMAT_MAP[type(self._data)]
-        except KeyError:
+        if isinstance(self._data, _UniqueTournamentData):
+            return "match"
+        elif isinstance(self._data, _UniqueStageData):
+            return "stage"
+        else:
             raise TypeError(f"Unsupported competition data type {type(self._data)}.")
 
     @cached_property
-    def category(self) -> Category:
+    def category(self) -> Category[E]:
         """The category this competition belongs to."""
         from .core import Category
         return Category(self._data.category, self._provider)
 
     @cached_property
-    def seasons(self) -> EntityCollection[Season]:
+    def seasons(self) -> EntityCollection[Season[E]]:
         """Fetch all seasons for this competition."""
         from .season import Season
         if isinstance(self._data, _UniqueTournamentData):
@@ -127,7 +148,7 @@ class Competition(IdentifiableEntity, SearchableMixin):
         return instance
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Competition]:
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Competition]:
         """Search for competitions matching the given query, returning up to max_results results."""
         return cls._paginate_search(
             query=query,

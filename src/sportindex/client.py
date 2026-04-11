@@ -41,8 +41,8 @@ def _get_default_provider() -> SofascoreProvider:
     return _default_provider
 
 
-S = TypeVar("S", bound=SearchableMixin)
-I = TypeVar("I", bound=IdentifiableEntity)
+S = TypeVar("S", bound="SearchableMixin")
+I = TypeVar("I", bound="IdentifiableEntity")
 
 class SportClient:
     """Main client for accessing sports data.
@@ -53,7 +53,7 @@ class SportClient:
     Methods:
         get(entity_cls: type[IdentifiableEntity], entity_id: int) -> Optional[IdentifiableEntity]: Fetch an identifiable entity by its class and ID.
         search(entity_cls: type[SearchableMixin], query: str, max_results: int = 20) -> EntityCollection[SearchableMixin]: Search for entities that implement SearchableMixin.
-        list(entity_cls: type[IdentifiableEntity], **kwargs) -> EntityCollection[IdentifiableEntity]: List entities of a given class with optional filters (e.g., list competitions by category_id).
+        list(entity_cls: type[IdentifiableEntity], **kwargs) -> EntityCollection: List entities of a given class with optional filters (e.g., list competitions by category_id).
 
     Usage:
         >>> client = SportClient()
@@ -114,15 +114,15 @@ class SportClient:
         self._cache[ns][entity.id] = entity
         return entity
 
-    def _hydrate_cache(self, entity_cls: type[I], collection: EntityCollection[I]) -> EntityCollection[I]:
+    def _hydrate_cache(self, entity_cls: type[I], collection: EntityCollection) -> EntityCollection:
         """Cache all entities in an iterable collection.
 
         Args:
             entity_cls (type[IdentifiableEntity]): The class of the entities to cache.
-            collection (EntityCollection[IdentifiableEntity]): Iterable of entities.
+            collection (EntityCollection): Iterable of entities.
 
         Returns:
-            EntityCollection[IdentifiableEntity]: The same collection for chaining.
+            EntityCollection: The same collection for chaining.
         """
         ns = self._resolve_ns(entity_cls)
         for entity in collection:
@@ -197,9 +197,9 @@ class SportClient:
         """
         if not issubclass(entity_cls, SearchableMixin):
             raise TypeError(f"{entity_cls.__name__} does not support searching.")
-            
-        collection = entity_cls.search(query, self._provider, max_results=max_results)
-        return self._hydrate_cache(entity_cls, collection)
+
+        scored_collection = entity_cls.search(query, self._provider, max_results=max_results)
+        return self._hydrate_cache(entity_cls, scored_collection.to_collection())
 
     # --- Unified LIST ---
 
@@ -210,7 +210,7 @@ class SportClient:
     def list(self, entity_cls: type[Country]) -> EntityCollection[Country]: ...
 
     @overload
-    def list(self, entity_cls: type[Category]) -> EntityCollection[Category]: ...
+    def list(self, entity_cls: type[Category], *, sport_id: int) -> EntityCollection[Category]: ...
 
     @overload
     def list(self, entity_cls: type[Competition], *, category_id: int, sport_id: Optional[int] = None) -> EntityCollection[Competition]: ...
@@ -242,10 +242,18 @@ class SportClient:
         if not issubclass(entity_cls, IdentifiableEntity):
             raise TypeError(f"{entity_cls.__name__} is not an identifiable entity class.")
 
-        if entity_cls is Sport or entity_cls is Country or entity_cls is Category:
+        if entity_cls is Sport or entity_cls is Country:
             return self._hydrate_cache(entity_cls, entity_cls.all(self._provider))
 
+        if entity_cls is Category:
+            if "sport_id" not in kwargs:
+                return self._hydrate_cache(entity_cls, entity_cls.all(self._provider))
+            sport = self.get(Sport, kwargs["sport_id"], strict=True)
+            return self._hydrate_cache(entity_cls, sport.categories)
+
         if entity_cls is Competition:
+            if "category_id" not in kwargs:
+                raise EntityNotFoundError("category_id is required to list competitions.")
             if "sport_id" in kwargs:
                 sport = self.get(Sport, kwargs["sport_id"], strict=True)
                 category = sport.categories.get(id=kwargs["category_id"], strict=True)
@@ -254,10 +262,14 @@ class SportClient:
             return self._hydrate_cache(entity_cls, category.competitions)
 
         if entity_cls is Season:
+            if "competition_id" not in kwargs:
+                raise EntityNotFoundError("competition_id is required to list seasons.")
             comp = self.get(Competition, kwargs["competition_id"], strict=True)
             return self._hydrate_cache(entity_cls, comp.seasons)
 
         if entity_cls is Event:
+            if "season_id" not in kwargs:
+                raise EntityNotFoundError("season_id is required to list events.")
             season = self.get(Season, kwargs["season_id"], strict=True)
             return self._hydrate_cache(entity_cls, season.get_events())
 

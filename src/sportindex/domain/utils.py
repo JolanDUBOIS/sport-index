@@ -3,7 +3,7 @@ from typing import TypeVar, Optional
 from pydantic import BaseModel
 
 
-T = TypeVar("T", bound=BaseModel)
+T = TypeVar("T", bound="BaseModel")
 
 def merge_pydantic_models(base_obj: T, new_obj: Optional[T]) -> T:
     """Merge two Pydantic models, preferring non-None values from new_obj."""

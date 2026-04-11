@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from .base import BaseSchema
 from .channel import _ChannelData
 from .core import _SportData, _CountryData, _CategoryData
@@ -65,6 +68,8 @@ PeriodStats.model_rebuild(_types_namespace=_shared_namespace)
 _EventStatisticsResponse.model_rebuild(_types_namespace=_shared_namespace)
 PlayerSeasonStats.model_rebuild(_types_namespace=_shared_namespace)
 ManagerTenure.model_rebuild(_types_namespace=_shared_namespace)
+MomentumPoint.model_rebuild(_types_namespace=_shared_namespace)
+_MomentumGraphResponse.model_rebuild(_types_namespace=_shared_namespace)
 
 # Incidents
 GoalIncident.model_rebuild(_types_namespace=_shared_namespace)

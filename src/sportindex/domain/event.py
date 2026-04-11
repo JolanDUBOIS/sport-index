@@ -2,16 +2,20 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import cached_property
-from pydantic import BaseModel
-from datetime import datetime, date
+from datetime import datetime
 from typing import (
-    TYPE_CHECKING, Optional, TypeVar,
-    TypeAlias, Generic, Callable,
+    TYPE_CHECKING, Optional,
+    Generic, Callable,
     Literal, Self, overload
 )
 
+import pycountry
+from pydantic import BaseModel
+from typing_extensions import TypeVar
+
 from . import logger
-from .base import IdentifiableEntity, EntityCollection
+from .base import IdentifiableEntity
+from .collections import EventCollection, EntityCollection
 from .core import Sport
 from .types import EventFormat
 from .utils import merge_pydantic_models
@@ -19,9 +23,9 @@ from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFo
 from sportindex.provider.models import _EventData, _StageData, StageTier
 
 if TYPE_CHECKING:
-    from .channel import EventChannels
+    from .channel import Channel
     from .competition import Competition
-    from .competitor import Competitor
+    from .competitor import Competitor, Player
     from .incident import Incident
     from .leaderboard import Standings
     from .referee import Referee
@@ -31,7 +35,7 @@ if TYPE_CHECKING:
     from sportindex.provider.models import (
         Round, Score, MatchPeriod, PeriodStats,
         _LineupsResponse, MomentumPoint, EventStatus,
-        _EventsResponse, _UniqueStageData
+        _EventsResponse
     )
 
 
@@ -56,7 +60,6 @@ class Event(IdentifiableEntity):
         competition (Competition | None): Competition this event belongs to.
         season (Season): Season this event belongs to.
         venue (Venue | None): Venue where the event takes place.
-        channels (EventChannels): TV or streaming channels broadcasting the event.
         winner (Competitor | None): Winner of the event.
 
     Methods:
@@ -118,7 +121,7 @@ class Event(IdentifiableEntity):
         return self._data.status
 
     @property
-    def sport(self) -> Sport:
+    def sport(self) -> Sport[Self]:
         """The sport this event belongs to."""
         return self.season.sport
 
@@ -136,8 +139,8 @@ class Event(IdentifiableEntity):
 
     @property
     @abstractmethod
-    def season(self) -> Season:
-        """The season this event belongs to."""
+    def season(self) -> Optional[Season]:
+        """The season this event belongs to, if available."""
         raise NotImplementedError("Property season must be implemented in subclasses")
 
     @property
@@ -148,15 +151,34 @@ class Event(IdentifiableEntity):
 
     @property
     @abstractmethod
-    def channels(self) -> EventChannels:
-        """Get the channels broadcasting this event."""
-        raise NotImplementedError("Property channels must be implemented in subclasses")
-
-    @property
-    @abstractmethod
     def winner(self) -> Optional[Competitor]:
         """The winner of this event, if available."""
         raise NotImplementedError("Property winner must be implemented in subclasses")
+
+    def get_channels(self, country: str) -> EntityCollection[Channel]:
+        """
+        Fetch the channels broadcasting this event in a specific country.
+        Country can be specified as a name, alpha-2, or alpha-3 code.
+        """
+        all_channels = self._get_all_channels()
+
+        try:
+            parsed = pycountry.countries.lookup(country)
+            alpha = parsed.alpha_2 
+        except LookupError:
+            raise ValueError(f"Could not resolve '{country}' to a valid country using pycountry.")
+
+        if alpha not in all_channels:
+            logger.debug(f"Country '{country}' (alpha-2: '{alpha}') not found in channels for event {self.id}. Available countries: {list(all_channels.keys())}")
+            return EntityCollection()
+
+        channel_ids = all_channels[alpha]
+        return EntityCollection([Channel.from_id(cid, self._provider) for cid in channel_ids])
+
+    @abstractmethod
+    def _get_all_channels(self) -> dict[str, list[int]]:
+        """Fetch all channels broadcasting this event, organized by country."""
+        raise NotImplementedError("Method _get_all_channels must be implemented in subclasses")
 
     def _full_load(self) -> None:
         """
@@ -256,7 +278,7 @@ class MatchEvent(Event):
         return Competition(self._data.tournament.unique_tournament, self._provider) if self._data.tournament and self._data.tournament.unique_tournament else None
 
     @cached_property
-    def season(self) -> Season:
+    def season(self) -> Season[MatchEvent]:
         """The season this event belongs to."""
         self._full_load()
         from .season import Season
@@ -284,11 +306,6 @@ class MatchEvent(Event):
         self._full_load()
         from .venue import Venue
         return Venue(self._data.venue, self._provider)
-
-    @cached_property
-    def channels(self) -> EventChannels:
-        from .channel import EventChannels
-        return EventChannels(self._provider.get_event_channels(self._data.id), self._provider)
 
     # Properties available after the match starts or ends
 
@@ -368,13 +385,17 @@ class MatchEvent(Event):
             return []
 
     @cached_property
-    def h2h(self) -> EventCollection:
+    def h2h(self) -> EventCollection[MatchEvent]:
         """Head-to-head history for the competitors in this event, if available."""
         try:
-            return EventCollection([Event(e, self._provider) for e in self._provider.get_h2h_history(self._data.custom_id).events])
+            return EventCollection([MatchEvent(e, self._provider) for e in self._provider.get_h2h_history(self._data.custom_id).events])
         except ProviderNotFoundError:
             logger.debug(f"H2H history not found for event {self.id}.")
-            return EventCollection([])
+            return EventCollection()
+
+    def _get_all_channels(self) -> dict[str, list[int]]:
+        """Fetch all channels broadcasting this event, organized by country."""
+        return self._provider.get_event_channels(self._data.id).channels
 
     @overload
     @classmethod
@@ -423,7 +444,7 @@ class StageEvent(Event):
         tier (StageTier): The categorization tier of the stage.
         parent (StageEvent | None): The overarching parent stage, if applicable.
         substages (EventCollection): Any child stages contained within this stage.
-        standings (EntityCollection[Standings] | None): The rankings for competitors and teams.
+        standings (list[Standings] | None): The rankings for competitors and teams.
     """
     _data: _StageData
     _REPR_FIELDS = ("id", "name", "slug", "tier", "format", "start", "end")
@@ -463,6 +484,7 @@ class StageEvent(Event):
     @cached_property
     def competition(self) -> Optional[Competition]:
         """The competition this event belongs to, if available."""
+        self._full_load()
         from .competition import Competition
         return Competition(self._data.unique_stage, self._provider)
 
@@ -481,7 +503,7 @@ class StageEvent(Event):
                     parent_id = Season.encode_id(
                         self._data.parent.id,
                         Season._TYPE_MAP[_StageData],
-                        Competition.encode_id(self._data.unique_stage.id, Competition._TYPE_MAP[_UniqueStageData])
+                        Competition.encode_id(self._data.unique_stage.id, 2)
                     )
                     return Season.from_id(parent_id, self._provider)
                 except ValueError:
@@ -496,31 +518,27 @@ class StageEvent(Event):
         return None
 
     @cached_property
-    def season(self) -> Optional[Season]:
+    def season(self) -> Optional[Season[StageEvent]]:
         """The season this event belongs to, if available."""
+        from .season import Season
         if self._parent and isinstance(self._parent, Season):
             return self._parent
         return None
 
     @cached_property
-    def substages(self) -> EventCollection:
+    def substages(self) -> EventCollection[StageEvent]:
         """The substages for this event, if available."""
         try:
             return EventCollection([Event(s, self._provider) for s in self._provider.get_stage_substages(self._data.id)])
         except ProviderNotFoundError:
             logger.debug(f"Substages not found for event {self.id}.")
-            return EventCollection([])
+            return EventCollection()
 
     @cached_property
     def venue(self) -> Optional[Venue]:
         """The venue where this event takes place, if available."""
         from .venue import Venue
         return Venue(self._data, self._provider)
-
-    @cached_property
-    def channels(self) -> EventChannels:
-        from .channel import EventChannels
-        return EventChannels(self._provider.get_stage_channels(self._data.id), self._provider)
 
     # Properties available after the stage starts or ends
 
@@ -533,7 +551,7 @@ class StageEvent(Event):
             return Competitor(self._data.winner, self._provider)
 
     @property
-    def standings(self) -> Optional[EntityCollection[Standings]]:
+    def standings(self) -> Optional[list[Standings]]:
         """The standings for this event, if race and available."""
         try:
             competitors_standings = self._provider.get_stage_standings_competitors(self._data.id)
@@ -545,10 +563,14 @@ class StageEvent(Event):
         except ProviderNotFoundError as e:
             logger.debug(f"Failed to fetch teams standings for event {self.id}: {e}")
             teams_standings = []
-        return EntityCollection([
+        return [
             Standings(competitors_standings, self._provider, name=f"Competitors {self.name}", kind="competitors"),
             Standings(teams_standings, self._provider, name=f"Teams {self.name}", kind="teams")
-        ])
+        ]
+
+    def _get_all_channels(self) -> dict[str, list[int]]:
+        """Fetch all channels broadcasting this event, organized by country."""
+        return self._provider.get_stage_channels(self._data.id).channels
 
     @overload
     @classmethod
@@ -596,82 +618,25 @@ class MatchCompetitors(BaseModel):
 
 class MatchLineups(BaseModel):
     """Represents the lineups of both teams for a match."""
-    home: list[Competitor]
-    away: list[Competitor]
+    home: list[Player]
+    away: list[Player]
 
     @classmethod
     def _from_base_schema(cls, lineup_response: _LineupsResponse, provider: SofascoreProvider) -> MatchLineups:
         """Create MatchLineups from a _LineupsResponse."""
+        from .competitor import Player
         if not lineup_response or not lineup_response.home or not lineup_response.away:
             logger.debug(f"Lineups response is incomplete for event. Response: {lineup_response}")
             raise ProviderNotFoundError("Lineups data is incomplete or missing")
         return cls(
-            home=[Competitor(p, provider) for p in lineup_response.home.players],
-            away=[Competitor(p, provider) for p in lineup_response.away.players]
+            home=[Player(p, provider) for p in lineup_response.home.players],
+            away=[Player(p, provider) for p in lineup_response.away.players]
         )
-
-
-# ===== Event Collection =====
-
-E = TypeVar("E", bound=Event)
-
-class EventCollection(EntityCollection[E]):
-    """
-    A specialized collection for handling lists of events with common filtering and sorting needs.
-    
-    Methods:
-        matches: Return a new EventCollection containing only match events.
-        stages: Return a new EventCollection containing only stage events.
-        filter_by_date: Return a new EventCollection filtered by date.
-        sort_by_date: Return a new EventCollection sorted by date.
-        filter_by_competitors: Return a new EventCollection containing only match events involving the specified competitor IDs.
-    """
-
-    @property
-    def matches(self) -> EventCollection[MatchEvent]:
-        """Return a new EventCollection containing only match events."""
-        return EventCollection([e for e in self._entities if isinstance(e, MatchEvent)])
-
-    @property
-    def stages(self) -> EventCollection[StageEvent]:
-        """Return a new EventCollection containing only stage events."""
-        return EventCollection([e for e in self._entities if isinstance(e, StageEvent)])
-
-    def filter_by_date(self, *, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> EventCollection[E]:
-        """Return a new EventCollection filtered by date."""
-        results = self._entities
-
-        def to_dt(val: date | datetime) -> datetime:
-            if isinstance(val, datetime): return val
-            return datetime.combine(val, datetime.min.time())
-
-        if before is not None:
-            before_dt = to_dt(before)
-            results = [e for e in results if e.start < before_dt]
-        if after is not None:
-            after_dt = to_dt(after)
-            results = [e for e in results if e.start > after_dt]
-
-        return self.__class__(results)
-
-    def sort_by_date(self, ascending: bool = True) -> EventCollection[E]:
-        """Return a new EventCollection sorted by date."""
-        return self.__class__(sorted(self._entities, key=lambda e: e.start, reverse=not ascending))
-
-    def filter_by_competitors(self, competitor_ids: list[int]) -> EventCollection[MatchEvent]:
-        """Return a new EventCollection containing only match events involving the specified competitor IDs."""
-        results = []
-        for event in self.matches:
-            if event.competitors and ((event.competitors.home.id in competitor_ids) or (event.competitors.away.id in competitor_ids)):
-                results.append(event)
-        return EventCollection(results)
-
-Events: TypeAlias = EventCollection[Event]
 
 
 # ===== Event Aware Mixin =====
 
-E = TypeVar("E", bound=Event)
+E = TypeVar("E", bound="Event", default="Event")
 
 class EventAwareMixin(ABC, Generic[E]):
     """
@@ -683,7 +648,6 @@ class EventAwareMixin(ABC, Generic[E]):
         get_events() -> EventCollection[E]: Fetch all events (fixtures + results), sorted by date.
     """
 
-    @abstractmethod
     def get_fixtures(self, silent: bool = False) -> EventCollection[E]:
         """Override in subclass if fixtures are supported."""
         raise NotImplementedError(f"Method get_fixtures must be implemented in the subclass {self.__class__.__name__}")
@@ -714,5 +678,5 @@ class EventAwareMixin(ABC, Generic[E]):
 
             if not getattr(events_response, "hasNextPage", False):
                 break
-                
+
         return EventCollection([Event(e, getattr(self, "_provider")) for e in parsed_events])
