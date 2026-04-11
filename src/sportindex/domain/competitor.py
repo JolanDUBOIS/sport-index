@@ -3,14 +3,15 @@ from __future__ import annotations
 from abc import abstractmethod
 from datetime import date
 from functools import cached_property
-from pydantic import BaseModel
 from typing import TYPE_CHECKING, Optional, Literal, Self, overload
 
+from pydantic import BaseModel
 from nameparser import HumanName
 
 from . import logger
-from .base import IdentifiableEntity, EntityCollection, SearchableMixin
-from .event import Event, EventAwareMixin
+from .base import SearchableMixin
+from .collections import EntityCollection, ScoredEntityCollection
+from .event import EventAwareMixin
 from .types import CompetitorKind
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
     from sportindex.provider.models import BaseSchema, _PlayerTeamInfoData, Amount
 
 
-class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
+class Competitor(SearchableMixin, EventAwareMixin):
     """A sports competitor, either an individual or a team.
 
     Provides access to identity, affiliations, and related entities such as players, managers, and venues.
@@ -49,6 +50,7 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
     Methods:
         get_fixtures(silent=False) -> EventCollection: Fetch all scheduled events for the competitor.
         get_results(silent=False) -> EventCollection: Fetch all results for the competitor.
+        search(query, provider, max_results) -> ScoredEntityCollection: Search for competitors matching a query string.
 
     Raises:
         TypeError: If initialized with invalid data type.
@@ -140,26 +142,26 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         """The category this competitor belongs to, if available."""
         raise NotImplementedError("Property category must be implemented in subclasses")
 
-    def get_fixtures(self, silent: bool = False) -> EventCollection[Event]:
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this competitor."""
         from .event import EventCollection
         if isinstance(self._data, _PlayerData):
             if not silent:
                 logger.warning(f"No fixtures endpoint for non individual sports players like {self.name}, returning empty collection")
             # NOTE - Should we raise ProviderNotFoundError or similar instead ?
-            return EventCollection([])
+            return EventCollection()
         elif isinstance(self._data, _TeamData):
             return self._fetch_paginated_events(self._provider.get_team_fixtures, self._data.id)
-        return EventCollection([])
+        return EventCollection()
 
-    def get_results(self, silent: bool = False) -> EventCollection[Event]:
+    def get_results(self, silent: bool = False) -> EventCollection:
         """Fetch all results for this competitor."""
         if isinstance(self._data, _PlayerData):
             return self._fetch_paginated_events(self._provider.get_player_results, self._data.id)
         elif isinstance(self._data, _TeamData):
             return self._fetch_paginated_events(self._provider.get_team_results, self._data.id)
         from .event import EventCollection
-        return EventCollection([])
+        return EventCollection()
 
     def _full_load(self) -> None:
         """
@@ -189,10 +191,12 @@ class Competitor(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         return instance
 
     @classmethod
-    @abstractmethod
-    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Competitor]:
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Competitor]:
         """Search for competitors matching the given query, returning up to max_results results."""
-        raise NotImplementedError("Method search must be implemented in subclasses")
+        team_results = Team.search(query, provider, max_results)
+        player_results = Player.search(query, provider, max_results)
+        combined = ScoredEntityCollection.merge(team_results, player_results)
+        return combined.sort_by_score()[:max_results]
 
     @overload
     @classmethod
@@ -305,14 +309,14 @@ class Team(Competitor):
             return EntityCollection([Player(player, self._provider) for player in self._provider.get_team_players(self._data.id).players])
         except ProviderNotFoundError:
             logger.debug(f"No players found for team with id {self.id}, returning empty collection")
-            return EntityCollection([])
+            return EntityCollection()
 
     def _get_drivers(self) -> EntityCollection[Player]:
         try:
             return EntityCollection([Player(driver, self._provider) for driver in self._provider.get_team(self._data.id).drivers])
         except ProviderNotFoundError:
             logger.debug(f"No drivers found for team with id {self.id}, returning empty collection")
-            return EntityCollection([])
+            return EntityCollection()
 
     @cached_property
     def manager(self) -> Optional[Manager]:
@@ -329,7 +333,7 @@ class Team(Competitor):
         return Venue(self._data.venue, self._provider) if self._data.venue else None
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Team]:
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Team]:
         """Search for teams matching the given query, returning up to max_results results."""
         return cls._paginate_search(
             query=query,
@@ -428,7 +432,7 @@ class Player(Competitor):
             return PlayerInfo._from_parsed_player_team_info(self._data.player_team_info)
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Player]:
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Player]:
         """Search for players matching the given query, returning up to max_results results."""
         return cls._paginate_search(
             query=query,

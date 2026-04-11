@@ -4,21 +4,21 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional, Self, Literal, overload
 
 from . import logger
-from .base import IdentifiableEntity, EntityCollection, SearchableMixin
-from .event import Event, EventAwareMixin
+from .base import SearchableMixin
+from .collections import EntityCollection, ScoredEntityCollection, EventCollection
+from .event import EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _VenueData, _StageData
 
 if TYPE_CHECKING:
-    from .core import Country
-    from .event import EventCollection
     from .competitor import Competitor
+    from .core import Country
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import BaseSchema
 
 
-class Venue(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
+class Venue(SearchableMixin, EventAwareMixin):
     """Represents a sports venue or race stage, e.g., a stadium, tennis court, or race track.
 
     Handles basic information, location, capacity, associated teams, and provides
@@ -39,7 +39,7 @@ class Venue(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
             Fetch all results played at this venue.
         from_id(venue_id: int, provider: SofascoreProvider) -> Venue:
             Fetch a venue by its unique ID.
-        search(query: str, provider: SofascoreProvider) -> EntityCollection[Venue]:
+        search(query: str, provider: SofascoreProvider) -> ScoredEntityCollection[Venue]:
             Search for venues by query string (up to 20 results).
     """
     _data: _VenueData | _StageData
@@ -74,7 +74,7 @@ class Venue(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         """The city where the venue is located."""
         self._full_load()
         if isinstance(self._data, _VenueData):
-            return self._data.city
+            return self._data.city.name if self._data.city else None
         elif isinstance(self._data, _StageData):
             return self._data.info.circuit_city if self._data.info else None
 
@@ -107,16 +107,26 @@ class Venue(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
                 for t in self._data.main_teams
             ])
         elif isinstance(self._data, _StageData):
-            logger.warning("Teams for stages are not available in the current provider implementation, returning empty list")
-            return EntityCollection([])
+            logger.warning("Teams for stages are not available in the current provider implementation, returning empty collection")
+            return EntityCollection()
 
-    def get_fixtures(self) -> EventCollection[Event]:
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this venue."""
-        return self._fetch_paginated_events(self._provider.get_venue_fixtures, self._data.id)
+        if isinstance(self._data, _VenueData):
+            return self._fetch_paginated_events(self._provider.get_venue_fixtures, self._data.id)
+        elif isinstance(self._data, _StageData):
+            if not silent:
+                logger.warning("Fixtures for stages are not available in the current provider implementation, returning empty collection")
+            return EventCollection()
 
-    def get_results(self) -> EventCollection[Event]:
+    def get_results(self, silent: bool = False) -> EventCollection:
         """Fetch all results for this venue."""
-        return self._fetch_paginated_events(self._provider.get_venue_results, self._data.id)
+        if isinstance(self._data, _VenueData):
+            return self._fetch_paginated_events(self._provider.get_venue_results, self._data.id)
+        elif isinstance(self._data, _StageData):
+            if not silent:
+                logger.warning("Results for stages are not available in the current provider implementation, returning empty collection")
+            return EventCollection()
 
     def _full_load(self) -> None:
         """
@@ -149,7 +159,7 @@ class Venue(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         return instance
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Venue]:
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Venue]:
         """
         Search for venues matching the given query, returning up to max_results results.
         Stage related venues (such as circuits) are not currently included in search results due to provider limitations.

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Self, Any
+from typing import TYPE_CHECKING, Optional, Self, Any, Generic
 
 import pycountry
+from typing_extensions import TypeVar
 
-from .base import IdentifiableEntity, EntityCollection
+from .base import IdentifiableEntity
+from .collections import EntityCollection
 from .types import EventFormat
 from sportindex.exceptions import ProviderNotFoundError, EntityNotFoundError
 from sportindex.provider.models import (
@@ -16,11 +19,14 @@ from sportindex.provider.models import (
 
 if TYPE_CHECKING:
     from .competition import Competition
+    from .event import Event
     from .leaderboard import Rankings
     from sportindex.provider import SofascoreProvider
 
 
-class Sport(IdentifiableEntity):
+E = TypeVar("E", bound="Event", default="Event")
+
+class Sport(IdentifiableEntity, Generic[E]):
     """A sport (e.g., football, tennis, motorsport).
 
     Provides access to its categories and official rankings, and can be instantiated from minimal raw data without fetching full details.
@@ -29,8 +35,8 @@ class Sport(IdentifiableEntity):
         id (int): Unique sport ID.
         name (str): Official sport name.
         slug (str): URL-friendly identifier.
-        format (EventFormat): The event format for this sport (match-based or stage-based).
-        categories (EntityCollection[Category]): All categories associated with this sport.
+        event_format (EventFormat): The event format for this sport (match-based or stage-based).
+        categories (EntityCollection[Category[E]]): All categories associated with this sport.
 
     Methods:
         get_rankings(gender: Optional[str] = None) -> list[Rankings]: Fetch official rankings for the sport.
@@ -64,13 +70,16 @@ class Sport(IdentifiableEntity):
         return self._data.slug or self._data.name.lower().replace(" ", "-")
 
     @cached_property
-    def format(self) -> EventFormat:
+    def event_format(self) -> EventFormat:
         """Determine the event format for this sport (match-based or stage-based)."""
-        # TODO - This information will be imported from static one way or another...
-        raise NotImplementedError("Sport format detection is not implemented yet")
+        from .static import SPORTS_REGISTRY
+        for entry in SPORTS_REGISTRY:
+            if entry.id == self.id:
+                return entry.event_format
+        raise RuntimeError(f"Unexpected sport slug '{self.slug}' not found in SPORT_FORMATS mapping")
 
     @cached_property
-    def categories(self) -> EntityCollection[Category]:
+    def categories(self) -> EntityCollection[Category[E]]:
         """Fetch all categories for this sport."""
         return EntityCollection([
             Category(c, self._provider)
@@ -95,7 +104,6 @@ class Sport(IdentifiableEntity):
         """Returns a collection of all supported sports."""
         from .static import SPORTS_REGISTRY
         from sportindex.provider.models import _SportData
-
         return EntityCollection([
             cls(_SportData(id=s.id, slug=s.slug, name=s.name), provider)
             for s in SPORTS_REGISTRY
@@ -238,7 +246,7 @@ class Country(IdentifiableEntity):
         )
 
 
-class Category(IdentifiableEntity):
+class Category(IdentifiableEntity, Generic[E]):
     """A category within a sport (e.g., 'France Amateur', 'Formula 1', 'International').
 
     Provides access to its sport, country (if applicable), and competitions.
@@ -248,9 +256,9 @@ class Category(IdentifiableEntity):
         name (str): Category name.
         slug (str): URL-friendly identifier.
         sport (Sport): The sport this category belongs to.
-        format (EventFormat): The event format for this category, derived from its sport.
+        event_format (EventFormat): The event format for this category, derived from its sport.
         country (Country | None): The country this category belongs to, or None if international.
-        competitions (EntityCollection[Competition]): All competitions under this category.
+        competitions (EntityCollection[Competition[E]]]): All competitions under this category.
     
     Class Methods:
         all(provider) -> EntityCollection[Category]: Fetch all categories across all sports (expensive).
@@ -282,40 +290,43 @@ class Category(IdentifiableEntity):
         return self._data.slug or self._data.name.lower().replace(" ", "-")
 
     @cached_property
-    def sport(self) -> Sport:
+    def sport(self) -> Sport[E]:
         """The sport this category belongs to."""
         return Sport(self._data.sport, self._provider)
 
     @property
-    def format(self) -> EventFormat:
+    def event_format(self) -> EventFormat:
         """Determine the event format for this category based on its sport."""
-        return self.sport.format
+        return self.sport.event_format
 
     @cached_property
     def country(self) -> Optional[Country]:
         """The country this category belongs to, or None if it's an international category."""
         if self._data.country:
             return Country(self._data.country, self._provider)
+
+        if self._data.alpha2:
+            with suppress(EntityNotFoundError):
+                return Country.from_alpha(self._data.alpha2, self._provider)
+
         return None
 
     @cached_property
-    def competitions(self) -> EntityCollection[Competition]:
+    def competitions(self) -> EntityCollection[Competition[E]]:
         """Fetch all competitions (unique tournaments / unique stages) for this category."""
-        try:
+        unique_tournaments = []
+        with suppress(ProviderNotFoundError):
             unique_tournaments = self._provider.get_category_unique_tournaments(self.id)
-        except ProviderNotFoundError:
-            unique_tournaments = []
-        try:
+
+        unique_stages = []
+        with suppress(ProviderNotFoundError):
             unique_stages = self._provider.get_category_unique_stages(self.id)
-        except ProviderNotFoundError:
-            unique_stages = []
 
         from .competition import Competition
-        return EntityCollection([
-            Competition(c, self._provider) for c in unique_tournaments
-        ] + [
-            Competition(s, self._provider) for s in unique_stages
-        ])
+        return EntityCollection(
+            [Competition(c, self._provider) for c in unique_tournaments] +
+            [Competition(s, self._provider) for s in unique_stages]
+        )
 
     @classmethod
     def all(cls, provider: SofascoreProvider) -> EntityCollection[Category]:

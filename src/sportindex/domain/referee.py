@@ -5,8 +5,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional, Self
 
 from . import logger
-from .base import IdentifiableEntity, EntityCollection, SearchableMixin
-from .event import Event, EventAwareMixin
+from .base import SearchableMixin
+from .collections import ScoredEntityCollection
+from .event import EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _RefereeData
@@ -24,7 +25,7 @@ class Cards(BaseModel):
     yellow_red: int
 
 
-class Referee(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
+class Referee(SearchableMixin, EventAwareMixin):
     """Represents a sports referee/officiator (e.g., football referee, Formula 1 race director).
 
     Handles basic information, associated sport and country, games officiated,
@@ -47,7 +48,7 @@ class Referee(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
             Returns results for this referee.
         from_id(referee_id: int, provider: SofascoreProvider) -> Referee:
             Fetch a referee by its unique ID.
-        search(query: str, provider: SofascoreProvider) -> EntityCollection[Referee]:
+        search(query: str, provider: SofascoreProvider) -> ScoredEntityCollection[Referee]:
             Search for referees matching a query string (up to 20 results).
     """
     _data: _RefereeData
@@ -104,14 +105,14 @@ class Referee(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
             yellow_red=int(self._data.yellow_red_cards)
         )
 
-    def get_fixtures(self, silent: bool = False) -> EventCollection[Event]:
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this referee."""
         from .event import EventCollection
         if not silent:
             logger.warning("No fixtures endpoint available for referees, returning empty list")
-        return EventCollection([])
+        return EventCollection()
 
-    def get_results(self, silent: bool = False) -> EventCollection[Event]:
+    def get_results(self, silent: bool = False) -> EventCollection:
         """Fetch all results for this referee."""
         return self._fetch_paginated_events(self._provider.get_referee_results, self._data.id)
 
@@ -144,7 +145,7 @@ class Referee(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Referee]:
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Referee]:
         """Search for referees matching the given query, returning up to max_results results."""
         return cls._paginate_search(
             query=query,

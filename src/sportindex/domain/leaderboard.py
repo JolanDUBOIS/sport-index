@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from functools import cached_property
 from datetime import datetime
-from pydantic import BaseModel
 from typing import TYPE_CHECKING, Any, Optional
+
+from pydantic import BaseModel
 
 from . import logger
 from .base import BaseEntity

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar, Any
+from typing import Generic, Any
 from pydantic import model_validator
 
-from . import logger
+from typing_extensions import TypeVar
+
 from .base import BaseSchema
 from .manager import _ManagerData
 from .player import _PlayerData
@@ -36,7 +37,7 @@ ENTITY_MAP: dict[str, type[BaseSchema]] = {
     "venue": _VenueData,
 }
 
-T = TypeVar("T", bound="BaseSchema")
+T = TypeVar("T", bound="BaseSchema", default="BaseSchema")
 
 class _SearchResultData(BaseSchema, Generic[T]):
     type: str

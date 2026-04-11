@@ -4,8 +4,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Optional, Self
 
 from . import logger
-from .base import IdentifiableEntity, EntityCollection, SearchableMixin
-from .event import Event, EventAwareMixin
+from .base import SearchableMixin
+from .collections import ScoredEntityCollection
+from .event import EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import EntityNotFoundError, DomainError, ProviderNotFoundError, FetchError
 from sportindex.provider.models import _ManagerData, ManagerTenure as _ManagerTenure
@@ -29,7 +30,7 @@ class ManagerTenure(_ManagerTenure):
         )
 
 
-class Manager(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
+class Manager(SearchableMixin, EventAwareMixin):
     """Represents a sports manager/coach (e.g., football manager, Formula 1 team principal).
 
     This entity handles basic information, associated sport and country, team affiliations,
@@ -44,7 +45,6 @@ class Manager(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         sport (Sport): Sport associated with the manager.
         country (Country | None): Country associated with the manager, if available.
         team (Competitor | None): Current primary team, if assigned.
-        teams (EntityCollection[Competitor]): All teams associated with the manager.
         performances (list[ManagerTenure]): Career history and performance records of the manager.
 
     Methods:
@@ -54,7 +54,7 @@ class Manager(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
             Returns results for this manager.
         from_id(manager_id: int, provider: SofascoreProvider) -> Manager:
             Fetch a manager by its unique ID.
-        search(query: str, provider: SofascoreProvider) -> EntityCollection[Manager]:
+        search(query: str, provider: SofascoreProvider) -> ScoredEntityCollection[Manager]:
             Search for managers matching a query string (up to 20 results).
     """
     _data: _ManagerData
@@ -107,24 +107,18 @@ class Manager(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         return Competitor(self._data.team, self._provider) if self._data.team else None
 
     @cached_property
-    def teams(self) -> EntityCollection[Competitor]:
-        self._full_load()
-        from .competitor import Competitor
-        return EntityCollection([Competitor(t, self._provider) for t in self._data.teams]) if self._data.teams else EntityCollection([])
-
-    @cached_property
     def performances(self) -> list[ManagerTenure]:
         parsed_career_history = self._provider.get_manager_career_history(self._data.id)
         return [ManagerTenure._from_base_schema(parsed, provider=self._provider) for parsed in parsed_career_history]
 
-    def get_fixtures(self, silent: bool = False) -> EventCollection[Event]:
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this manager."""
         from .event import EventCollection
         if not silent:
             logger.warning("No fixtures endpoint available for managers, returning empty list")
-        return EventCollection([])
+        return EventCollection()
 
-    def get_results(self, silent: bool = False) -> EventCollection[Event]:
+    def get_results(self, silent: bool = False) -> EventCollection:
         """Fetch all results for this manager."""
         return self._fetch_paginated_events(self._provider.get_manager_results, self._data.id)
 
@@ -157,7 +151,7 @@ class Manager(IdentifiableEntity, EventAwareMixin[Event], SearchableMixin):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[Manager]:
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Manager]:
         """Search for managers matching the given query, returning up to max_results results."""
         return cls._paginate_search(
             query=query,

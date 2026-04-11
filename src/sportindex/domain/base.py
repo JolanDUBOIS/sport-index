@@ -2,20 +2,19 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import (
-    TYPE_CHECKING, Generic, Callable, Literal,
-    TypeVar, Optional, Iterator, Self,
-    Iterable, Any, Sequence, overload
-)
+from typing import TYPE_CHECKING, Callable, Self, Any, Sequence
 
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import core_schema
 
 from . import logger
-from sportindex.exceptions import ProviderNotFoundError, EntityNotFoundError
+from sportindex.exceptions import ProviderNotFoundError
 from sportindex.provider.models import BaseSchema
+
 if TYPE_CHECKING:
+    from .collections import ScoredEntityCollection
     from sportindex.provider import SofascoreProvider
+    from sportindex.provider.models import _SearchResultData
 
 
 # ===== Base Entity =====
@@ -44,6 +43,12 @@ class BaseEntity(ABC):
     def __repr__(self):
         field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')!r}" for k in self._REPR_FIELDS)
         return f"<{self.__class__.__name__} {field_str}>"
+
+    def __hash__(self) -> int:
+        return id(self)
+
+    def __eq__(self, other: object) -> bool:
+        return self is other
 
     @classmethod
     def __get_pydantic_core_schema__(
@@ -94,173 +99,17 @@ class IdentifiableEntity(BaseEntity):
         return self.id == other.id
 
     def __hash__(self) -> int:
-        return hash(self.id)
-
-
-# ===== Entity Collection =====
-
-E = TypeVar("E", bound=BaseEntity)
-
-class EntityCollection(Generic[E]):
-    """A generic collection of entities for any BaseEntity subclass."""
-
-    def __init__(self, entities: Iterable[E] | None = None) -> None:
-        self._entities = list(entities) if entities is not None else []
-
-    def __iter__(self) -> Iterator[E]:
-        return iter(self._entities)
-
-    def __len__(self) -> int:
-        return len(self._entities)
-
-    def __add__(self, other: EntityCollection[E] | list[E]) -> EntityCollection[E]:
-        if not isinstance(other, (EntityCollection, list)):
-            return NotImplemented
-        other_items = other._entities if isinstance(other, EntityCollection) else other
-        return self.__class__(self._entities + other_items)
-
-    def __iadd__(self, other: EntityCollection[E] | list[E]) -> EntityCollection[E]:
-        if not isinstance(other, (EntityCollection, list)):
-            return NotImplemented
-        other_items = other._entities if isinstance(other, EntityCollection) else other
-        self.extend(other_items)
-        return self
-
-    def __contains__(self, item: E) -> bool:
-        return item in self._entities
-
-    def append(self, entity: E) -> None:
-        """Add a single entity to the collection."""
-        self._entities.append(entity)
-
-    def extend(self, collection: EntityCollection[E] | list[E]) -> None:
-        """Add all entities from another collection."""
-        items = collection._entities if isinstance(collection, EntityCollection) else collection
-        self._entities.extend(items)
-
-    @overload
-    def __getitem__(self, key: int) -> E: ...
-
-    @overload
-    def __getitem__(self, key: slice) -> EntityCollection[E]: ...
-
-    def __getitem__(self, key: int | slice) -> E | EntityCollection[E]:
-        if isinstance(key, slice):
-            return self.__class__(self._entities[key])
-        return self._entities[key]
-
-    @overload
-    def get(self, *, strict: Literal[True], **kwargs: Any) -> E: ...
-
-    @overload
-    def get(self, strict: Literal[False] = False, **kwargs: Any) -> Optional[E]: ...
-
-    def get(self, strict: bool = False,**kwargs) -> Optional[E]:
-        """
-        Get an entity by arbitrary attributes (e.g. id=1, name="Football").
-
-        Args:
-            strict: If True, raise EntityNotFoundError if no match is found instead of returning None.
-            **kwargs: Attribute filters to match against the entity.
-        
-        Returns:
-            The matching entity, or None if no match is found and strict=False.
-
-        Raises:
-            EntityNotFoundError: If strict=True and no matching entity is found.
-        """
-        for e in self._entities:
-            if all(getattr(e, k, None) == v for k, v in kwargs.items()):
-                return e
-
-        if strict:
-            filter_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
-            raise EntityNotFoundError(f"No entity found in collection matching: {filter_str}")
-
-        return None
-
-    def search(self, query: str, by: str = "name") -> EntityCollection[E]:
-        """
-        Smart search that handles case-insensitivity, ignores extra spaces, 
-        and allows for partial matches on a specified string attribute.
-        Returns a new collection.
-        """
-        clean_query = query.strip().lower()
-        results = [
-            e for e in self._entities 
-            if clean_query in str(getattr(e, by, "")).lower()
-        ]
-        return self.__class__(results)
-
-    def to_list(self) -> list[E]:
-        """Return the entities as a list."""
-        return list(self._entities)
-
-    def copy(self) -> EntityCollection[E]:
-        """Return a shallow copy of the collection."""
-        return self.__class__(self._entities.copy())
-
-    def __or__(self, other: EntityCollection[E]) -> EntityCollection[E]:
-        """Union (|): Returns a new collection with unique entities from both collections."""
-        if not isinstance(other, EntityCollection):
-            return NotImplemented
-            
-        if not self._entities and not other._entities:
-            return self.__class__([])
-
-        merged = list(dict.fromkeys(self._entities + other._entities))
-        return self.__class__(merged)
-
-    def __and__(self, other: EntityCollection[E]) -> EntityCollection[E]:
-        """Intersection (&): Returns a new collection with entities common to both collections."""
-        if not isinstance(other, EntityCollection):
-            return NotImplemented
-            
-        if not self._entities or not other._entities:
-            return self.__class__([])
-
-        other_set = set(other._entities)
-        common = list(dict.fromkeys(e for e in self._entities if e in other_set))
-        return self.__class__(common)
-
-    def __sub__(self, other: EntityCollection[E]) -> EntityCollection[E]:
-        """Difference (-): Returns a new collection with entities in self but not in other."""
-        if not isinstance(other, EntityCollection):
-            return NotImplemented
-            
-        if not self._entities:
-            return self.__class__([])
-        if not other._entities:
-            return self.copy()
-
-        other_set = set(other._entities)
-        diff = list(dict.fromkeys(e for e in self._entities if e not in other_set))
-        return self.__class__(diff)
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} count={len(self._entities)}>"
-
-    def __str__(self) -> str:
-        if not self._entities:
-            return f"<{self.__class__.__name__} (empty)>"
-        lines = [f"<{self.__class__.__name__} ({len(self._entities)} entities)>:"]
-        for e in self._entities[:10]:  # Show up to 10 entities
-            lines.append(f"  - {e!r}")
-        if len(self._entities) > 10:
-            lines.append(f"  ... and {len(self._entities) - 10} more")
-        return "\n".join(lines)
+        return hash((type(self), self.id))
 
 
 # ===== Searchable Mixin =====
 
-I = TypeVar("I", bound=IdentifiableEntity)
-
-class SearchableMixin(ABC, Generic[I]):
+class SearchableMixin(IdentifiableEntity):
     """
     Mixin for entities that can be searched via pagination.
 
     Methods:
-        search() -> EntityCollection[I]: Search for entities matching a query, with pagination support.
+        search() -> ScoredEntityCollection[Self]: Search for entities matching a query, with pagination support.
     """
 
     @classmethod
@@ -268,35 +117,38 @@ class SearchableMixin(ABC, Generic[I]):
         cls,
         query: str,
         provider: SofascoreProvider,
-        search_func: Callable,
+        search_func: Callable[[str, int], list[_SearchResultData]],
         valid_types: tuple[type, ...] | None = None,
         max_results: int = 20,
-    ) -> EntityCollection[I]:
-        entities = []
-        for page in range(51):
+        max_pages: int = 50,
+    ) -> ScoredEntityCollection[Self]:
+        """Helper method to perform paginated search and collect scored results."""
+        scored_items = []
+        for page in range(max_pages + 1):
             try:
-                matches = search_func(query=query, page=page)
+                matches = search_func(query, page)
             except ProviderNotFoundError as e:
                 logger.debug(f"Search for query '{query}' not found on page {page}: {e}")
                 break
-                
+
             if not matches:
                 break
-                
+            
             for item in matches:
                 if valid_types is None or isinstance(item.entity, valid_types):
-                    entities.append(cls(item.entity, provider))
-                    
-                if len(entities) >= max_results:
+                    scored_items.append((cls(item.entity, provider), item.score))
+
+                if len(scored_items) >= max_results:
                     break
-            
-            if len(entities) >= max_results:
+
+            if len(scored_items) >= max_results:
                 break
-                
-        return EntityCollection(entities[:max_results])
+
+        from .collections import ScoredEntityCollection
+        return ScoredEntityCollection(scored_items[:max_results])
 
     @classmethod
     @abstractmethod
-    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> EntityCollection[I]:
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Self]:
         """Search for entities matching the query using the provider's search functionality."""
         raise NotImplementedError("Subclasses of SearchableMixin must implement the search class method")
