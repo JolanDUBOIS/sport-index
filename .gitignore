@@ -4,3 +4,4 @@ __pycache__/
 data/*
 notebooks/*
 .vscode/*
+tests/mock_cache/*

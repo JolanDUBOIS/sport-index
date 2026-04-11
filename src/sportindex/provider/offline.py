@@ -1,6 +1,7 @@
 import re
 import json
 import hashlib
+import logging
 import urllib.parse
 from pathlib import Path
 from typing import Optional
@@ -8,6 +9,8 @@ from requests import Response
 
 from .fetcher import Fetcher
 
+
+logger = logging.getLogger(__name__)
 
 class RecordingFetcher(Fetcher):
     """
@@ -41,7 +44,6 @@ class RecordingFetcher(Fetcher):
                 raise FileNotFoundError(f"Fixture not found for URL: {url} (Filename: {filename})")
             return self._load_fixture(file_path, url)
 
-
         if self.mode == "auto" and file_path.exists():
             return self._load_fixture(file_path, url)
 
@@ -59,6 +61,7 @@ class RecordingFetcher(Fetcher):
         return response
 
     def _load_fixture(self, file_path: Path, url: str) -> Response:
+        logger.info(f"Loading API response from fixture {file_path} for URL: {url}")
         with open(file_path, "r", encoding="utf-8") as f:
             raw_json_text = f.read()
 
@@ -70,6 +73,7 @@ class RecordingFetcher(Fetcher):
         return response
 
     def _save_fixture(self, file_path: Path, response: Response) -> None:
+        logger.info(f"Recording API response to {file_path} for URL: {response.url}")
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(response.json(), f, indent=2)
 

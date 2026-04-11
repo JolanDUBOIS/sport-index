@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Self
 
 from . import logger
-from .base import IdentifiableEntity, EventAwareMixin, EntityCollection
+from .base import SearchableMixin
+from .collections import ScoredEntityCollection
+from .event import EventAwareMixin
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _RefereeData
@@ -23,7 +25,7 @@ class Cards(BaseModel):
     yellow_red: int
 
 
-class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
+class Referee(SearchableMixin, EventAwareMixin):
     """Represents a sports referee/officiator (e.g., football referee, Formula 1 race director).
 
     Handles basic information, associated sport and country, games officiated,
@@ -46,9 +48,10 @@ class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
             Returns results for this referee.
         from_id(referee_id: int, provider: SofascoreProvider) -> Referee:
             Fetch a referee by its unique ID.
-        search(query: str, provider: SofascoreProvider) -> EntityCollection[Referee]:
+        search(query: str, provider: SofascoreProvider) -> ScoredEntityCollection[Referee]:
             Search for referees matching a query string (up to 20 results).
     """
+    _data: _RefereeData
     _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
     def __init__(self, data: _RefereeData, provider: SofascoreProvider, **kwargs) -> None:
@@ -107,7 +110,7 @@ class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
         from .event import EventCollection
         if not silent:
             logger.warning("No fixtures endpoint available for referees, returning empty list")
-        return EventCollection([])
+        return EventCollection()
 
     def get_results(self, silent: bool = False) -> EventCollection:
         """Fetch all results for this referee."""
@@ -123,28 +126,15 @@ class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
             return
         try:
             self._data = merge_pydantic_models(self._data, self._provider.get_referee(self._data.id))
-            if not isinstance(self._data, _RefereeData):
-                raise TypeError(f"Referee data must be of type _RefereeData after full load, got {type(self._data)}")
-            self._full_loaded = True
-            self._clear_cache()
         except ProviderNotFoundError:
             logger.debug(f"Referee with id {self._data.id} not found during full load")
-            self._full_loaded = True
-            self._clear_cache()
         except FetchError as e:
             logger.debug(f"Network error while fully loading referee with id {self._data.id}: {e}")
-            self._full_loaded = True
-            self._clear_cache()
-
-    def _clear_cache(self) -> None:
-        """Clear cached properties."""
-        self.__dict__.pop("sport", None)
-        self.__dict__.pop("country", None)
-        self.__dict__.pop("games", None)
-        self.__dict__.pop("cards", None)
+        self._full_loaded = True
+        self._clear_cache()
 
     @classmethod
-    def from_id(cls, referee_id: int, provider: SofascoreProvider) -> Referee:
+    def from_id(cls, referee_id: int, provider: SofascoreProvider) -> Self:
         """Fetch a referee by its ID."""
         try:
             parsed_data = provider.get_referee(referee_id)
@@ -155,15 +145,11 @@ class Referee(IdentifiableEntity[_RefereeData], EventAwareMixin):
         return cls(parsed_data, provider)
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider) -> EntityCollection[Referee]:
-        """Search for referees matching the given query (up to the first 20 matches)."""
-        entities = []
-        for page in range(51): # Sofascore has a maximum of 50 pages of search results
-            matches = provider.search_referees(query=query, page=page)
-            if not matches:
-                break
-            for item in matches:
-                entities.append(Referee(item.entity, provider))
-            if len(matches) > 20:
-                break
-        return EntityCollection(entities[:20])
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Referee]:
+        """Search for referees matching the given query, returning up to max_results results."""
+        return cls._paginate_search(
+            query=query,
+            provider=provider,
+            search_func=provider.search_referees,
+            max_results=max_results
+        )

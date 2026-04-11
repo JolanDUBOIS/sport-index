@@ -11,26 +11,27 @@ Main elements provided in this package:
 - Leaderboards: `Standings`, `Rankings`, `StandingsEntry`, `RankingsEntry`,
   `Promotion`, `Gender`.
 - Supporting models: `Manager`, `ManagerCareerHistory`, `Referee`, `Cards`,
-  `Venue`, `EventChannels`, `Channel`, `Incident`, etc.
-- Utilities: `get_sports`.
+  `Venue`, `Channel`, `Incident`, etc.
 """
 
 import logging
 logger = logging.getLogger(__name__)
 
-from .base import BaseEntity, IdentifiableEntity, EventAwareMixin, EntityCollection
-from .channel import EventChannels, Channel
-from .competition import Competition, Season
-from .competitor import Competitor, PlayerInfo
+from .base import BaseEntity, IdentifiableEntity, SearchableMixin
+from .channel import Channel
+from .collections import EntityCollection, ScoredEntityCollection, EventCollection
+from .competition import Competition
+from .competitor import Competitor, Team, Player, PlayerInfo
 from .core import Sport, Country, Category
-from .event import Event, EventCollection
-from .gender import Gender
+from .event import Event, MatchEvent, StageEvent, EventAwareMixin, MatchCompetitors, MatchLineups
+from .enums import Gender
 from .incident import Incident
 from .leaderboard import (
     Standings, Rankings,
     StandingsEntry, RankingsEntry,
 )
-from .manager import Manager
-from .referee import Referee
-from .static import get_sports
+from .manager import Manager, ManagerTenure
+from .referee import Referee, Cards
+from .season import Season
+from .types import EventFormat
 from .venue import Venue
