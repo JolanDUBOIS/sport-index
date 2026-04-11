@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from functools import cached_property
 from datetime import datetime
-from pydantic import BaseModel
 from typing import TYPE_CHECKING, Any, Optional
+
+from pydantic import BaseModel
 
 from . import logger
 from .base import BaseEntity
@@ -17,7 +18,7 @@ from sportindex.provider.models import (
 
 if TYPE_CHECKING:
     from .core import Sport, Category
-    from .gender import Gender
+    from .enums import Gender
     from sportindex.provider import SofascoreProvider
 
 
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 # Standings
 # =====================================================================
 
-class Standings(BaseEntity[_TeamStandingsData | list[_RacingStandingsEntryData]]):
+class Standings(BaseEntity):
     """Represents the standings (ranked table) of a competition or sport.
 
     Can handle both team/match standings (e.g., football league tables) and racing/cycling standings 
@@ -38,6 +39,7 @@ class Standings(BaseEntity[_TeamStandingsData | list[_RacingStandingsEntryData]]
         sport (Sport | None): Sport associated with these standings.
         entries (list[StandingsEntry]): Ordered list of entries in the standings.
     """
+    _data: _TeamStandingsData | list[_RacingStandingsEntryData]
     _REPR_FIELDS = ("name", "kind", "updated_at")
 
     def __init__(self, data: _TeamStandingsData | list[_RacingStandingsEntryData], provider: SofascoreProvider, **kwargs) -> None:
@@ -171,7 +173,7 @@ class StandingsEntry(BaseModel):
 # Rankings
 # =====================================================================
 
-class Rankings(BaseEntity[_RankingsResponse]):
+class Rankings(BaseEntity):
     """Represents the rankings of a sport, e.g., FIFA, ATP, or Olympic rankings.
 
     Attributes:
@@ -185,6 +187,7 @@ class Rankings(BaseEntity[_RankingsResponse]):
         competition (Competition | None): Competition associated, if applicable.
         entries (list[RankingsEntry]): Ordered list of ranking entries.
     """
+    _data: _RankingsResponse
     _REPR_FIELDS = ("id", "name", "slug", "sport", "category", "gender", "updated_at")
 
     def __init__(self, data: _RankingsResponse, provider: SofascoreProvider, **kwargs) -> None:
@@ -216,7 +219,7 @@ class Rankings(BaseEntity[_RankingsResponse]):
     @cached_property
     def gender(self) -> Optional[Gender]:
         """The gender category of these rankings, e.g. "M", "F" or "X" (mixed/other)."""
-        from .core import Gender
+        from .enums import Gender
         return Gender(self._data.ranking_type.gender) if self._data.ranking_type and self._data.ranking_type.gender else None
 
     @cached_property

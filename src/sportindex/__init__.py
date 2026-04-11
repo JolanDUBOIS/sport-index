@@ -24,11 +24,15 @@ from .client import SportClient
 
 # Import domain types in logical groups (alphabetical within each group)
 from .domain import (
-    # Base / collections
+    # Base
     BaseEntity,
-    EntityCollection,
     IdentifiableEntity,
-    EventAwareMixin,
+    SearchableMixin,
+
+    # Collections
+    EntityCollection,
+    ScoredEntityCollection,
+    EventCollection,
 
     # Core
     Category,
@@ -38,6 +42,8 @@ from .domain import (
 
     # Competitors
     Competitor,
+    Team,
+    Player,
     PlayerInfo,
 
     # Competition / seasons
@@ -49,8 +55,12 @@ from .domain import (
 
     # Events
     Event,
-    EventCollection,
-    EventChannels,
+    MatchEvent,
+    StageEvent,
+    EventFormat,
+    EventAwareMixin,
+    MatchCompetitors,
+    MatchLineups,
 
     # Incidents
     Incident,
@@ -63,7 +73,9 @@ from .domain import (
 
     # People / staff
     Manager,
+    ManagerTenure,
     Referee,
+    Cards,
 
     # Venues
     Venue,
@@ -71,12 +83,14 @@ from .domain import (
 
 from .provider import (
     Amount,
+    EventStatus,
     MatchPeriod,
     MomentumPoint,
     PeriodStats,
     Promotion,
     Round, 
     Score,
+    StageTier
 )
 
 from . import exceptions
@@ -87,9 +101,14 @@ __all__ = [
 
     # Base / collections
     "BaseEntity",
-    "EntityCollection",
     "IdentifiableEntity",
-    "EventAwareMixin",
+    "ScoredItem",
+    "SearchableMixin",
+
+    # Collections
+    "EntityCollection",
+    "ScoredEntityCollection",
+    "EventCollection",
 
     # Core
     "Category",
@@ -99,6 +118,8 @@ __all__ = [
 
     # Competitors
     "Competitor",
+    "Team",
+    "Player",
     "PlayerInfo",
 
     # Competition / seasons
@@ -110,8 +131,12 @@ __all__ = [
 
     # Events
     "Event",
-    "EventCollection",
-    "EventChannels",
+    "MatchEvent",
+    "StageEvent",
+    "EventFormat",
+    "EventAwareMixin",
+    "MatchCompetitors",
+    "MatchLineups",
 
     # Incidents
     "Incident",
@@ -124,19 +149,23 @@ __all__ = [
 
     # People / staff
     "Manager",
+    "ManagerTenure",
     "Referee",
+    "Cards",
 
     # Venues
     "Venue",
 
     # Provider types
     "Amount",
+    "EventStatus",
     "MatchPeriod",
     "MomentumPoint",
     "PeriodStats",
     "Promotion",
     "Round",
     "Score",
+    "StageTier",
 
     # Exceptions / submodules
     "exceptions",

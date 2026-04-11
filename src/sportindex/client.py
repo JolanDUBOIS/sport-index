@@ -2,23 +2,22 @@ from __future__ import annotations
 
 import os
 import logging
-from typing import Optional, TypeVar, Any, Iterable
+from collections import defaultdict
+from typing import Optional, TypeVar, Any, Literal, overload
 
 from .domain import (
-    get_sports,
-    BaseEntity,
     Category,
+    Country,
     Competition,
     Competitor,
     EntityCollection,
     Event,
-    Manager,
-    Referee,
+    IdentifiableEntity,
+    SearchableMixin,
     Season,
     Sport,
-    Venue
 )
-from .exceptions import ProviderNotFoundError, EntityNotFoundError
+from .exceptions import EntityNotFoundError
 from .provider import SofascoreProvider, Fetcher, RecordingFetcher
 
 
@@ -42,23 +41,28 @@ def _get_default_provider() -> SofascoreProvider:
     return _default_provider
 
 
-T = TypeVar("T", bound=BaseEntity)
-C = TypeVar("C", bound=Iterable[BaseEntity])
+S = TypeVar("S", bound="SearchableMixin")
+I = TypeVar("I", bound="IdentifiableEntity")
 
 class SportClient:
     """Main client for accessing sports data.
 
-    Provides methods to fetch sports, competitions, events, competitors, managers, referees, venues, etc. in a unified, object-oriented way.
+    Provides methods to fetch sports, countries, categories, competitions, events, competitors, managers, referees, venues, etc. in a unified, object-oriented way.
     Caches entities in memory to minimize redundant API calls and improve performance. Cache can be cleared manually if needed.
+
+    Methods:
+        get(entity_cls: type[IdentifiableEntity], entity_id: int) -> Optional[IdentifiableEntity]: Fetch an identifiable entity by its class and ID.
+        search(entity_cls: type[SearchableMixin], query: str, max_results: int = 20) -> EntityCollection[SearchableMixin]: Search for entities that implement SearchableMixin.
+        list(entity_cls: type[IdentifiableEntity], **kwargs) -> EntityCollection: List entities of a given class with optional filters (e.g., list competitions by category_id).
 
     Usage:
         >>> client = SportClient()
-        >>> events = client.list_events(competition_id=123)
-        >>> sport = client.get_sport(id=1)
+        >>> sport = client.get(Sport, entity_id=1)
+        >>> events = client.list(Event, season_id=123)
+        >>> referee = client.search(Referee, query="John Doe")
 
     Raises:
         EntityNotFoundError: If a requested entity does not exist.
-        ProviderNotFoundError: If the data provider is unavailable.
     """
 
     def __init__(self):
@@ -68,61 +72,67 @@ class SportClient:
         """
         self._provider = _get_default_provider()
 
-        self._cache: dict[str, dict[int, Any]] = {
-            "sports": {}, 
-            "competitions": {},
-            "seasons": {},
-            "events": {},
-            "competitors": {},
-            "managers": {},
-            "referees": {},
-            "venues": {},
-        }
+        self._cache: dict[str, dict[int, Any]] = defaultdict(dict)
+
+    def _resolve_ns(self, entity_cls: type[IdentifiableEntity]) -> str:
+        """
+        Map a class to its canonical cache namespace.
+        Ensures MatchEvent/StageEvent share 'event' and Team/Player share 'competitor'.
+        """
+        if issubclass(entity_cls, Event):
+            return "event"
+        if issubclass(entity_cls, Competitor):
+            return "competitor"
+        return entity_cls.__name__.lower()
 
     # --- Cache Helpers ---
 
-    def _get_cached(self, namespace: str, entity_id: int, expected_type: type[T]) -> Optional[T]:
+    def _get_cached(self, entity_cls: type[I], entity_id: int) -> Optional[I]:
         """Return an entity from the cache if it exists.
 
         Args:
-            namespace (str): The cache namespace (e.g., 'events', 'competitions').
+            entity_cls (type[IdentifiableEntity]): The class of the entity to retrieve.
             entity_id (int): The unique identifier of the entity.
-            expected_type (type[T]): Expected type of the entity for IDE type hinting.
 
         Returns:
-            Optional[T]: The cached entity, or None if not found.
+            Optional[IdentifiableEntity]: The cached entity, or None if not found.
         """
-        return self._cache[namespace].get(entity_id)
+        ns = self._resolve_ns(entity_cls)
+        return self._cache[ns].get(entity_id)
 
-    def _set_cached(self, namespace: str, entity: T) -> T:
+    def _set_cached(self, entity_cls: type[I], entity: I) -> I:
         """Add an entity to the cache and return it.
 
         Args:
-            namespace (str): The cache namespace.
-            entity (T): The entity to store.
+            entity_cls (type[IdentifiableEntity]): The class of the entity to store.
+            entity (IdentifiableEntity): The entity to store.
 
         Returns:
-            T: The same entity for chaining.
+            IdentifiableEntity: The same entity for chaining.
         """
-        self._cache[namespace][entity.id] = entity
+        ns = self._resolve_ns(entity_cls)
+        self._cache[ns][entity.id] = entity
         return entity
 
-    def _hydrate_cache(self, namespace: str, collection: C) -> C:
+    def _hydrate_cache(self, entity_cls: type[I], collection: EntityCollection) -> EntityCollection:
         """Cache all entities in an iterable collection.
 
         Args:
-            namespace (str): The cache namespace.
-            collection (C): Iterable of entities.
+            entity_cls (type[IdentifiableEntity]): The class of the entities to cache.
+            collection (EntityCollection): Iterable of entities.
 
         Returns:
-            C: The same collection for chaining.
+            EntityCollection: The same collection for chaining.
         """
+        ns = self._resolve_ns(entity_cls)
         for entity in collection:
-            self._cache[namespace][entity.id] = entity
+            self._cache[ns][entity.id] = entity
         return collection
 
     def clear_cache(self, namespace: Optional[str] = None) -> None:
         """Clear cached entities to free memory.
+
+        Expected namespaces include: 'sport', 'country', 'category', 'competition', 'season', 'event', 'competitor', 'manager', 'referee', 'venue'.
 
         Args:
             namespace (Optional[str]): Specific namespace to clear. If None, clears all caches.
@@ -130,285 +140,139 @@ class SportClient:
         Raises:
             KeyError: If the provided namespace does not exist.
         """
-        if namespace:
-            if namespace in self._cache:
-                self._cache[namespace].clear()
-            else:
-                raise KeyError(f"Unknown cache namespace: {namespace}")
-        else:
-            for ns in self._cache:
+        ns = namespace.lower() if namespace else None
+        if ns:
+            if ns in self._cache.keys():
                 self._cache[ns].clear()
+            else:
+                raise KeyError(f"Unknown cache namespace: {ns}")
+        else:
+            self._cache.clear()
 
-    # --- Sports ---
+    # --- Unified GET ---
 
-    def get_sport(self, id: int) -> Sport | None:
-        """Fetch a sport by its ID.
+    @overload
+    def get(self, entity_cls: type[I], entity_id: int, strict: Literal[True]) -> I: ...
 
+    @overload
+    def get(self, entity_cls: type[I], entity_id: int, strict: Literal[False] = False) -> Optional[I]: ...
+
+    def get(self, entity_cls: type[I], entity_id: int, strict: bool = False) -> Optional[I]:
+        """Fetch an identifiable entity by its class and ID.
+
+        Supported classes include: Sport, Competition, Event (including its subclasses),
+            Competitor (including its subclasses), Manager, Referee, Venue.
+        
         Args:
-            id (int): The sport ID.
+            entity_cls (type[IdentifiableEntity]): The class of the entity to fetch.
+            entity_id (int): The unique identifier of the entity.
+            strict (bool): If True, raises EntityNotFoundError if the entity is not found. If False, returns None.
 
         Returns:
-            Optional[Sport]: The sport object, or None if not found.
-        """
-        sports = self.list_sports()
-        return sports.get(id=id)
-
-    def list_sports(self) -> EntityCollection[Sport]:
-        """Return all known sports.
-
-        Returns:
-            EntityCollection[Sport]: All sports available.
-        """
-        sports = get_sports()
-        return self._hydrate_cache("sports", sports)
-
-    def search_sports(self, query: str) -> EntityCollection[Sport]:
-        """Search for sports matching a query.
-
-        Args:
-            query (str): Partial or full sport name.
-
-        Returns:
-            EntityCollection[Sport]: Sports that match the query.
-        """
-        sports = self.list_sports()
-        return sports.search(query)
-
-    # --- Categories ---
-
-    def list_categories(self, sport_id: int) -> EntityCollection[Category]:
-        """Fetch categories for a given sport.
-
-        Args:
-            sport_id (int): The ID of the sport.
-
-        Returns:
-            EntityCollection[Category]: Categories under the sport.
+            Optional[IdentifiableEntity]: The requested entity, or None if not found.
 
         Raises:
-            EntityNotFoundError: If the sport does not exist.
+            TypeError: If the entity_cls is not supported.
+            EntityNotFoundError: If strict=True and the entity is not found.
         """
-        sport = self.get_sport(sport_id)
-        if sport is None:
-            raise EntityNotFoundError(f"Sport with ID {sport_id} not found")
-        return sport.categories
+        if not issubclass(entity_cls, IdentifiableEntity):
+            raise TypeError(f"{entity_cls.__name__} is not an identifiable entity class.")
 
-    # --- Competitions ---
-
-    def get_competition(self, id: int) -> Optional[Competition]:
-        """Fetch a competition by ID.
-
-        Args:
-            id (int): Competition ID.
-
-        Returns:
-            Optional[Competition]: The competition if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the data provider is unavailable.
-        """
-        if cached := self._get_cached("competitions", id, Competition):
+        if cached := self._get_cached(entity_cls, entity_id):
             return cached
+
         try:
-            entity = Competition.from_id(id, self._provider)
-            return self._set_cached("competitions", entity)
-        except ProviderNotFoundError:
+            entity = entity_cls.from_id(entity_id, self._provider)
+            return self._set_cached(entity_cls, entity)
+        except EntityNotFoundError:
+            if strict:
+                raise
             return None
 
-    def list_competitions(self, sport_id: int, category_id: int) -> EntityCollection[Competition]:
-        """Fetch competitions for a sport and category.
+    # --- Unified SEARCH ---
+
+    def search(self, entity_cls: type[S], query: str, max_results: int = 20) -> EntityCollection[S]:
+        """
+        Search for entities that implement SearchableMixin.
+        """
+        if not issubclass(entity_cls, SearchableMixin):
+            raise TypeError(f"{entity_cls.__name__} does not support searching.")
+
+        scored_collection = entity_cls.search(query, self._provider, max_results=max_results)
+        return self._hydrate_cache(entity_cls, scored_collection.to_collection())
+
+    # --- Unified LIST ---
+
+    @overload
+    def list(self, entity_cls: type[Sport]) -> EntityCollection[Sport]: ...
+
+    @overload
+    def list(self, entity_cls: type[Country]) -> EntityCollection[Country]: ...
+
+    @overload
+    def list(self, entity_cls: type[Category], *, sport_id: int) -> EntityCollection[Category]: ...
+
+    @overload
+    def list(self, entity_cls: type[Competition], *, category_id: int, sport_id: Optional[int] = None) -> EntityCollection[Competition]: ...
+
+    @overload
+    def list(self, entity_cls: type[Season], *, competition_id: int) -> EntityCollection[Season]: ...
+
+    @overload
+    def list(self, entity_cls: type[Event], *, season_id: int) -> EntityCollection[Event]: ...
+
+    def list(self, entity_cls: type[I], **kwargs: Any) -> EntityCollection[I]:
+        """
+        List entities of a given class with optional filters.
 
         Args:
-            sport_id (int): Sport ID.
-            category_id (int): Category ID.
-
+            entity_cls (type[IdentifiableEntity]): The class of entities to list.
+            **kwargs: Optional filters (e.g., category_id for competitions).
+        
         Returns:
-            EntityCollection[Competition]: Competitions under the category.
-
+            EntityCollection[IdentifiableEntity]: A collection of entities matching the criteria.
+        
         Raises:
-            EntityNotFoundError: If sport or category does not exist.
+            EntityNotFoundError: If additional filtering criteria are provided but no matching entities are found.
+            NotImplementedError: If listing logic for the given entity class is not implemented.
+        
+        .. Warning::
+            This method may rely on multiple API calls and can take a few seconds to complete on the first call. 
         """
-        sport = self.get_sport(sport_id)
-        if sport is None:
-            raise EntityNotFoundError(f"Sport with ID {sport_id} not found")
-        category = sport.categories.get(id=category_id)
-        if category is None:
-            raise EntityNotFoundError(f"Category with ID {category_id} not found")
-        return self._hydrate_cache("competitions", category.competitions)
+        if not issubclass(entity_cls, IdentifiableEntity):
+            raise TypeError(f"{entity_cls.__name__} is not an identifiable entity class.")
 
-    # --- Seasons ---
+        if entity_cls is Sport or entity_cls is Country:
+            return self._hydrate_cache(entity_cls, entity_cls.all(self._provider))
 
-    def list_seasons(self, competition_id: int) -> EntityCollection[Season]:
-        """Fetch seasons for a competition.
+        if entity_cls is Category:
+            if "sport_id" not in kwargs:
+                return self._hydrate_cache(entity_cls, entity_cls.all(self._provider))
+            sport = self.get(Sport, kwargs["sport_id"], strict=True)
+            return self._hydrate_cache(entity_cls, sport.categories)
 
-        Args:
-            competition_id (int): Competition ID.
+        if entity_cls is Competition:
+            if "category_id" not in kwargs:
+                raise EntityNotFoundError("category_id is required to list competitions.")
+            if "sport_id" in kwargs:
+                sport = self.get(Sport, kwargs["sport_id"], strict=True)
+                category = sport.categories.get(id=kwargs["category_id"], strict=True)
+                return self._hydrate_cache(entity_cls, category.competitions)
+            category = self.get(Category, kwargs["category_id"], strict=True)
+            return self._hydrate_cache(entity_cls, category.competitions)
 
-        Returns:
-            EntityCollection[Season]: Seasons under the competition.
+        if entity_cls is Season:
+            if "competition_id" not in kwargs:
+                raise EntityNotFoundError("competition_id is required to list seasons.")
+            comp = self.get(Competition, kwargs["competition_id"], strict=True)
+            return self._hydrate_cache(entity_cls, comp.seasons)
 
-        Raises:
-            EntityNotFoundError: If the competition does not exist.
-        """
-        competition = self.get_competition(competition_id)
-        if competition is None:
-            raise EntityNotFoundError(f"Competition with ID {competition_id} not found")
-        return self._hydrate_cache("seasons", competition.seasons)
+        if entity_cls is Event:
+            if "season_id" not in kwargs:
+                raise EntityNotFoundError("season_id is required to list events.")
+            season = self.get(Season, kwargs["season_id"], strict=True)
+            return self._hydrate_cache(entity_cls, season.get_events())
 
-    # --- Events ---
+        # NOTE - We might implement for competitors (teams and players) in the future
 
-    def get_event(self, id: int) -> Optional[Event]:
-        """Fetch an event by ID.
-
-        Args:
-            id (int): Event ID.
-
-        Returns:
-            Optional[Event]: Event object if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the provider is unavailable.
-        """
-        if cached := self._get_cached("events", id, Event):
-            return cached
-        try:
-            entity = Event.from_id(id, self._provider)
-            return self._set_cached("events", entity)
-        except ProviderNotFoundError:
-            return None
-
-    # --- Competitors ---
-
-    def get_competitor(self, id: int) -> Optional[Competitor]:
-        """Fetch a competitor by ID.
-
-        Args:
-            id (int): Competitor ID.
-
-        Returns:
-            Optional[Competitor]: Competitor if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the provider is unavailable.
-        """
-        if cached := self._get_cached("competitors", id, Competitor):
-            return cached
-        try:
-            entity = Competitor.from_id(id, self._provider)
-            return self._set_cached("competitors", entity)
-        except ProviderNotFoundError:
-            return None
-
-    def search_competitors(self, query: str) -> EntityCollection[Competitor]:
-        """Search for competitors by name.
-
-        Args:
-            query (str): Partial or full competitor name.
-
-        Returns:
-            EntityCollection[Competitor]: Matching competitors.
-        """
-        results = Competitor.search(query, self._provider)
-        return self._hydrate_cache("competitors", results)
-
-    # --- Managers ---
-
-    def get_manager(self, id: int) -> Optional[Manager]:
-        """Fetch a manager by ID.
-
-        Args:
-            id (int): Manager ID.
-
-        Returns:
-            Optional[Manager]: Manager if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the provider is unavailable.
-        """
-        if cached := self._get_cached("managers", id, Manager):
-            return cached
-        try:
-            entity = Manager.from_id(id, self._provider)
-            return self._set_cached("managers", entity)
-        except ProviderNotFoundError:
-            return None
-
-    def search_managers(self, query: str) -> EntityCollection[Manager]:
-        """Search for managers by name.
-
-        Args:
-            query (str): Partial or full manager name.
-
-        Returns:
-            EntityCollection[Manager]: Matching managers.
-        """
-        results = Manager.search(query, self._provider)
-        return self._hydrate_cache("managers", results)
-
-    # --- Referees ---
-
-    def get_referee(self, id: int) -> Optional[Referee]:
-        """Fetch a referee by ID.
-
-        Args:
-            id (int): Referee ID.
-
-        Returns:
-            Optional[Referee]: Referee if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the provider is unavailable.
-        """
-        if cached := self._get_cached("referees", id, Referee):
-            return cached
-        try:
-            entity = Referee.from_id(id, self._provider)
-            return self._set_cached("referees", entity)
-        except ProviderNotFoundError:
-            return None
-
-    def search_referees(self, query: str) -> EntityCollection[Referee]:
-        """Search referees by name.
-
-        Args:
-            query (str): Partial or full referee name.
-
-        Returns:
-            EntityCollection[Referee]: Matching referees.
-        """
-        results = Referee.search(query, self._provider)
-        return self._hydrate_cache("referees", results)
-
-    # --- Venues ---
-
-    def get_venue(self, id: int) -> Optional[Venue]:
-        """Fetch a venue by ID.
-
-        Args:
-            id (int): Venue ID.
-
-        Returns:
-            Optional[Venue]: Venue if found, else None.
-
-        Raises:
-            ProviderNotFoundError: If the provider is unavailable.
-        """
-        if cached := self._get_cached("venues", id, Venue):
-            return cached
-        try:
-            entity = Venue.from_id(id, self._provider)
-            return self._set_cached("venues", entity)
-        except ProviderNotFoundError:
-            return None
-
-    def search_venues(self, query: str) -> EntityCollection[Venue]:
-        """Search venues by name.
-
-        Args:
-            query (str): Partial or full venue name.
-
-        Returns:
-            EntityCollection[Venue]: Matching venues.
-        """
-        results = Venue.search(query, self._provider)
-        return self._hydrate_cache("venues", results)
+        raise NotImplementedError(f"Listing logic for {entity_cls.__name__} not supported.")

@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from .base import BaseSchema
 from .channel import _ChannelData
 from .core import _SportData, _CountryData, _CategoryData
@@ -11,7 +14,7 @@ from .primitives import Amount, EventStatus, Performance, Promotion, Score
 from .referee import _RefereeData
 from .responses import _TeamResponse, _UniqueTournamentSeasonsResponse, _SeasonRoundsResponse, _EventsResponse, _RankingsResponse, _ChannelScheduleResponse, _CountryChannelsResponse, _ChannelEventVotesResponse, _LineupsResponse, _EventStatisticsResponse, _MomentumGraphResponse
 from .search import _SearchResultData
-from .stage import _StageTypeData, _StageInfoData, _StageParentData, _UniqueStageData, _StageData
+from .stage import StageTier, _StageInfoData, _StageParentData, _UniqueStageData, _StageData
 from .stats_event import StatEntry, StatGroup, PeriodStats, MomentumPoint
 from .stats_player import PlayerSeasonStatsItem, PlayerSeasonStats
 from .stats_racing import RaceResults, SeasonCareerHistory, TotalCareerHistory, DriverCareerHistory, Lap, DriverPerformance
@@ -65,6 +68,8 @@ PeriodStats.model_rebuild(_types_namespace=_shared_namespace)
 _EventStatisticsResponse.model_rebuild(_types_namespace=_shared_namespace)
 PlayerSeasonStats.model_rebuild(_types_namespace=_shared_namespace)
 ManagerTenure.model_rebuild(_types_namespace=_shared_namespace)
+MomentumPoint.model_rebuild(_types_namespace=_shared_namespace)
+_MomentumGraphResponse.model_rebuild(_types_namespace=_shared_namespace)
 
 # Incidents
 GoalIncident.model_rebuild(_types_namespace=_shared_namespace)

@@ -471,6 +471,10 @@ class SofascoreProvider:
         """Search for venues by name."""
         return [_SearchResultData.model_validate(sr) for sr in self._search("search-venues", query, page)]
 
+    def search_player_team_persons(self, query: str, page: int = 0) -> list[_SearchResultData[_PlayerData | _TeamData]]:
+        """Search for players or "individual person" teams by name."""
+        return [_SearchResultData.model_validate(sr) for sr in self._search("search-player-team-persons", query, page)]
+
     # ---- Internal helpers ---- #
 
     def _search(self, endpoint_name: str, query: str, page: int = 0) -> list[_SearchResultData]:

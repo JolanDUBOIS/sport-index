@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import Generic, Any
 from pydantic import model_validator
+
+from typing_extensions import TypeVar
 
 from .base import BaseSchema
 from .manager import _ManagerData
@@ -35,21 +37,28 @@ ENTITY_MAP: dict[str, type[BaseSchema]] = {
     "venue": _VenueData,
 }
 
-T = TypeVar("T", bound=BaseSchema)
+T = TypeVar("T", bound="BaseSchema", default="BaseSchema")
 
 class _SearchResultData(BaseSchema, Generic[T]):
     type: str
     score: float
     entity: AnyEntity
 
-    @model_validator(mode='after')
-    def validate_entity_type(self) -> _SearchResultData:
-        model_cls = ENTITY_MAP.get(self.type)
-        
-        if not model_cls:
-            raise ValueError(f"Unsupported entity type: {self.type}")
+    @model_validator(mode="before")
+    @classmethod
+    def validate_entity_mapping(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
 
-        if isinstance(self.entity, dict):
-            self.entity = model_cls.model_validate(self.entity)
-            
-        return self
+        entity_type = data.get("type")
+        entity_data = data.get("entity")
+
+        if entity_type not in ENTITY_MAP:
+            raise ValueError(f"Unsupported entity type: {entity_type}")
+
+        model_cls = ENTITY_MAP[entity_type]
+
+        if isinstance(entity_data, dict):
+            data["entity"] = model_cls.model_validate(entity_data)
+
+        return data
