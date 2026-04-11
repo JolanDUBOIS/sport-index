@@ -1,15 +1,21 @@
+import logging
 from datetime import datetime, date
 
 import sportindex
 from sportindex import (
-    Event, EventCollection, MatchEvent, StageEvent,
+    Event, MatchEvent, StageEvent,
 )
 from sportindex.provider import SofascoreProvider
 
 
+logger = logging.getLogger(__name__)
+
 def test_event(provider: SofascoreProvider):
     """Test that the Event entity behaves correctly."""
+    logger.info("Testing Event entity...")
+
     # Match Event
+    logger.info("Testing MatchEvent...")
     event = Event.from_id(31262682, provider)
     assert isinstance(event, MatchEvent)
     assert event.id == 31262682
@@ -38,6 +44,7 @@ def test_event(provider: SofascoreProvider):
     assert all(isinstance(channel, sportindex.Channel) for channel in event.get_channels("FR"))
 
     # Stage Event
+    logger.info("Testing StageEvent...")
     event = Event.from_id(428311, provider)
     assert isinstance(event, StageEvent)
     assert event.id == 428311
