@@ -15,16 +15,16 @@ from .event import EventAwareMixin
 from .types import CompetitorKind
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
-from sportindex.provider.models import _TeamData, _PlayerData
+from sportindex.provider.models import _TeamData, _PlayerData, Amount
 
 if TYPE_CHECKING:
-    from .core import Category, Country, Sport
+    from .core import Country, Sport
     from .enums import Gender
     from .event import EventCollection
     from .manager import Manager
     from .venue import Venue
     from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import BaseSchema, _PlayerTeamInfoData, Amount
+    from sportindex.provider.models import BaseSchema, _PlayerTeamInfoData
 
 
 class Competitor(SearchableMixin, EventAwareMixin):
@@ -45,7 +45,6 @@ class Competitor(SearchableMixin, EventAwareMixin):
         full_name (str): Full name or concatenation of first and last names for players.
         kind (Literal["player", "team"]): "player" or "team", indicating the type of competitor.
         sport (Sport | None): Sport this competitor belongs to.
-        category (Category | None): Competitor's category, if available.
 
     Methods:
         get_fixtures(silent=False) -> EventCollection: Fetch all scheduled events for the competitor.
@@ -135,12 +134,6 @@ class Competitor(SearchableMixin, EventAwareMixin):
         """The country this competitor belongs to, if available."""
         from .core import Country
         return Country(self._data.country, self._provider) if self._data.country else None
-
-    @property
-    @abstractmethod
-    def category(self) -> Optional[Category]:
-        """The category this competitor belongs to, if available."""
-        raise NotImplementedError("Property category must be implemented in subclasses")
 
     def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this competitor."""
@@ -291,12 +284,6 @@ class Team(Competitor):
         return Sport(self._data.sport, self._provider)
 
     @cached_property
-    def category(self) -> Optional[Category]:
-        """The category this team belongs to, if available."""
-        from .core import Category
-        return Category(self._data.category, self._provider) if self._data.category else None
-
-    @cached_property
     def players(self) -> EntityCollection[Player]:
         """
         The players of this team, if available and applicable.
@@ -403,15 +390,6 @@ class Player(Competitor):
             return Sport(self._data.team.sport, self._provider)
         elif isinstance(self._data, _TeamData):
             return Sport(self._data.sport, self._provider)
-
-    @cached_property
-    def category(self) -> Optional[Category]:
-        """The category this player belongs to, if available."""
-        from .core import Category
-        if isinstance(self._data, _PlayerData):
-            return Category(self._data.team.category, self._provider) if self._data.team and self._data.team.category else None
-        elif isinstance(self._data, _TeamData):
-            return Category(self._data.category, self._provider) if self._data.category else None
 
     @cached_property
     def parent(self) -> Optional[Team]:

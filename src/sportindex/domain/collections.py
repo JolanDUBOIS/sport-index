@@ -88,13 +88,24 @@ class EntityCollection(UserList[I]):
         return self.__class__(merged)
 
     @overload
-    def __iadd__(self, other: EntityCollection[I_other] | Iterable[I_other]) -> EntityCollection[I | I_other]: ...
+    def __or__(self, other: EntityCollection[I_other] | Iterable[I_other]) -> EntityCollection[I | I_other]: ...
 
-    def __iadd__(self, other: Any) -> Any:
+    def __or__(self, other: Any) -> Any:
         if not isinstance(other, Iterable) or isinstance(other, (str, bytes)):
             return NotImplemented
-        self.update(other)
-        return self
+        other_items = other.data if isinstance(other, UserList) else list(other)
+        self._validate_iterable(other_items)
+        return self.__class__(dict.fromkeys(self.data + other_items))
+
+    @overload
+    def __and__(self, other: EntityCollection[I_other] | Iterable[I_other]) -> EntityCollection[I | I_other]: ...
+
+    def __and__(self, other: Any) -> Any:
+        if not isinstance(other, Iterable) or isinstance(other, (str, bytes)):
+            return NotImplemented
+        other_items = set(other.data if isinstance(other, UserList) else list(other))
+        self._validate_iterable(other_items)
+        return self.__class__([item for item in self.data if item in other_items])
 
     @overload
     def get(self, *, strict: Literal[True], **kwargs: Any) -> I: ...
@@ -163,7 +174,7 @@ class ScoredEntityCollection(EntityCollection[I]):
     the highest score is retained.
 
     Disabled Methods:
-        add, update, append, extend, insert, __setitem__, __add__, __iadd__:
+        add, update, append, extend, insert, __setitem__, __add__, __or__, __and__, search:
         Blocked to maintain the read-only integrity of the search results.
 
     Methods:
@@ -248,7 +259,10 @@ class ScoredEntityCollection(EntityCollection[I]):
     def __add__(self, other: Any) -> Any:
         raise NotImplementedError("ScoredEntityCollection is read-only.")
 
-    def __iadd__(self, other: Any) -> Any:
+    def __or__(self, other: Any) -> Any:
+        raise NotImplementedError("ScoredEntityCollection is read-only.")
+
+    def __and__(self, other: Any) -> Any:
         raise NotImplementedError("ScoredEntityCollection is read-only.")
 
     def search(self, query, *, by = "name") -> Any:
