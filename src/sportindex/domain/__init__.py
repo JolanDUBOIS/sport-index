@@ -33,5 +33,5 @@ from .leaderboard import (
 from .manager import Manager, ManagerTenure
 from .referee import Referee, Cards
 from .season import Season
-from .types import EventFormat
+from .types import SportContestNature
 from .venue import Venue

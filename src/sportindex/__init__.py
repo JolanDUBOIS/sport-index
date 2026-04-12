@@ -57,7 +57,6 @@ from .domain import (
     Event,
     MatchEvent,
     StageEvent,
-    EventFormat,
     EventAwareMixin,
     MatchCompetitors,
     MatchLineups,
@@ -76,6 +75,9 @@ from .domain import (
     ManagerTenure,
     Referee,
     Cards,
+
+    # Types
+    SportContestNature,
 
     # Venues
     Venue,
@@ -133,7 +135,6 @@ __all__ = [
     "Event",
     "MatchEvent",
     "StageEvent",
-    "EventFormat",
     "EventAwareMixin",
     "MatchCompetitors",
     "MatchLineups",
@@ -152,6 +153,9 @@ __all__ = [
     "ManagerTenure",
     "Referee",
     "Cards",
+
+    # Types
+    "SportContestNature",
 
     # Venues
     "Venue",

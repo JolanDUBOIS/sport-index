@@ -5,7 +5,7 @@ from functools import cached_property
 from datetime import datetime
 from typing import (
     TYPE_CHECKING, Optional,
-    Generic, Callable,
+    Generic, Callable, ClassVar,
     Literal, Self, overload
 )
 
@@ -17,7 +17,7 @@ from . import logger
 from .base import IdentifiableEntity
 from .collections import EventCollection, EntityCollection
 from .core import Sport
-from .types import EventFormat
+from .types import SportContestNature
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _EventData, _StageData, StageTier
@@ -69,7 +69,8 @@ class Event(IdentifiableEntity):
     _REPR_FIELDS = ("id", "name", "slug", "start")
     _N_TYPES: int = 2
     _REGISTRY: dict[int, type[Event]] = {}
-    _TYPE_IDX: int 
+    _TYPE_IDX: int
+    sport_nature: ClassVar[SportContestNature]
 
     def __init_subclass__(cls, **kwargs):
         """Automatically registers subclasses when the file is loaded."""
@@ -124,12 +125,6 @@ class Event(IdentifiableEntity):
     def sport(self) -> Sport[Self]:
         """The sport this event belongs to."""
         return self.season.sport
-
-    @property
-    @abstractmethod
-    def format(self) -> EventFormat:
-        """The format of the event, either 'match' or 'stage'."""
-        raise NotImplementedError("Property format must be implemented in subclasses")
 
     @property
     @abstractmethod
@@ -246,6 +241,7 @@ class MatchEvent(Event):
     _data: _EventData
     _REPR_FIELDS = ("id", "name", "slug", "round", "format", "start")
     _TYPE_IDX = 1
+    sport_nature: ClassVar[SportContestNature] = SportContestNature.OPPOSITION
 
     def __init__(self, data: _EventData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -264,11 +260,6 @@ class MatchEvent(Event):
     def round(self) -> Optional[Round]:
         """The round of the match event, if available."""
         return self._data.round
-
-    @property
-    def format(self) -> EventFormat:
-        """The format of the event, either 'match' or 'stage'."""
-        return "match"
 
     @cached_property
     def competition(self) -> Optional[Competition]:
@@ -449,6 +440,7 @@ class StageEvent(Event):
     _data: _StageData
     _REPR_FIELDS = ("id", "name", "slug", "tier", "format", "start", "end")
     _TYPE_IDX = 2
+    sport_nature: ClassVar[SportContestNature] = SportContestNature.COMPARISON
 
     def __init__(self, data: _StageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -464,11 +456,6 @@ class StageEvent(Event):
     def name(self) -> str:
         """The name of the stage event."""
         return self._data.name or self._data.slug.replace("-", " ").title()
-
-    @property
-    def format(self) -> EventFormat:
-        """The format of the event, either 'match' or 'stage'."""
-        return "stage"
 
     @cached_property
     def tier(self) -> StageTier:

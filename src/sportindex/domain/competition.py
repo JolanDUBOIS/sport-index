@@ -8,7 +8,7 @@ from typing_extensions import TypeVar
 from . import logger
 from .base import SearchableMixin
 from .collections import EntityCollection, ScoredEntityCollection
-from .types import EventFormat
+from .types import SportContestNature
 from .utils import merge_pydantic_models
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _UniqueTournamentData, _UniqueStageData
@@ -90,12 +90,12 @@ class Competition(SearchableMixin, Generic[E]):
         return self.category.sport
 
     @property
-    def event_format(self) -> EventFormat:
-        """The event format for this competition."""
+    def sport_nature(self) -> SportContestNature:
+        """The nature of the sport for this competition."""
         if isinstance(self._data, _UniqueTournamentData):
-            return "match"
+            return SportContestNature.OPPOSITION
         elif isinstance(self._data, _UniqueStageData):
-            return "stage"
+            return SportContestNature.COMPARISON
         else:
             raise TypeError(f"Unsupported competition data type {type(self._data)}.")
 

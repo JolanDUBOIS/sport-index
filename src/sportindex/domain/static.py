@@ -11,38 +11,38 @@ from __future__ import annotations
 from typing import Final, NamedTuple
 
 from .enums import Gender
-from .types import EventFormat
+from .types import SportContestNature
 
 
 class SportEntry(NamedTuple):
     id: int
     slug: str
     name: str
-    event_format: EventFormat
+    nature: SportContestNature
 
 SPORTS_REGISTRY: Final[tuple[SportEntry, ...]] = (
-    SportEntry(1, "football", "Football", "match"),
-    SportEntry(2, "basketball", "Basketball", "match"),
-    SportEntry(4, "ice-hockey", "Ice Hockey", "match"),
-    SportEntry(5, "tennis", "Tennis", "match"),
-    SportEntry(6, "handball", "Handball", "match"),
-    SportEntry(11, "motorsport", "Motorsport", "stage"),
-    SportEntry(12, "rugby", "Rugby", "match"),
-    SportEntry(15, "bandy", "Bandy", "match"),
-    SportEntry(19, "snooker", "Snooker", "match"),
-    SportEntry(20, "table-tennis", "Table Tennis", "match"),
-    SportEntry(22, "darts", "Darts", "match"),
-    SportEntry(23, "volleyball", "Volleyball", "match"),
-    SportEntry(26, "waterpolo", "Waterpolo", "match"),
-    SportEntry(29, "futsal", "Futsal", "match"),
-    SportEntry(31, "badminton", "Badminton", "match"),
-    SportEntry(34, "beach-volley", "Beach Volleyball", "match"),
-    SportEntry(62, "cricket", "Cricket", "match"),
-    SportEntry(63, "american-football", "American Football", "match"),
-    SportEntry(65, "cycling", "Cycling", "stage"),
-    SportEntry(72, "esports", "Esports", "match"),
-    SportEntry(76, "mma", "MMA", "match"),
-    SportEntry(109, "minifootball", "Minifootball", "match"),
+    SportEntry(1, "football", "Football", SportContestNature.OPPOSITION),
+    SportEntry(2, "basketball", "Basketball", SportContestNature.OPPOSITION),
+    SportEntry(4, "ice-hockey", "Ice Hockey", SportContestNature.OPPOSITION),
+    SportEntry(5, "tennis", "Tennis", SportContestNature.OPPOSITION),
+    SportEntry(6, "handball", "Handball", SportContestNature.OPPOSITION),
+    SportEntry(11, "motorsport", "Motorsport", SportContestNature.COMPARISON),
+    SportEntry(12, "rugby", "Rugby", SportContestNature.OPPOSITION),
+    SportEntry(15, "bandy", "Bandy", SportContestNature.OPPOSITION),
+    SportEntry(19, "snooker", "Snooker", SportContestNature.OPPOSITION),
+    SportEntry(20, "table-tennis", "Table Tennis", SportContestNature.OPPOSITION),
+    SportEntry(22, "darts", "Darts", SportContestNature.OPPOSITION),
+    SportEntry(23, "volleyball", "Volleyball", SportContestNature.OPPOSITION),
+    SportEntry(26, "waterpolo", "Waterpolo", SportContestNature.OPPOSITION),
+    SportEntry(29, "futsal", "Futsal", SportContestNature.OPPOSITION),
+    SportEntry(31, "badminton", "Badminton", SportContestNature.OPPOSITION),
+    SportEntry(34, "beach-volley", "Beach Volleyball", SportContestNature.OPPOSITION),
+    SportEntry(62, "cricket", "Cricket", SportContestNature.OPPOSITION),
+    SportEntry(63, "american-football", "American Football", SportContestNature.OPPOSITION),
+    SportEntry(65, "cycling", "Cycling", SportContestNature.COMPARISON),
+    SportEntry(72, "esports", "Esports", SportContestNature.OPPOSITION),
+    SportEntry(76, "mma", "MMA", SportContestNature.OPPOSITION),
+    SportEntry(109, "minifootball", "Minifootball", SportContestNature.OPPOSITION),
 )
 
 # Mapping: sport slug → list of (ranking_id, gender | None)

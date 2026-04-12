@@ -12,8 +12,8 @@ from . import logger
 from .base import SearchableMixin
 from .collections import EntityCollection, ScoredEntityCollection
 from .event import EventAwareMixin
-from .types import CompetitorKind
 from .utils import merge_pydantic_models
+from .types import SportContestNature
 from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _TeamData, _PlayerData, Amount
 
@@ -111,12 +111,6 @@ class Competitor(SearchableMixin, EventAwareMixin):
         """The full name of the competitor."""
         raise NotImplementedError("Property full_name must be implemented in subclasses")
 
-    @property
-    @abstractmethod
-    def kind(self) -> CompetitorKind:
-        """The kind of competitor, either 'player' or 'team'."""
-        raise NotImplementedError("Property kind must be implemented in subclasses")
-
     @cached_property
     def gender(self) -> Optional[Gender]:
         """The gender of the competitor."""
@@ -125,7 +119,7 @@ class Competitor(SearchableMixin, EventAwareMixin):
 
     @property
     @abstractmethod
-    def sport(self) -> Optional[Sport]:
+    def sport(self) -> Sport:
         """The sport this competitor belongs to."""
         raise NotImplementedError("Property sport must be implemented in subclasses")
 
@@ -268,11 +262,6 @@ class Team(Competitor):
         return self._data.name_code
 
     @property
-    def kind(self) -> Literal["team"]:
-        """The kind of competitor, which is 'team' for this class."""
-        return "team"
-
-    @property
     def national(self) -> Optional[bool]:
         """Whether this team is a national team, if available."""
         return self._data.national
@@ -376,11 +365,6 @@ class Athlete(Competitor):
         elif isinstance(self._data, _TeamData):
             name = HumanName(self._data.full_name or self._data.name)
             return name.last
-
-    @property
-    def kind(self) -> Literal["player"]:
-        """The kind of competitor, which is 'player' for this class."""
-        return "player"
 
     @cached_property
     def sport(self) -> Sport:

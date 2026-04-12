@@ -9,7 +9,6 @@ from typing_extensions import TypeVar
 
 from .base import IdentifiableEntity
 from .collections import EntityCollection
-from .types import EventFormat
 from sportindex.exceptions import ProviderNotFoundError, EntityNotFoundError
 from sportindex.provider.models import (
     _SportData,
@@ -21,6 +20,7 @@ if TYPE_CHECKING:
     from .competition import Competition
     from .event import Event
     from .leaderboard import Rankings
+    from .types import SportContestNature
     from sportindex.provider import SofascoreProvider
 
 
@@ -70,12 +70,12 @@ class Sport(IdentifiableEntity, Generic[E]):
         return self._data.slug or self._data.name.lower().replace(" ", "-")
 
     @cached_property
-    def event_format(self) -> EventFormat:
-        """Determine the event format for this sport (match-based or stage-based)."""
+    def nature(self) -> SportContestNature:
+        """Determine the nature of the sport (opposition or comparison)."""
         from .static import SPORTS_REGISTRY
         for entry in SPORTS_REGISTRY:
             if entry.id == self.id:
-                return entry.event_format
+                return entry.nature
         raise RuntimeError(f"Unexpected sport slug '{self.slug}' not found in SPORT_FORMATS mapping")
 
     @cached_property
@@ -295,9 +295,9 @@ class Category(IdentifiableEntity, Generic[E]):
         return Sport(self._data.sport, self._provider)
 
     @property
-    def event_format(self) -> EventFormat:
-        """Determine the event format for this category based on its sport."""
-        return self.sport.event_format
+    def sport_nature(self) -> SportContestNature:
+        """Determine the nature of the sport for this category."""
+        return self.sport.nature
 
     @cached_property
     def country(self) -> Optional[Country]:

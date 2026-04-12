@@ -9,7 +9,7 @@ from typing_extensions import TypeVar
 from . import logger
 from .base import IdentifiableEntity
 from .event import EventAwareMixin
-from .types import EventFormat
+from .types import SportContestNature
 from .utils import merge_pydantic_models
 from sportindex.exceptions import InsufficientDataError, ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
 from sportindex.provider.models import _SeasonData, _StageData, StageTier
@@ -123,12 +123,12 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
         return self.competition.sport
 
     @property
-    def event_format(self) -> EventFormat:
-        """The event format for this season."""
+    def sport_nature(self) -> SportContestNature:
+        """The nature of the sport for this season."""
         if isinstance(self._data, _SeasonData):
-            return "match"
+            return SportContestNature.OPPOSITION
         elif isinstance(self._data, _StageData):
-            return "stage"
+            return SportContestNature.COMPARISON
         else:
             raise TypeError(f"Unsupported season data type {type(self._data)}.")
 
