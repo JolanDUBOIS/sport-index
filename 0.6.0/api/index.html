@@ -11692,7 +11692,11 @@ Country can be specified as a name, alpha-2, or alpha-3 code.</p>
       </thead>
       <tbody>
             <tr class="doc-section-item">
-              <td><code><a class="autorefs autorefs-internal" title="get_fixtures(silent=False) (sportindex.EventAwareMixin.get_fixtures)" href="#sportindex.EventAwareMixin.get_fixtures">get_fixtures</a></code></td>
+              <td><code><a class="autorefs autorefs-internal" title="get_fixtures(silent=False)
+
+  
+      abstractmethod
+   (sportindex.EventAwareMixin.get_fixtures)" href="#sportindex.EventAwareMixin.get_fixtures">get_fixtures</a></code></td>
               <td>
                 <div class="doc-md-description">
                   <p>Fetch upcoming fixtures.</p>
@@ -11772,7 +11776,8 @@ Country can be specified as a name, alpha-2, or alpha-3 code.</p>
 <span class="normal">679</span>
 <span class="normal">680</span>
 <span class="normal">681</span>
-<span class="normal">682</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EventAwareMixin</span><span class="p">(</span><span class="n">ABC</span><span class="p">,</span> <span class="n">Generic</span><span class="p">[</span><span class="n">E</span><span class="p">]):</span>
+<span class="normal">682</span>
+<span class="normal">683</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EventAwareMixin</span><span class="p">(</span><span class="n">ABC</span><span class="p">,</span> <span class="n">Generic</span><span class="p">[</span><span class="n">E</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Toolkit for entities that fetch fixtures and results. Provides shared pagination and unified date filtering.</span>
 
@@ -11782,6 +11787,7 @@ Country can be specified as a name, alpha-2, or alpha-3 code.</p>
 <span class="sd">        get_events() -&gt; EventCollection[E]: Fetch all events (fixtures + results), sorted by date.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
+    <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_fixtures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">silent</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EventCollection</span><span class="p">[</span><span class="n">E</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Override in subclass if fixtures are supported.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Method get_fixtures must be implemented in the subclass </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -11846,10 +11852,10 @@ Country can be specified as a name, alpha-2, or alpha-3 code.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/sportindex/domain/event.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">660</span>
-<span class="normal">661</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">661</span>
 <span class="normal">662</span>
-<span class="normal">663</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_events</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EventCollection</span><span class="p">[</span><span class="n">E</span><span class="p">]:</span>
+<span class="normal">663</span>
+<span class="normal">664</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_events</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EventCollection</span><span class="p">[</span><span class="n">E</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Fetch all events.&quot;&quot;&quot;</span>
     <span class="n">events</span><span class="p">:</span> <span class="n">EventCollection</span><span class="p">[</span><span class="n">E</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_results</span><span class="p">(</span><span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_fixtures</span><span class="p">(</span><span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">events</span><span class="o">.</span><span class="n">sort_by_date</span><span class="p">()</span>
@@ -11865,6 +11871,10 @@ Country can be specified as a name, alpha-2, or alpha-3 code.</p>
 <h3 id="sportindex.EventAwareMixin.get_fixtures" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">get_fixtures</span><span class="p">(</span><span class="n">silent</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-abstractmethod"><code>abstractmethod</code></small>
+  </span>
+
 </h3>
 
 
@@ -11877,7 +11887,9 @@ Country can be specified as a name, alpha-2, or alpha-3 code.</p>
               <summary>Source code in <code>src/sportindex/domain/event.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">651</span>
 <span class="normal">652</span>
-<span class="normal">653</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_fixtures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">silent</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EventCollection</span><span class="p">[</span><span class="n">E</span><span class="p">]:</span>
+<span class="normal">653</span>
+<span class="normal">654</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@abstractmethod</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_fixtures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">silent</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EventCollection</span><span class="p">[</span><span class="n">E</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Override in subclass if fixtures are supported.&quot;&quot;&quot;</span>
     <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Method get_fixtures must be implemented in the subclass </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
@@ -11906,10 +11918,10 @@ Country can be specified as a name, alpha-2, or alpha-3 code.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/sportindex/domain/event.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">655</span>
-<span class="normal">656</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">656</span>
 <span class="normal">657</span>
-<span class="normal">658</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@abstractmethod</span>
+<span class="normal">658</span>
+<span class="normal">659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@abstractmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">silent</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EventCollection</span><span class="p">[</span><span class="n">E</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Override in subclass if results are supported.&quot;&quot;&quot;</span>
     <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Method get_results must be implemented in the subclass </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
