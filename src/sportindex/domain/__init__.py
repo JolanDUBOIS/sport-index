@@ -7,7 +7,7 @@ Main elements provided in this package:
 - Competition models: `Competition`, `Season`.
 - Event models: `Event`, `EventCollection`, `Period`, `Lineups`, `Incident`,
   `EventStatistics`, `MomentumGraph`, `MatchCompetitors`, `MatchScore`, `Round`.
-- Competitors: `Competitor`, `PlayerInfo`, `Amount`.
+- Competitors: `Competitor`, `AthleteInfo`, `Amount`.
 - Leaderboards: `Standings`, `Rankings`, `StandingsEntry`, `RankingsEntry`,
   `Promotion`, `Gender`.
 - Supporting models: `Manager`, `ManagerCareerHistory`, `Referee`, `Cards`,
@@ -21,7 +21,7 @@ from .base import BaseEntity, IdentifiableEntity, SearchableMixin
 from .channel import Channel
 from .collections import EntityCollection, ScoredEntityCollection, EventCollection
 from .competition import Competition
-from .competitor import Competitor, Team, Player, PlayerInfo
+from .competitor import Competitor, Team, Athlete, AthleteInfo
 from .core import Sport, Country, Category
 from .event import Event, MatchEvent, StageEvent, EventAwareMixin, MatchCompetitors, MatchLineups
 from .enums import Gender

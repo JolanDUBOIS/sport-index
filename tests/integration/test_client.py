@@ -100,22 +100,22 @@ def test_client_get(client: SportClient):
     lewis_hamilton = client.get(sportindex.Competitor, 14270)
     assert lewis_hamilton.id == 14270
     assert lewis_hamilton.name == "Lewis Hamilton"
-    assert isinstance(lewis_hamilton, sportindex.Player)
+    assert isinstance(lewis_hamilton, sportindex.Athlete)
 
-    lewis_hamilton = client.get(sportindex.Player, 14270)
+    lewis_hamilton = client.get(sportindex.Athlete, 14270)
     assert lewis_hamilton.id == 14270
     assert lewis_hamilton.name == "Lewis Hamilton"
-    assert isinstance(lewis_hamilton, sportindex.Player)
+    assert isinstance(lewis_hamilton, sportindex.Athlete)
 
     ousman_dembele = client.get(sportindex.Competitor, 1636489)
     assert ousman_dembele.id == 1636489
     assert ousman_dembele.name == "Ousmane Dembélé"
-    assert isinstance(ousman_dembele, sportindex.Player)
+    assert isinstance(ousman_dembele, sportindex.Athlete)
 
-    ousman_dembele = client.get(sportindex.Player, 1636489)
+    ousman_dembele = client.get(sportindex.Athlete, 1636489)
     assert ousman_dembele.id == 1636489
     assert ousman_dembele.name == "Ousmane Dembélé"
-    assert isinstance(ousman_dembele, sportindex.Player)
+    assert isinstance(ousman_dembele, sportindex.Athlete)
 
     # Manager
     luis_enrique = client.get(sportindex.Manager, 129465)
@@ -158,12 +158,12 @@ def test_client_search(client: SportClient):
     lewis_search = client.search(sportindex.Competitor, "Lewis Hamilton")
     assert len(lewis_search) > 0
     assert any(comp.id == 14270 for comp in lewis_search)
-    assert isinstance(lewis_search.get(id=14270), sportindex.Player)
+    assert isinstance(lewis_search.get(id=14270), sportindex.Athlete)
 
     ousmane_search = client.search(sportindex.Competitor, "Ousmane Dembélé")
     assert len(ousmane_search) > 0
     assert any(comp.id == 1636489 for comp in ousmane_search)
-    assert isinstance(ousmane_search.get(id=1636489), sportindex.Player)
+    assert isinstance(ousmane_search.get(id=1636489), sportindex.Athlete)
 
     # Manager
     luis_enrique_search = client.search(sportindex.Manager, "Luis Enrique")

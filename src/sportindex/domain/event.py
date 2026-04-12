@@ -25,7 +25,7 @@ from sportindex.provider.models import _EventData, _StageData, StageTier
 if TYPE_CHECKING:
     from .channel import Channel
     from .competition import Competition
-    from .competitor import Competitor, Player
+    from .competitor import Competitor, Athlete
     from .incident import Incident
     from .leaderboard import Standings
     from .referee import Referee
@@ -618,19 +618,19 @@ class MatchCompetitors(BaseModel):
 
 class MatchLineups(BaseModel):
     """Represents the lineups of both teams for a match."""
-    home: list[Player]
-    away: list[Player]
+    home: list[Athlete]
+    away: list[Athlete]
 
     @classmethod
     def _from_base_schema(cls, lineup_response: _LineupsResponse, provider: SofascoreProvider) -> MatchLineups:
         """Create MatchLineups from a _LineupsResponse."""
-        from .competitor import Player
+        from .competitor import Athlete
         if not lineup_response or not lineup_response.home or not lineup_response.away:
             logger.debug(f"Lineups response is incomplete for event. Response: {lineup_response}")
             raise ProviderNotFoundError("Lineups data is incomplete or missing")
         return cls(
-            home=[Player(p, provider) for p in lineup_response.home.players],
-            away=[Player(p, provider) for p in lineup_response.away.players]
+            home=[Athlete(p, provider) for p in lineup_response.home.players],
+            away=[Athlete(p, provider) for p in lineup_response.away.players]
         )
 
 

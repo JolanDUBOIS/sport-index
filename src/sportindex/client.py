@@ -77,7 +77,7 @@ class SportClient:
     def _resolve_ns(self, entity_cls: type[IdentifiableEntity]) -> str:
         """
         Map a class to its canonical cache namespace.
-        Ensures MatchEvent/StageEvent share 'event' and Team/Player share 'competitor'.
+        Ensures MatchEvent/StageEvent share 'event' and Team/Athlete share 'competitor'.
         """
         if issubclass(entity_cls, Event):
             return "event"

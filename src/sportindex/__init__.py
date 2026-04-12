@@ -43,8 +43,8 @@ from .domain import (
     # Competitors
     Competitor,
     Team,
-    Player,
-    PlayerInfo,
+    Athlete,
+    AthleteInfo,
 
     # Competition / seasons
     Competition,
@@ -119,8 +119,8 @@ __all__ = [
     # Competitors
     "Competitor",
     "Team",
-    "Player",
-    "PlayerInfo",
+    "Athlete",
+    "AthleteInfo",
 
     # Competition / seasons
     "Competition",

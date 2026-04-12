@@ -1,7 +1,7 @@
 import logging
 
 import sportindex
-from sportindex import Competitor, Team, Player
+from sportindex import Competitor, Team, Athlete
 from sportindex.provider import SofascoreProvider
 
 
@@ -29,9 +29,9 @@ def test_competitor(provider: SofascoreProvider):
     assert psg.manager.id == 129465
     assert psg.venue.id == 1686
 
-    # Player
+    # Athlete
     lewis_hamilton = Competitor.from_id(14270, provider)
-    assert isinstance(lewis_hamilton, Player)
+    assert isinstance(lewis_hamilton, Athlete)
     assert lewis_hamilton.id == 14270
     assert lewis_hamilton.name == "Lewis Hamilton"
     assert lewis_hamilton.slug == "hamilton-lewis"

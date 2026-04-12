@@ -63,12 +63,12 @@ class Competitor(SearchableMixin, EventAwareMixin):
     _REVERSE_TYPE_MAP: dict[int, type[BaseSchema]] = {1: _TeamData, 2: _PlayerData}
 
     @overload
-    def __new__(cls, data: _PlayerData, provider: SofascoreProvider, **kwargs) -> Player: ...
+    def __new__(cls, data: _PlayerData, provider: SofascoreProvider, **kwargs) -> Athlete: ...
 
     def __new__(cls, data: _TeamData | _PlayerData, provider: SofascoreProvider, **kwargs):
         if cls is Competitor:
             if isinstance(data, _PlayerData) or (isinstance(data, _TeamData) and data.player_team_info is not None):
-                return super().__new__(Player)
+                return super().__new__(Athlete)
             elif isinstance(data, _TeamData):
                 return super().__new__(Team)
             else:
@@ -187,7 +187,7 @@ class Competitor(SearchableMixin, EventAwareMixin):
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Competitor]:
         """Search for competitors matching the given query, returning up to max_results results."""
         team_results = Team.search(query, provider, max_results)
-        player_results = Player.search(query, provider, max_results)
+        player_results = Athlete.search(query, provider, max_results)
         combined = ScoredEntityCollection.merge(team_results, player_results)
         return combined.sort_by_score()[:max_results]
 
@@ -242,7 +242,7 @@ class Team(Competitor):
     Attributes:
         name_code (str | None): The name code of the team, if available.
         national (bool | None): Whether this team is a national team, if available.
-        players (EntityCollection[Player]): The players of this team, if available and applicable.
+        players (EntityCollection[Athlete]): The players of this team, if available and applicable.
         manager (Manager | None): The manager of this team, if available.
         venue (Venue | None): The venue this team plays at, if available.
     """
@@ -255,7 +255,7 @@ class Team(Competitor):
         if not isinstance(data, _TeamData):
             raise TypeError("Team data must be of type _TeamData")
         if data.player_team_info is not None:
-            raise TypeError("Team data with player_team_info should be represented as a Player, not a Team")
+            raise TypeError("Team data with player_team_info should be represented as a Athlete, not a Team")
 
     @property
     def full_name(self) -> str:
@@ -284,23 +284,23 @@ class Team(Competitor):
         return Sport(self._data.sport, self._provider)
 
     @cached_property
-    def players(self) -> EntityCollection[Player]:
+    def players(self) -> EntityCollection[Athlete]:
         """
         The players of this team, if available and applicable.
         For motorsports teams, this will return the drivers, for cycling teams, the riders, etc. 
         """
         return self._get_players() | self._get_drivers()
 
-    def _get_players(self) -> EntityCollection[Player]:
+    def _get_players(self) -> EntityCollection[Athlete]:
         try:
-            return EntityCollection([Player(player, self._provider) for player in self._provider.get_team_players(self._data.id).players])
+            return EntityCollection([Athlete(player, self._provider) for player in self._provider.get_team_players(self._data.id).players])
         except ProviderNotFoundError:
             logger.debug(f"No players found for team with id {self.id}, returning empty collection")
             return EntityCollection()
 
-    def _get_drivers(self) -> EntityCollection[Player]:
+    def _get_drivers(self) -> EntityCollection[Athlete]:
         try:
-            return EntityCollection([Player(driver, self._provider) for driver in self._provider.get_team(self._data.id).drivers])
+            return EntityCollection([Athlete(driver, self._provider) for driver in self._provider.get_team(self._data.id).drivers])
         except ProviderNotFoundError:
             logger.debug(f"No drivers found for team with id {self.id}, returning empty collection")
             return EntityCollection()
@@ -330,7 +330,7 @@ class Team(Competitor):
         )
 
 
-class Player(Competitor):
+class Athlete(Competitor):
     """
     A player competitor, associated with a team and potentially having detailed information.
     
@@ -338,7 +338,7 @@ class Player(Competitor):
         first_name (str | None): The first name of the player, if available.
         last_name (str | None): The last name of the player, if available.
         parent (Team | None): The team this player belongs to, if available and applicable.
-        info (PlayerInfo | None): Additional player info, if available.
+        info (AthleteInfo | None): Additional player info, if available.
     """
     _data: _TeamData | _PlayerData
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name", "first_name", "last_name", "kind")
@@ -347,7 +347,7 @@ class Player(Competitor):
         super().__init__(data, provider, **kwargs)
 
         if isinstance(data, _TeamData) and data.player_team_info is None:
-            raise TypeError("Team data without player_team_info should be represented as a Team, not a Player")
+            raise TypeError("Team data without player_team_info should be represented as a Team, not a Athlete")
 
     @property
     def full_name(self) -> str:
@@ -401,16 +401,16 @@ class Player(Competitor):
             return Team(self._data.parent_team, self._provider) if self._data.parent_team else None
 
     @cached_property
-    def info(self) -> Optional[PlayerInfo]:
+    def info(self) -> Optional[AthleteInfo]:
         """Additional player info, if available."""
         self._full_load()
         if isinstance(self._data, _PlayerData):
-            return PlayerInfo._from_parsed_player(self._data)
+            return AthleteInfo._from_parsed_player(self._data)
         elif isinstance(self._data, _TeamData) and self._data.player_team_info is not None:
-            return PlayerInfo._from_parsed_player_team_info(self._data.player_team_info)
+            return AthleteInfo._from_parsed_player_team_info(self._data.player_team_info)
 
     @classmethod
-    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Player]:
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Athlete]:
         """Search for players matching the given query, returning up to max_results results."""
         return cls._paginate_search(
             query=query,
@@ -420,14 +420,14 @@ class Player(Competitor):
         )
 
 
-class PlayerInfo(BaseModel):
+class AthleteInfo(BaseModel):
     """Comprehensive details about an individual athlete.
 
     Covers identity, physical attributes, career status, technical profile, and financial/contractual data.
 
     Attributes:
-        weight (float | None): Player weight in kilograms.
-        height (int | None): Player height in centimeters.
+        weight (float | None): Athlete weight in kilograms.
+        height (int | None): Athlete height in centimeters.
         date_of_birth (date | None): Birth date.
         place_of_birth (str | None): Birthplace.
         retired (bool | None): Whether the player is retired.
@@ -463,8 +463,8 @@ class PlayerInfo(BaseModel):
     contract_expiry: Optional[date] = None
 
     @classmethod
-    def _from_parsed_player_team_info(cls, data: _PlayerTeamInfoData) -> PlayerInfo:
-        """Create a PlayerInfo instance from _PlayerTeamInfoData data."""
+    def _from_parsed_player_team_info(cls, data: _PlayerTeamInfoData) -> AthleteInfo:
+        """Create a AthleteInfo instance from _PlayerTeamInfoData data."""
         return cls(
             weight=float(data.weight) if data.weight is not None else None,
             height=int(data.height * 100) if data.height is not None else None,
@@ -476,8 +476,8 @@ class PlayerInfo(BaseModel):
         )
 
     @classmethod
-    def _from_parsed_player(cls, data: _PlayerData) -> PlayerInfo:
-        """Create a PlayerInfo instance from _PlayerData data."""
+    def _from_parsed_player(cls, data: _PlayerData) -> AthleteInfo:
+        """Create a AthleteInfo instance from _PlayerData data."""
         return cls(
             weight=float(data.weight) if data.weight is not None else None,
             height=int(data.height) if data.height is not None else None,
