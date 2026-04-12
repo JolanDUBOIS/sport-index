@@ -62,6 +62,6 @@ def test_event(provider: SofascoreProvider):
     assert len(event.substages) > 0
     assert all(subevent.parent == event for subevent in event.substages)
     assert isinstance(event.venue, sportindex.Venue)
-    assert isinstance(event.winner, sportindex.Athlete)
+    assert isinstance(event.winner, sportindex.Competitor)
     assert all(isinstance(standings, sportindex.Standings) for standings in event.standings)
     assert all(isinstance(channel, sportindex.Channel) for channel in event.get_channels("FR"))

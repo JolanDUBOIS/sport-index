@@ -26,10 +26,7 @@ from .core import Sport, Country, Category
 from .event import Event, MatchEvent, StageEvent, EventAwareMixin, MatchCompetitors, MatchLineups
 from .enums import Gender
 from .incident import Incident
-from .leaderboard import (
-    Standings, Rankings,
-    StandingsEntry, RankingsEntry,
-)
+from .leaderboard import Standings, Rankings, StandingsEntry, RankingsEntry
 from .manager import Manager, ManagerTenure
 from .referee import Referee, Cards
 from .season import Season

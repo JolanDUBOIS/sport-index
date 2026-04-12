@@ -78,6 +78,12 @@ class Event(IdentifiableEntity):
         if hasattr(cls, "_TYPE_IDX"):
             Event._REGISTRY[cls._TYPE_IDX] = cls
 
+    @overload
+    def __new__(cls, data: _EventData, provider: SofascoreProvider, **kwargs) -> MatchEvent: ...
+
+    @overload
+    def __new__(cls, data: _StageData, provider: SofascoreProvider, **kwargs) -> StageEvent: ...
+
     def __new__(cls, data: _EventData | _StageData, provider: SofascoreProvider, **kwargs):
         """Create the correct subclass based on the data type."""
         if cls is Event:
@@ -550,6 +556,7 @@ class StageEvent(Event):
         except ProviderNotFoundError as e:
             logger.debug(f"Failed to fetch teams standings for event {self.id}: {e}")
             teams_standings = []
+        from .leaderboard import Standings
         return [
             Standings(competitors_standings, self._provider, name=f"Competitors {self.name}", kind="competitors"),
             Standings(teams_standings, self._provider, name=f"Teams {self.name}", kind="teams")

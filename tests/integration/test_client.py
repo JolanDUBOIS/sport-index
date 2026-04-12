@@ -90,6 +90,8 @@ def test_client_get(client: SportClient):
     psg = client.get(sportindex.Competitor, 3288)
     assert psg.id == 3288
     assert psg.name == "Paris Saint-Germain"
+    assert isinstance(psg, sportindex.Competitor)
+    psg = psg.resolve()
     assert isinstance(psg, sportindex.Team)
 
     psg = client.get(sportindex.Team, 3288)
@@ -100,6 +102,8 @@ def test_client_get(client: SportClient):
     lewis_hamilton = client.get(sportindex.Competitor, 14270)
     assert lewis_hamilton.id == 14270
     assert lewis_hamilton.name == "Lewis Hamilton"
+    assert isinstance(lewis_hamilton, sportindex.Competitor)
+    lewis_hamilton = lewis_hamilton.resolve()
     assert isinstance(lewis_hamilton, sportindex.Athlete)
 
     lewis_hamilton = client.get(sportindex.Athlete, 14270)
@@ -110,6 +114,8 @@ def test_client_get(client: SportClient):
     ousman_dembele = client.get(sportindex.Competitor, 1636489)
     assert ousman_dembele.id == 1636489
     assert ousman_dembele.name == "Ousmane Dembélé"
+    assert isinstance(ousman_dembele, sportindex.Competitor)
+    ousman_dembele = ousman_dembele.resolve()
     assert isinstance(ousman_dembele, sportindex.Athlete)
 
     ousman_dembele = client.get(sportindex.Athlete, 1636489)
@@ -148,7 +154,7 @@ def test_client_search(client: SportClient):
     psg_search = client.search(sportindex.Competitor, "Paris Saint-Germain")
     assert len(psg_search) > 0
     assert any(comp.id == 3288 for comp in psg_search)
-    assert isinstance(psg_search.get(id=3288), sportindex.Team)
+    assert isinstance(psg_search.get(id=3288), sportindex.Competitor)
 
     psg_search_2 = client.search(sportindex.Team, "PSG")
     assert len(psg_search_2) > 0
@@ -158,12 +164,12 @@ def test_client_search(client: SportClient):
     lewis_search = client.search(sportindex.Competitor, "Lewis Hamilton")
     assert len(lewis_search) > 0
     assert any(comp.id == 14270 for comp in lewis_search)
-    assert isinstance(lewis_search.get(id=14270), sportindex.Athlete)
+    assert isinstance(lewis_search.get(id=14270), sportindex.Competitor)
 
     ousmane_search = client.search(sportindex.Competitor, "Ousmane Dembélé")
     assert len(ousmane_search) > 0
     assert any(comp.id == 1636489 for comp in ousmane_search)
-    assert isinstance(ousmane_search.get(id=1636489), sportindex.Athlete)
+    assert isinstance(ousmane_search.get(id=1636489), sportindex.Competitor)
 
     # Manager
     luis_enrique_search = client.search(sportindex.Manager, "Luis Enrique")
