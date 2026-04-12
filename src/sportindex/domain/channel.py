@@ -2,18 +2,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Self
 
+from . import logger
 from .base import IdentifiableEntity
+from .event import EventAwareMixin
 from sportindex.exceptions import EntityNotFoundError, ProviderNotFoundError, FetchError, DomainError
 from sportindex.provider.models import _ChannelData
 
 if TYPE_CHECKING:
-    from .core import Country
     from .event import EventCollection
     from sportindex.provider import SofascoreProvider
 
 
 
-class Channel(IdentifiableEntity):
+class Channel(IdentifiableEntity, EventAwareMixin):
     """A TV channel broadcasting sports events.
 
     Provides access to the channel's name, ID, and scheduled events.
@@ -47,8 +48,7 @@ class Channel(IdentifiableEntity):
         """The name of the channel."""
         return self._data.name
 
-    @property
-    def events(self) -> EventCollection:
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all scheduled events for this channel."""
         from .event import Event, EventCollection
         parsed_channel_events = self._provider.get_channel_schedule(self.id)
@@ -57,6 +57,13 @@ class Channel(IdentifiableEntity):
         ] + [
             Event(s, self._provider) for s in parsed_channel_events.stages
         ])
+
+    def get_results(self, silent: bool = False) -> EventCollection:
+        """Fetch all past events for this channel."""
+        from .event import EventCollection
+        if not silent:
+            logger.warning(f"get_results for Channel is not supported, returning empty list")
+        return EventCollection()
 
     @classmethod
     def from_id(cls, channel_id: int, provider: SofascoreProvider) -> Self:

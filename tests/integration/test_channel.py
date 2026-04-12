@@ -13,4 +13,4 @@ def test_channel(provider: SofascoreProvider):
     canal_plus = Channel.from_id(287, provider)
     assert canal_plus.id == 287
     assert "canal" in canal_plus.name.lower()
-    assert len(canal_plus.events) > 0, "Expected Canal+ to have scheduled events, though it is possible it may not at the moment. Check the provider data if this fails."
+    assert len(canal_plus.get_events()) > 0, "Expected Canal+ to have scheduled events, though it is possible it may not at the moment. Check the provider data if this fails."
