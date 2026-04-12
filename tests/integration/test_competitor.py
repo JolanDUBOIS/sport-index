@@ -13,6 +13,8 @@ def test_competitor(provider: SofascoreProvider):
 
     # Team
     psg = Competitor.from_id(3288, provider)
+    assert isinstance(psg, Competitor)
+    psg = psg.resolve()
     assert isinstance(psg, Team)
     assert psg.id == 3288
     assert psg.name == "Paris Saint-Germain"
@@ -20,7 +22,6 @@ def test_competitor(provider: SofascoreProvider):
     assert psg.short_name == "PSG"
     assert psg.full_name == "Paris Saint-Germain"
     assert psg.name_code == "PSG"
-    assert psg.kind == "team"
     assert psg.gender.value == "M"
     assert psg.sport.id == 1
     assert psg.country.alpha3 == "FRA"
@@ -31,13 +32,14 @@ def test_competitor(provider: SofascoreProvider):
 
     # Athlete
     lewis_hamilton = Competitor.from_id(14270, provider)
+    assert isinstance(lewis_hamilton, Competitor)
+    lewis_hamilton = lewis_hamilton.resolve()
     assert isinstance(lewis_hamilton, Athlete)
     assert lewis_hamilton.id == 14270
     assert lewis_hamilton.name == "Lewis Hamilton"
     assert lewis_hamilton.slug == "hamilton-lewis"
     assert lewis_hamilton.first_name == "Lewis"
     assert lewis_hamilton.last_name == "Hamilton"
-    assert lewis_hamilton.kind == "player"
     assert lewis_hamilton.sport.id == 11
     assert lewis_hamilton.country.alpha3 == "GBR"
     assert isinstance(lewis_hamilton.parent, Team)
