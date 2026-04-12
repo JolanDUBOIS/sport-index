@@ -648,6 +648,7 @@ class EventAwareMixin(ABC, Generic[E]):
         get_events() -> EventCollection[E]: Fetch all events (fixtures + results), sorted by date.
     """
 
+    @abstractmethod
     def get_fixtures(self, silent: bool = False) -> EventCollection[E]:
         """Override in subclass if fixtures are supported."""
         raise NotImplementedError(f"Method get_fixtures must be implemented in the subclass {self.__class__.__name__}")
