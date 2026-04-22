@@ -228,7 +228,7 @@ class Event(IdentifiableEntity):
 
 class MatchEvent(Event):
     """An event representing a match between two competitors, such as a football or tennis match.
-    
+
     Provides access to match-specific properties like score, winner, periods, lineups, incidents, statistics, 
     and momentum graphs, extending the base event properties.
 
@@ -516,6 +516,8 @@ class StageEvent(Event):
         from .season import Season
         if self._parent and isinstance(self._parent, Season):
             return self._parent
+        if self.parent:
+            return self.parent.season
         return None
 
     @cached_property

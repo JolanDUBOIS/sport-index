@@ -155,18 +155,16 @@ class Country(IdentifiableEntity):
             self._initialize_pycountry()
 
     def _initialize_pycountry(self) -> None:
-        """Helper method to create _pycountry_obj from available data."""
         if self._data.alpha2:
             self._pycountry_obj = pycountry.countries.get(alpha_2=self._data.alpha2.upper())
         elif self._data.alpha3:
             self._pycountry_obj = pycountry.countries.get(alpha_3=self._data.alpha3.upper())
     
         if not self._pycountry_obj:
-            search_name = self.name.lower()
-            self._pycountry_obj = next(
-                (c for c in pycountry.countries if c.name.lower() == search_name), 
-                None
-            )
+            try:
+                self._pycountry_obj = pycountry.countries.lookup(self.name)
+            except LookupError:
+                pass
 
         if not self._pycountry_obj:
             raise ValueError(f"Country '{self.name}' (slug: {self.slug}) not found in pycountry database")
@@ -188,13 +186,11 @@ class Country(IdentifiableEntity):
 
     @property
     def alpha2(self) -> Optional[str]:
-        """The alpha-2 code of the country (e.g. 'FR' for France)."""
-        return self._data.alpha2 or (self._pycountry_obj.alpha_2 if self._pycountry_obj else None)
+        return self._data.alpha2 or (getattr(self._pycountry_obj, "alpha_2", None) if self._pycountry_obj else None)
 
     @property
     def alpha3(self) -> Optional[str]:
-        """The alpha-3 code of the country (e.g. 'FRA' for France)."""
-        return self._data.alpha3 or (self._pycountry_obj.alpha_3 if self._pycountry_obj else None)
+        return self._data.alpha3 or (getattr(self._pycountry_obj, "alpha_3", None) if self._pycountry_obj else None)
 
     @classmethod
     def all(cls, provider: SofascoreProvider) -> EntityCollection[Country]:
@@ -214,32 +210,28 @@ class Country(IdentifiableEntity):
 
     @classmethod
     def from_alpha(cls, alpha: str, provider: SofascoreProvider) -> Country:
-        """Create a Country instance from an alpha-2 or alpha-3 code."""
-        pycountry_obj = pycountry.countries.get(alpha_2=alpha.upper()) or pycountry.countries.get(alpha_3=alpha.upper())
-        if not pycountry_obj:
+        try:
+            pycountry_obj = pycountry.countries.lookup(alpha.upper())
+            return cls._from_pycountry(pycountry_obj, provider)
+        except LookupError:
             raise EntityNotFoundError(f"Country with alpha code '{alpha}' not found in pycountry database")
-        return cls._from_pycountry(pycountry_obj, provider)
 
     @classmethod
     def from_name(cls, name: str, provider: SofascoreProvider) -> Country:
-        """Create a Country instance from a country name."""
         try:
-            pycountry_obj = next(
-                (c for c in pycountry.countries if c.name.lower() == name.lower())
-            )
+            pycountry_obj = pycountry.countries.lookup(name)
             return cls._from_pycountry(pycountry_obj, provider)
-        except StopIteration:
-            raise EntityNotFoundError(f"Country with name '{name}' not found in pycountry database")
+        except LookupError:
+            raise EntityNotFoundError(f"Country '{name}' not found in pycountry database")
 
     @classmethod
     def _from_pycountry(cls, pycountry_obj: Any, provider: SofascoreProvider) -> Country:
-        """Helper method to populate country data from a pycountry object."""
         return cls(
             data=_CountryData(
                 name=pycountry_obj.name,
                 slug=pycountry_obj.name.lower().replace(" ", "-"),
-                alpha2=pycountry_obj.alpha_2,
-                alpha3=pycountry_obj.alpha_3
+                alpha2=getattr(pycountry_obj, "alpha_2", None),
+                alpha3=getattr(pycountry_obj, "alpha_3", None)
             ),
             provider=provider,
             pycountry_obj=pycountry_obj

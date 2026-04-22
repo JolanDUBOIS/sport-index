@@ -29,6 +29,9 @@ class StageTier(IntEnum):
     LAP = 7
     STAGE = 8
     PROLOGUE = 9
+    SPRINT_RACE = 10
+    # TODO - Find 11
+    SPRINT_QUALIFYING = 12
 
     @classmethod
     def from_payload(cls, value: Any) -> Any:
@@ -44,7 +47,7 @@ class StageTier(IntEnum):
         try:
             tier_member = cls[enum_key]
         except KeyError:
-            raise ValueError(f"Unrecognized StageTier name: '{value['name']}'")
+            raise ValueError(f"Unrecognized StageTier name afzaefzrvz: '{value['name']}'")
 
         if tier_member.value != provided_id:
             raise ValueError(f"StageTier mismatch: '{value['name']}' expects id {tier_member.value}, got {provided_id}")
