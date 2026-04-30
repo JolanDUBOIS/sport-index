@@ -5,7 +5,7 @@ import pytest
 
 from sportindex import SportClient
 from sportindex.fetcher import RecordingFetcher
-from sportindex.provider import SofascoreProvider
+from sportindex.api_client import SofascoreProvider
 
 
 @pytest.fixture(scope="session", autouse=True)

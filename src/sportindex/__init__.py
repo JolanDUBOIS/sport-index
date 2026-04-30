@@ -14,7 +14,7 @@ import logging
 from importlib.metadata import PackageNotFoundError, version
 
 from . import exceptions
-from .client import SportClient
+from .api_client import SportClient
 
 # Import domain types in logical groups (alphabetical within each group)
 from .domain import (
@@ -53,7 +53,7 @@ from .domain import (
     Team,
     Venue,
 )
-from .provider import (
+from .api_client import (
     Amount,
     EventStatus,
     MatchPeriod,

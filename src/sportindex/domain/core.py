@@ -14,13 +14,13 @@ from sportindex.exceptions import (
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.provider.models import _CategoryData, _CountryData, _SportData
+from sportindex.api_client.models import _CategoryData, _CountryData, _SportData
 
 from .base import IdentifiableEntity
 from .collections import EntityCollection
 
 if TYPE_CHECKING:
-    from sportindex.provider import SofascoreProvider
+    from sportindex.api_client import SofascoreProvider
 
     from .competition import Competition
     from .event import Event
@@ -108,7 +108,7 @@ class Sport(IdentifiableEntity, Generic[E]):
     @classmethod
     def all(cls, provider: SofascoreProvider) -> EntityCollection[Sport]:
         """Returns a collection of all supported sports."""
-        from sportindex.provider.models import _SportData
+        from sportindex.api_client.models import _SportData
 
         from .static import SPORTS_REGISTRY
         return EntityCollection([

@@ -8,7 +8,7 @@ that should not be directly imported or used by external consumers.
 Main exports are intended for internal use only within the sportindex package.
 """
 
-from .main import SofascoreProvider
+from .provider import SofascoreProvider
 from .models import (
     Amount,
     EventStatus,

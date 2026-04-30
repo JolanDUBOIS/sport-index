@@ -4,8 +4,8 @@ from contextlib import contextmanager
 import pytest
 
 from sportindex.exceptions import ProviderNotFoundError
-from sportindex.provider import SofascoreProvider
-from sportindex.provider.models import (
+from sportindex.api_client import SofascoreProvider
+from sportindex.api_client.models import (
     DriverCareerHistory,
     ManagerTenure,
     PlayerSeasonStats,

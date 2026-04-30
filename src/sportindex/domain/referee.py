@@ -12,14 +12,14 @@ from sportindex.exceptions import (
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.provider.models import _RefereeData
+from sportindex.api_client.models import _RefereeData
 
 from .base import SearchableMixin
 from .event import EventAwareMixin
 from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
-    from sportindex.provider import SofascoreProvider
+    from sportindex.api_client import SofascoreProvider
 
     from .collections import ScoredEntityCollection
     from .core import Country, Sport

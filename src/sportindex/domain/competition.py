@@ -12,7 +12,7 @@ from sportindex.exceptions import (
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.provider.models import _UniqueStageData, _UniqueTournamentData
+from sportindex.api_client.models import _UniqueStageData, _UniqueTournamentData
 
 from .base import SearchableMixin
 from .collections import EntityCollection, ScoredEntityCollection
@@ -20,8 +20,8 @@ from .types import SportContestNature
 from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
-    from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import BaseSchema
+    from sportindex.api_client import SofascoreProvider
+    from sportindex.api_client.models import BaseSchema
 
     from .core import Category, Sport
     from .event import Event, MatchEvent, StageEvent

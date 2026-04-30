@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 
     from pydantic import GetCoreSchemaHandler
 
-    from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import BaseSchema, _SearchResultData
+    from sportindex.api_client import SofascoreProvider
+    from sportindex.api_client.models import BaseSchema, _SearchResultData
 
     from .collections import ScoredEntityCollection
 

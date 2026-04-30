@@ -9,13 +9,13 @@ from sportindex.exceptions import (
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.provider.models import _ChannelData
+from sportindex.api_client.models import _ChannelData
 
 from .base import IdentifiableEntity
 from .event import EventAwareMixin
 
 if TYPE_CHECKING:
-    from sportindex.provider import SofascoreProvider
+    from sportindex.api_client import SofascoreProvider
 
     from .event import EventCollection
 
