@@ -8,7 +8,6 @@ that should not be directly imported or used by external consumers.
 Main exports are intended for internal use only within the sportindex package.
 """
 
-from .fetcher import Fetcher
 from .main import SofascoreProvider
 from .models import (
     Amount,
@@ -21,10 +20,8 @@ from .models import (
     Score,
     StageTier,
 )
-from .offline import RecordingFetcher
 
 __all__ = [
-    "Fetcher",
     "SofascoreProvider",
     "Amount",
     "Score",
@@ -35,5 +32,4 @@ __all__ = [
     "Promotion",
     "StageTier",
     "EventStatus",
-    "RecordingFetcher",
 ]

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from requests import Response
 
-from .fetcher import Fetcher
+from .main import Fetcher
 
 logger = logging.getLogger(__name__)
 

@@ -6,8 +6,8 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
+from ..fetcher import Fetcher
 from .endpoints import ENDPOINTS
-from .fetcher import Fetcher
 from .models import (
     DriverCareerHistory,
     DriverPerformance,

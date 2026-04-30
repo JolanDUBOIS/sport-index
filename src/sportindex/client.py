@@ -17,7 +17,8 @@ from .domain import (
     Sport,
 )
 from .exceptions import EntityNotFoundError
-from .provider import Fetcher, RecordingFetcher, SofascoreProvider
+from .fetcher import Fetcher, RecordingFetcher
+from .provider import SofascoreProvider
 
 logger = logging.getLogger(__name__)
 
