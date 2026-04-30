@@ -5,7 +5,6 @@ import sportindex
 from sportindex import SportClient, Standings
 from sportindex.provider import SofascoreProvider
 
-
 logger = logging.getLogger(__name__)
 
 def test_standings(client: SportClient, provider: SofascoreProvider):

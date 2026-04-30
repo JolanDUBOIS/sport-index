@@ -1,25 +1,33 @@
 from __future__ import annotations
 
+import logging
 from functools import cached_property
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from . import logger
+from sportindex.provider.models import (
+    Promotion,
+    _RacingStandingsEntryData,
+    _RankingEntryData,
+    _RankingsResponse,
+    _TeamStandingsData,
+    _TeamStandingsEntryData,
+)
+
 from .base import BaseEntity
 from .competition import Competition
 from .competitor import Competitor
-from sportindex.provider.models import (
-    _TeamStandingsData, _RacingStandingsEntryData,
-    _RankingsResponse, _TeamStandingsEntryData,
-    _RankingEntryData, Promotion
-)
 
 if TYPE_CHECKING:
-    from .core import Sport, Category
-    from .enums import Gender
+    from datetime import datetime
+
     from sportindex.provider import SofascoreProvider
+
+    from .core import Category, Sport
+    from .enums import Gender
+
+logger = logging.getLogger(__name__)
 
 
 # =====================================================================
@@ -29,7 +37,7 @@ if TYPE_CHECKING:
 class Standings(BaseEntity):
     """Represents the standings (ranked table) of a competition or sport.
 
-    Can handle both team/match standings (e.g., football league tables) and racing/cycling standings 
+    Can handle both team/match standings (e.g., football league tables) and racing/cycling standings
     (e.g., Formula 1 driver standings).
 
     Attributes:
@@ -49,37 +57,33 @@ class Standings(BaseEntity):
             raise TypeError(f"Standings data must be either _TeamStandingsData or list[_RacingStandingsEntryData], got {type(data)}")
 
     @property
-    def name(self) -> Optional[str]:
+    def name(self) -> str | None:
         """The name of the standings, e.g. "Ligue 1 table", "Formula 1 driver standings", etc."""
         if isinstance(self._data, _TeamStandingsData):
             return self._data.name
-        else:
-            return self._kwargs.get("name", None)
+        return self._kwargs.get("name", None)
 
     @property
-    def kind(self) -> Optional[str]:
+    def kind(self) -> str | None:
         """The kind of standings, e.g. "home", "away", "total" (match standings) or "competitors", "teams" (racing standings)."""
         if isinstance(self._data, _TeamStandingsData):
             return self._data.type_
-        else:
-            return self._kwargs.get("kind", None)
+        return self._kwargs.get("kind", None)
 
     @property
-    def updated_at(self) -> Optional[datetime]:
+    def updated_at(self) -> datetime | None:
         """The date and time when the standings were last updated."""
         if isinstance(self._data, _TeamStandingsData):
             return self._data.updated_at
-        else:
-            return self._data[0].updated_at if self._data else None
+        return self._data[0].updated_at if self._data else None
 
     @cached_property
-    def sport(self) -> Optional[Sport]:
+    def sport(self) -> Sport | None:
         """The sport these standings belong to."""
         if self.entries:
             return self.entries[0].competitor.sport
-        else:
-            logger.warning(f"Standings {self.name} has no entries, cannot determine sport")
-            return None
+        logger.warning(f"Standings {self.name} has no entries, cannot determine sport")
+        return None
 
     @cached_property
     def entries(self) -> list[StandingsEntry]:
@@ -104,36 +108,36 @@ class StandingsEntry(BaseModel):
     """
     competitor: Competitor
     position: int
-    points: Optional[float] = None
+    points: float | None = None
 
     # Match standings
-    matches: Optional[int] = None
-    wins: Optional[int] = None
-    draws: Optional[int] = None
-    losses: Optional[int] = None
-    scores_for: Optional[int] = None
-    scores_against: Optional[int] = None
-    score_formatted: Optional[str] = None
-    games_behind: Optional[float] = None  # Kept as float to preserve half-games (e.g. 1.5)
-    promotion: Optional[Promotion] = None
+    matches: int | None = None
+    wins: int | None = None
+    draws: int | None = None
+    losses: int | None = None
+    scores_for: int | None = None
+    scores_against: int | None = None
+    score_formatted: str | None = None
+    games_behind: float | None = None  # Kept as float to preserve half-games (e.g. 1.5)
+    promotion: Promotion | None = None
 
     # Racing standings (motorsport)
-    victories: Optional[int] = None
-    podiums: Optional[int] = None
-    races_with_points: Optional[int] = None
-    races_started: Optional[int] = None
+    victories: int | None = None
+    podiums: int | None = None
+    races_with_points: int | None = None
+    races_started: int | None = None
 
     # Racing standings (cycling)
-    time: Optional[str] = None
-    gap_to_leader: Optional[str] = None
+    time: str | None = None
+    gap_to_leader: str | None = None
 
     @classmethod
     def _from_base_schema(
-        cls, 
-        raw: _TeamStandingsEntryData | _RacingStandingsEntryData, 
+        cls,
+        raw: _TeamStandingsEntryData | _RacingStandingsEntryData,
         provider: Any
     ) -> StandingsEntry:
-        
+
         if not raw.team:
             raise ValueError("Standings entry must have an associated team to determine competitor")
         if not raw.position:
@@ -154,8 +158,7 @@ class StandingsEntry(BaseModel):
                 games_behind=raw.games_behind,
                 promotion=raw.promotion
             )
-            
-        elif isinstance(raw, _RacingStandingsEntryData):
+        if isinstance(raw, _RacingStandingsEntryData):
             return cls(
                 competitor=Competitor(raw.team, provider),
                 position=raw.position,
@@ -167,6 +170,10 @@ class StandingsEntry(BaseModel):
                 time=raw.time,
                 gap_to_leader=raw.gap
             )
+        raise TypeError(
+            f"Invalid raw data type: {type(raw).__name__}. "
+            f"Expected _TeamStandingsEntryData or _RacingStandingsEntryData."
+        )
 
 
 # =====================================================================
@@ -197,27 +204,27 @@ class Rankings(BaseEntity):
             raise TypeError(f"Rankings data must be _RankingsResponse, got {type(data)}")
 
     @property
-    def id(self) -> Optional[int]:
+    def id(self) -> int | None:
         """The unique ID of these rankings."""
         return self._data.ranking_type.id if self._data.ranking_type else None
 
     @property
-    def name(self) -> Optional[str]:
+    def name(self) -> str | None:
         """The name of the rankings, e.g. "FIFA Rankings", "ATP Rankings", etc."""
         return self._data.ranking_type.name if self._data.ranking_type else None
 
     @property
-    def slug(self) -> Optional[str]:
+    def slug(self) -> str | None:
         """The slug of the rankings, e.g. "fifa", "atp", etc."""
         return self._data.ranking_type.slug if self._data.ranking_type else None
 
     @property
-    def updated_at(self) -> Optional[datetime]:
+    def updated_at(self) -> datetime | None:
         """The date and time when the rankings were last updated."""
         return self._data.ranking_type.last_updated if self._data.ranking_type else None
 
     @cached_property
-    def gender(self) -> Optional[Gender]:
+    def gender(self) -> Gender | None:
         """The gender category of these rankings, e.g. "M", "F" or "X" (mixed/other)."""
         from .enums import Gender
         return Gender(self._data.ranking_type.gender) if self._data.ranking_type and self._data.ranking_type.gender else None
@@ -228,13 +235,13 @@ class Rankings(BaseEntity):
         return [RankingsEntry._from_base_schema(e, self._provider) for e in self._data.ranking_rows]
 
     @cached_property
-    def sport(self) -> Optional[Sport]:
+    def sport(self) -> Sport | None:
         """The sport these rankings belong to."""
         from .core import Sport
         return Sport(self._data.ranking_type.sport, self._provider) if self._data.ranking_type and self._data.ranking_type.sport else None
 
     @cached_property
-    def category(self) -> Optional[Category]:
+    def category(self) -> Category | None:
         """The category these rankings belong to, if any."""
         from .core import Category
         try:
@@ -243,7 +250,7 @@ class Rankings(BaseEntity):
             return None
 
     @cached_property
-    def competition(self) -> Optional[Competition]:
+    def competition(self) -> Competition | None:
         """The competition these rankings belong to, if any."""
         from .competition import Competition
         try:
@@ -265,16 +272,16 @@ class RankingsEntry(BaseModel):
     """
     position: int
     entity: Competitor | Competition
-    points: Optional[float] = None
+    points: float | None = None
 
-    previous_position: Optional[int] = None
-    previous_points: Optional[float] = None
-    best_position: Optional[int] = None
+    previous_position: int | None = None
+    previous_points: float | None = None
+    best_position: int | None = None
 
     @classmethod
     def _from_base_schema(cls, raw: _RankingEntryData, provider: Any) -> RankingsEntry:
         """Alternative constructor to build a domain RankingsEntry from raw provider data."""
-        
+
         if raw.unique_tournament:
             entity = Competition(raw.unique_tournament, provider)
         elif raw.team:

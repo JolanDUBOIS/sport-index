@@ -1,17 +1,25 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Self
 
-from . import logger
-from .base import IdentifiableEntity
-from .event import EventAwareMixin
-from sportindex.exceptions import EntityNotFoundError, ProviderNotFoundError, FetchError, DomainError
+from sportindex.exceptions import (
+    DomainError,
+    EntityNotFoundError,
+    FetchError,
+    ProviderNotFoundError,
+)
 from sportindex.provider.models import _ChannelData
 
+from .base import IdentifiableEntity
+from .event import EventAwareMixin
+
 if TYPE_CHECKING:
-    from .event import EventCollection
     from sportindex.provider import SofascoreProvider
 
+    from .event import EventCollection
+
+logger = logging.getLogger(__name__)
 
 
 class Channel(IdentifiableEntity, EventAwareMixin):
@@ -62,12 +70,14 @@ class Channel(IdentifiableEntity, EventAwareMixin):
         """Fetch all past events for this channel."""
         from .event import EventCollection
         if not silent:
-            logger.warning(f"get_results for Channel is not supported, returning empty list")
+            logger.warning("get_results for Channel is not supported, returning empty list")
         return EventCollection()
 
     @classmethod
     def from_id(cls, channel_id: int, provider: SofascoreProvider) -> Self:
         """Fetch a channel by its ID."""
+        if not isinstance(channel_id, int):
+            raise TypeError(f"Channel ID must be an integer, got {type(channel_id)}")
         try:
             parsed_channel_events = provider.get_channel_schedule(channel_id)
             return cls(parsed_channel_events.channel, provider)

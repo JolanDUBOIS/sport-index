@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING
-
-from pydantic import Field
 
 from .base import BaseSchema
 

@@ -1,10 +1,10 @@
 import os
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 
 from sportindex import SportClient
-from sportindex.provider import SofascoreProvider, RecordingFetcher
+from sportindex.provider import RecordingFetcher, SofascoreProvider
 
 
 @pytest.fixture(scope="session", autouse=True)

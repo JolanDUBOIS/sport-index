@@ -1,11 +1,12 @@
-from typing import TypeVar, Optional
+from typing import TYPE_CHECKING, TypeVar
 
-from pydantic import BaseModel
+if TYPE_CHECKING:
+    from pydantic import BaseModel
 
 
 T = TypeVar("T", bound="BaseModel")
 
-def merge_pydantic_models(base_obj: T, new_obj: Optional[T]) -> T:
+def merge_pydantic_models(base_obj: T, new_obj: T | None) -> T:
     """Merge two Pydantic models, preferring non-None values from new_obj."""
     if new_obj is None:
         return base_obj

@@ -1,24 +1,33 @@
 from __future__ import annotations
 
+import logging
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Literal, Self, Generic, overload
+from typing import TYPE_CHECKING, Generic, Literal, Self, overload
 
 from typing_extensions import TypeVar
 
-from . import logger
+from sportindex.exceptions import (
+    DomainError,
+    EntityNotFoundError,
+    FetchError,
+    ProviderNotFoundError,
+)
+from sportindex.provider.models import _UniqueStageData, _UniqueTournamentData
+
 from .base import SearchableMixin
 from .collections import EntityCollection, ScoredEntityCollection
 from .types import SportContestNature
 from .utils import merge_pydantic_models
-from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
-from sportindex.provider.models import _UniqueTournamentData, _UniqueStageData
 
 if TYPE_CHECKING:
+    from sportindex.provider import SofascoreProvider
+    from sportindex.provider.models import BaseSchema
+
     from .core import Category, Sport
     from .event import Event, MatchEvent, StageEvent
     from .season import Season
-    from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import BaseSchema
+
+logger = logging.getLogger(__name__)
 
 
 E = TypeVar("E", bound="Event", default="Event")
@@ -94,10 +103,9 @@ class Competition(SearchableMixin, Generic[E]):
         """The nature of the sport for this competition."""
         if isinstance(self._data, _UniqueTournamentData):
             return SportContestNature.OPPOSITION
-        elif isinstance(self._data, _UniqueStageData):
+        if isinstance(self._data, _UniqueStageData):
             return SportContestNature.COMPARISON
-        else:
-            raise TypeError(f"Unsupported competition data type {type(self._data)}.")
+        raise TypeError(f"Unsupported competition data type {type(self._data)}.")
 
     @cached_property
     def category(self) -> Category[E]:
@@ -114,11 +122,15 @@ class Competition(SearchableMixin, Generic[E]):
                 Season(s, self._provider, competition=self)
                 for s in self._provider.get_unique_tournament_seasons(self._data.id)
             ])
-        elif isinstance(self._data, _UniqueStageData):
+        if isinstance(self._data, _UniqueStageData):
             return EntityCollection([
                 Season(s, self._provider, competition=self)
                 for s in self._provider.get_unique_stage_seasons(self._data.id)
             ])
+        raise TypeError(
+            f"Internal state error: Expected _data to be _UniqueTournamentData or "
+            f"_UniqueStageData, but got {type(self._data).__name__}."
+        )
 
     def _full_load(self) -> None:
         """
@@ -137,19 +149,27 @@ class Competition(SearchableMixin, Generic[E]):
     @classmethod
     def from_id(cls, competition_id: int, provider: SofascoreProvider) -> Self:
         """Fetch a competition by its domain ID."""
-        entity_data = cls._fetch_entity(competition_id, provider)
-        
-        instance = cls(entity_data, provider)
-        if not issubclass(type(instance), cls):
-            raise TypeError(
-                f"ID {competition_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
-                f"Use {type(instance).__name__}.from_id() instead."
-            )
-        return instance
+        if not isinstance(competition_id, int):
+            raise TypeError(f"Competition ID must be an integer, got {type(competition_id)}")
+
+        try:
+            entity_data = cls._fetch_entity(competition_id, provider)
+            instance = cls(entity_data, provider)
+            if not issubclass(type(instance), cls):
+                raise TypeError(
+                    f"ID {competition_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
+                    f"Use {type(instance).__name__}.from_id() instead."
+                )
+            return instance
+        except ProviderNotFoundError as e:
+            raise EntityNotFoundError(f"Competition with ID {competition_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Network error while fetching competition with ID {competition_id}") from e
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Competition]:
         """Search for competitions matching the given query, returning up to max_results results."""
+        cls._validate_query(query)
         return cls._paginate_search(
             query=query,
             provider=provider,
@@ -164,20 +184,19 @@ class Competition(SearchableMixin, Generic[E]):
 
     @overload
     @classmethod
-    def _fetch_entity(cls, competition_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_UniqueTournamentData | _UniqueStageData]: ...
+    def _fetch_entity(cls, competition_id: int, provider: SofascoreProvider, strict: Literal[False]) -> _UniqueTournamentData | _UniqueStageData | None: ...
 
     @classmethod
-    def _fetch_entity(cls, competition_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_UniqueTournamentData | _UniqueStageData]:
+    def _fetch_entity(cls, competition_id: int, provider: SofascoreProvider, strict: bool = True) -> _UniqueTournamentData | _UniqueStageData | None:
         """Fetch the complete competition data from the provider by its ID."""
         raw_id, type_idx = cls.decode_id(competition_id)
 
         try:
             if type_idx == 1:
                 return cls._fetch_unique_tournament(raw_id, provider)
-            elif type_idx == 2:
+            if type_idx == 2:
                 return cls._fetch_unique_stage(raw_id, provider)
-            else:
-                raise TypeError(f"Invalid competition ID {competition_id}: unknown type index {type_idx}")
+            raise TypeError(f"Invalid competition ID {competition_id}: unknown type index {type_idx}")
 
         except ProviderNotFoundError:
             logger.debug(f"Competition with ID {competition_id} not found during fetch")

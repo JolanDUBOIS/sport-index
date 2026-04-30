@@ -1,42 +1,61 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from functools import cached_property
-from datetime import datetime
 from typing import (
-    TYPE_CHECKING, Optional,
-    Generic, Callable, ClassVar,
-    Literal, Self, overload
+    TYPE_CHECKING,
+    ClassVar,
+    Generic,
+    Literal,
+    Self,
+    overload,
 )
 
 import pycountry
 from pydantic import BaseModel
 from typing_extensions import TypeVar
 
-from . import logger
+from sportindex.exceptions import (
+    DomainError,
+    EntityNotFoundError,
+    FetchError,
+    ProviderNotFoundError,
+)
+from sportindex.provider.models import StageTier, _EventData, _StageData
+
 from .base import IdentifiableEntity
-from .collections import EventCollection, EntityCollection
-from .core import Sport
+from .collections import EntityCollection, EventCollection
 from .types import SportContestNature
 from .utils import merge_pydantic_models
-from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
-from sportindex.provider.models import _EventData, _StageData, StageTier
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from datetime import datetime
+
+    from sportindex.provider import SofascoreProvider
+    from sportindex.provider.models import (
+        EventStatus,
+        MatchPeriod,
+        MomentumPoint,
+        PeriodStats,
+        Round,
+        Score,
+        _EventsResponse,
+        _LineupsResponse,
+    )
+
     from .channel import Channel
     from .competition import Competition
-    from .competitor import Competitor, Athlete
+    from .competitor import Athlete, Competitor
+    from .core import Sport
     from .incident import Incident
     from .leaderboard import Standings
     from .referee import Referee
     from .season import Season
     from .venue import Venue
-    from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import (
-        Round, Score, MatchPeriod, PeriodStats,
-        _LineupsResponse, MomentumPoint, EventStatus,
-        _EventsResponse
-    )
+
+logger = logging.getLogger(__name__)
 
 
 # ===== Event entity =====
@@ -89,7 +108,7 @@ class Event(IdentifiableEntity):
         if cls is Event:
             if isinstance(data, _EventData):
                 return super().__new__(MatchEvent)
-            elif isinstance(data, _StageData):
+            if isinstance(data, _StageData):
                 return super().__new__(StageEvent)
         return super().__new__(cls)
 
@@ -123,7 +142,7 @@ class Event(IdentifiableEntity):
         return self._data.start
 
     @property
-    def status(self) -> Optional[EventStatus]:
+    def status(self) -> EventStatus | None:
         """The status of the event, if available."""
         return self._data.status
 
@@ -134,25 +153,25 @@ class Event(IdentifiableEntity):
 
     @property
     @abstractmethod
-    def competition(self) -> Optional[Competition]:
+    def competition(self) -> Competition | None:
         """The competition this event belongs to, if available."""
         raise NotImplementedError("Property competition must be implemented in subclasses")
 
     @property
     @abstractmethod
-    def season(self) -> Optional[Season]:
+    def season(self) -> Season | None:
         """The season this event belongs to, if available."""
         raise NotImplementedError("Property season must be implemented in subclasses")
 
     @property
     @abstractmethod
-    def venue(self) -> Optional[Venue]:
+    def venue(self) -> Venue | None:
         """The venue where this event takes place, if available."""
         raise NotImplementedError("Property venue must be implemented in subclasses")
 
     @property
     @abstractmethod
-    def winner(self) -> Optional[Competitor]:
+    def winner(self) -> Competitor | None:
         """The winner of this event, if available."""
         raise NotImplementedError("Property winner must be implemented in subclasses")
 
@@ -165,14 +184,15 @@ class Event(IdentifiableEntity):
 
         try:
             parsed = pycountry.countries.lookup(country)
-            alpha = parsed.alpha_2 
-        except LookupError:
-            raise ValueError(f"Could not resolve '{country}' to a valid country using pycountry.")
+            alpha = parsed.alpha_2
+        except LookupError as e:
+            raise ValueError(f"Could not resolve '{country}' to a valid country using pycountry.") from e
 
         if alpha not in all_channels:
             logger.debug(f"Country '{country}' (alpha-2: '{alpha}') not found in channels for event {self.id}. Available countries: {list(all_channels.keys())}")
             return EntityCollection()
 
+        from .channel import Channel
         channel_ids = all_channels[alpha]
         return EntityCollection([Channel.from_id(cid, self._provider) for cid in channel_ids])
 
@@ -198,15 +218,22 @@ class Event(IdentifiableEntity):
     @classmethod
     def from_id(cls, event_id: int, provider: SofascoreProvider) -> Self:
         """Fetch an event by its ID."""
-        entity_data = cls._fetch_entity(event_id, provider)
+        if not isinstance(event_id, int):
+            raise TypeError(f"Event ID must be an integer, got {type(event_id)}")
 
-        instance = cls(entity_data, provider)
-        if not issubclass(type(instance), cls):
-            raise TypeError(
-                f"ID {event_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
-                f"Use {type(instance).__name__}.from_id() instead."
-            )
-        return instance
+        try:
+            entity_data = cls._fetch_entity(event_id, provider)
+            instance = cls(entity_data, provider)
+            if not issubclass(type(instance), cls):
+                raise TypeError(
+                    f"ID {event_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
+                    f"Use {type(instance).__name__}.from_id() instead."
+                )
+            return instance
+        except ProviderNotFoundError as e:
+            raise EntityNotFoundError(f"Event with ID {event_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Network error while fetching event with ID {event_id}") from e
 
     @overload
     @classmethod
@@ -214,10 +241,10 @@ class Event(IdentifiableEntity):
 
     @overload
     @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_EventData | _StageData]: ...
+    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[False]) -> _EventData | _StageData | None: ...
 
     @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_EventData | _StageData]:
+    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: bool = True) -> _EventData | _StageData | None:
         """Fetch the complete event data from the provider by its ID."""
         _, type_idx = cls.decode_id(event_id)
         target_subclass = cls._REGISTRY.get(type_idx)
@@ -229,7 +256,7 @@ class Event(IdentifiableEntity):
 class MatchEvent(Event):
     """An event representing a match between two competitors, such as a football or tennis match.
 
-    Provides access to match-specific properties like score, winner, periods, lineups, incidents, statistics, 
+    Provides access to match-specific properties like score, winner, periods, lineups, incidents, statistics,
     and momentum graphs, extending the base event properties.
 
     Attributes:
@@ -263,12 +290,12 @@ class MatchEvent(Event):
         return self._data.slug.replace("-", " ").title()
 
     @property
-    def round(self) -> Optional[Round]:
+    def round(self) -> Round | None:
         """The round of the match event, if available."""
         return self._data.round
 
     @cached_property
-    def competition(self) -> Optional[Competition]:
+    def competition(self) -> Competition | None:
         """The competition this event belongs to, if available."""
         self._full_load()
         from .competition import Competition
@@ -282,7 +309,7 @@ class MatchEvent(Event):
         return Season(self._data.season, self._provider, uniqueTournament=self._data.tournament.unique_tournament)
 
     @cached_property
-    def referee(self) -> Optional[Referee]:
+    def referee(self) -> Referee | None:
         """The referee for this event, if available."""
         self._full_load()
         from .referee import Referee
@@ -307,7 +334,7 @@ class MatchEvent(Event):
     # Properties available after the match starts or ends
 
     @property
-    def score(self) -> Optional[Score]:
+    def score(self) -> Score | None:
         """The score for this event, if available."""
         from sportindex.provider.models import Score
         return Score(
@@ -316,13 +343,13 @@ class MatchEvent(Event):
         )
 
     @property
-    def winner(self) -> Optional[Competitor]:
+    def winner(self) -> Competitor | None:
         """The winner of this event, if available."""
         self._full_load()
         winner_code = self._data.winner_code
         if winner_code == 1:
             return self.competitors.home
-        elif winner_code == 2:
+        if winner_code == 2:
             return self.competitors.away
         return None
 
@@ -333,7 +360,7 @@ class MatchEvent(Event):
         return self._data.periods.periods if self._data.periods else []
 
     @cached_property
-    def lineups(self) -> Optional[MatchLineups]:
+    def lineups(self) -> MatchLineups | None:
         """The lineups for this event, if available."""
         try:
             parsed_lineups = self._provider.get_event_lineups(self._data.id)
@@ -400,10 +427,10 @@ class MatchEvent(Event):
 
     @overload
     @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_EventData]: ...
+    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[False]) -> _EventData | None: ...
 
     @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_EventData]:
+    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: bool = True) -> _EventData | None:
         """Fetch the complete event data from the provider by its ID."""
         raw_id, type_idx = cls.decode_id(event_id)
         if type_idx != cls._TYPE_IDX:
@@ -425,15 +452,15 @@ class MatchEvent(Event):
         return None
 
     @staticmethod
-    def _fetch_raw_event(raw_event_id: int, provider: SofascoreProvider) -> Optional[_EventData]:
+    def _fetch_raw_event(raw_event_id: int, provider: SofascoreProvider) -> _EventData | None:
         """Fetch the raw event data from the provider by its raw ID."""
         return provider.get_event(raw_event_id)
 
 
 class StageEvent(Event):
     """An event representing a specific stage, phase, or race within a competition.
-    
-    Provides access to stage-specific properties like tiers, parent-child relationships, 
+
+    Provides access to stage-specific properties like tiers, parent-child relationships,
     and team/competitor standings.
 
     Attributes:
@@ -470,19 +497,19 @@ class StageEvent(Event):
         return self._data.tier
 
     @property
-    def end(self) -> Optional[datetime]:
+    def end(self) -> datetime | None:
         """The end time of the stage event."""
         return self._data.end
 
     @cached_property
-    def competition(self) -> Optional[Competition]:
+    def competition(self) -> Competition | None:
         """The competition this event belongs to, if available."""
         self._full_load()
         from .competition import Competition
         return Competition(self._data.unique_stage, self._provider)
 
     @cached_property
-    def _parent(self) -> Optional[StageEvent | Season]:
+    def _parent(self) -> StageEvent | Season | None:
         """The parent stage or season of this stage, if available."""
         self._full_load()
         if self._data.parent:
@@ -504,14 +531,14 @@ class StageEvent(Event):
         return None
 
     @cached_property
-    def parent(self) -> Optional[StageEvent]:
+    def parent(self) -> StageEvent | None:
         """The parent stage of this stage, if available."""
         if self._parent and isinstance(self._parent, StageEvent):
             return self._parent
         return None
 
     @cached_property
-    def season(self) -> Optional[Season[StageEvent]]:
+    def season(self) -> Season[StageEvent] | None:
         """The season this event belongs to, if available."""
         from .season import Season
         if self._parent and isinstance(self._parent, Season):
@@ -530,7 +557,7 @@ class StageEvent(Event):
             return EventCollection()
 
     @cached_property
-    def venue(self) -> Optional[Venue]:
+    def venue(self) -> Venue | None:
         """The venue where this event takes place, if available."""
         from .venue import Venue
         return Venue(self._data, self._provider)
@@ -538,15 +565,16 @@ class StageEvent(Event):
     # Properties available after the stage starts or ends
 
     @cached_property
-    def winner(self) -> Optional[Competitor]:
+    def winner(self) -> Competitor | None:
         """The winner of this event, if available."""
         self._full_load()
         from .competitor import Competitor
         if self._data.winner:
             return Competitor(self._data.winner, self._provider)
+        return None
 
     @property
-    def standings(self) -> Optional[list[Standings]]:
+    def standings(self) -> list[Standings] | None:
         """The standings for this event, if race and available."""
         try:
             competitors_standings = self._provider.get_stage_standings_competitors(self._data.id)
@@ -574,10 +602,10 @@ class StageEvent(Event):
 
     @overload
     @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_StageData]: ...
+    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[False]) -> _StageData | None: ...
 
     @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_StageData]:
+    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: bool = True) -> _StageData | None:
         """Fetch the complete event data from the provider by its ID."""
         raw_id, type_idx = cls.decode_id(event_id)
         if type_idx != cls._TYPE_IDX:
@@ -599,7 +627,7 @@ class StageEvent(Event):
         return None
 
     @staticmethod
-    def _fetch_raw_stage(stage_id: int, provider: SofascoreProvider) -> Optional[_StageData]:
+    def _fetch_raw_stage(stage_id: int, provider: SofascoreProvider) -> _StageData | None:
         """Fetch the raw stage data from the provider by its raw ID."""
         return provider.get_stage(stage_id)
 
@@ -676,4 +704,4 @@ class EventAwareMixin(ABC, Generic[E]):
             if not getattr(events_response, "hasNextPage", False):
                 break
 
-        return EventCollection([Event(e, getattr(self, "_provider")) for e in parsed_events])
+        return EventCollection([Event(e, self._provider) for e in parsed_events])

@@ -4,20 +4,40 @@ from contextlib import contextmanager
 import pytest
 
 from sportindex.exceptions import ProviderNotFoundError
-from sportindex.provider import SofascoreProvider, RecordingFetcher
+from sportindex.provider import RecordingFetcher, SofascoreProvider
 from sportindex.provider.models import (
-    _CategoryData, _UniqueTournamentData, _UniqueStageData, _SeasonData,
-    _TeamStandingsData, _EventsResponse, _TeamResponse, _TeamData,
-    _UniqueTournamentSeasonsResponse, TeamPlayers, TeamYearSurfaceStats,
-    _StageData, RaceResults, DriverCareerHistory, RaceResults, 
-    _PlayerData, PlayerSeasonStats, _ManagerData, ManagerTenure,
-    _RefereeData, _VenueData, _EventData, _LineupsResponse, _EventStatisticsResponse, 
-    _CountryChannelsResponse, _RankingsResponse, _SeasonRoundsResponse,
-    _SearchResultData, _RacingStandingsEntryData,
-    _ChannelData, _ChannelScheduleResponse
+    DriverCareerHistory,
+    ManagerTenure,
+    PlayerSeasonStats,
+    RaceResults,
+    TeamPlayers,
+    TeamYearSurfaceStats,
+    _CategoryData,
+    _ChannelData,
+    _ChannelScheduleResponse,
+    _CountryChannelsResponse,
+    _EventData,
+    _EventsResponse,
+    _EventStatisticsResponse,
+    _LineupsResponse,
+    _ManagerData,
+    _PlayerData,
+    _RacingStandingsEntryData,
+    _RankingsResponse,
+    _RefereeData,
+    _SearchResultData,
+    _SeasonData,
+    _SeasonRoundsResponse,
+    _StageData,
+    _TeamData,
+    _TeamResponse,
+    _TeamStandingsData,
+    _UniqueStageData,
+    _UniqueTournamentData,
+    _UniqueTournamentSeasonsResponse,
+    _VenueData,
 )
 from tests.unit.test_config import TEST_CONFIG
-
 
 logger = logging.getLogger(__name__)
 

@@ -1,29 +1,39 @@
 from __future__ import annotations
 
-from datetime import date
+import logging
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Literal, Self, overload
+from typing import TYPE_CHECKING, Literal, Self, overload
 
-from pydantic import BaseModel
 from nameparser import HumanName
+from pydantic import BaseModel
 
-from . import logger
+from sportindex.exceptions import (
+    DomainError,
+    EntityNotFoundError,
+    FetchError,
+    ProviderNotFoundError,
+)
+from sportindex.provider.models import Amount, _PlayerData, _TeamData
+
 from .base import SearchableMixin
 from .collections import EntityCollection, ScoredEntityCollection
 from .event import EventAwareMixin
 from .utils import merge_pydantic_models
-from .types import SportContestNature
-from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
-from sportindex.provider.models import _TeamData, _PlayerData, Amount
 
 if TYPE_CHECKING:
+    from datetime import date
+
+    from sportindex.provider import SofascoreProvider
+    from sportindex.provider.models import BaseSchema, _PlayerTeamInfoData
+
     from .core import Country, Sport
     from .enums import Gender
     from .event import EventCollection
     from .manager import Manager
+    from .types import SportContestNature
     from .venue import Venue
-    from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import BaseSchema, _PlayerTeamInfoData
+
+logger = logging.getLogger(__name__)
 
 
 class Competitor(SearchableMixin, EventAwareMixin):
@@ -65,7 +75,7 @@ class Competitor(SearchableMixin, EventAwareMixin):
             raise TypeError("Competitor data must be either _TeamData or _PlayerData")
 
         self._full_loaded = False
-        self._resolved_instance: Optional[Team | Athlete] = None
+        self._resolved_instance: Team | Athlete | None = None
 
     @property
     def id(self) -> int:
@@ -93,13 +103,17 @@ class Competitor(SearchableMixin, EventAwareMixin):
         """The full name of the competitor."""
         if isinstance(self._data, _TeamData):
             return self._data.full_name or self._data.name
-        elif isinstance(self._data, _PlayerData):
+        if isinstance(self._data, _PlayerData):
             first = self._data.first_name or ""
             last = self._data.last_name or ""
             return f"{first} {last}".strip() or self._data.name
+        raise TypeError(
+            f"Internal state error: Expected _data to be _TeamData or "
+            f"_PlayerData, but got {type(self._data).__name__}."
+        )
 
     @cached_property
-    def gender(self) -> Optional[Gender]:
+    def gender(self) -> Gender | None:
         """The gender of the competitor."""
         from .enums import Gender
         return Gender(self._data.gender) if self._data.gender else None
@@ -110,8 +124,12 @@ class Competitor(SearchableMixin, EventAwareMixin):
         from .core import Sport
         if isinstance(self._data, _TeamData):
             return Sport(self._data.sport, self._provider)
-        elif isinstance(self._data, _PlayerData):
+        if isinstance(self._data, _PlayerData):
             return Sport(self._data.team.sport, self._provider)
+        raise TypeError(
+            f"Internal state error: Expected _data to be _TeamData or "
+            f"_PlayerData, but got {type(self._data).__name__}."
+        )
 
     @property
     def sport_nature(self) -> SportContestNature:
@@ -119,7 +137,7 @@ class Competitor(SearchableMixin, EventAwareMixin):
         return self.sport.nature
 
     @cached_property
-    def country(self) -> Optional[Country]:
+    def country(self) -> Country | None:
         """The country this competitor belongs to, if available."""
         from .core import Country
         return Country(self._data.country, self._provider) if self._data.country else None
@@ -131,7 +149,7 @@ class Competitor(SearchableMixin, EventAwareMixin):
             if not silent:
                 logger.warning(f"No fixtures endpoint for non individual sports players like {self.name}, returning empty collection")
             return EventCollection()
-        elif isinstance(self._data, _TeamData):
+        if isinstance(self._data, _TeamData):
             return self._fetch_paginated_events(self._provider.get_team_fixtures, self._data.id)
         return EventCollection()
 
@@ -139,7 +157,7 @@ class Competitor(SearchableMixin, EventAwareMixin):
         """Fetch all results for this competitor."""
         if isinstance(self._data, _PlayerData):
             return self._fetch_paginated_events(self._provider.get_player_results, self._data.id)
-        elif isinstance(self._data, _TeamData):
+        if isinstance(self._data, _TeamData):
             return self._fetch_paginated_events(self._provider.get_team_results, self._data.id)
         from .event import EventCollection
         return EventCollection()
@@ -177,20 +195,28 @@ class Competitor(SearchableMixin, EventAwareMixin):
     @classmethod
     def from_id(cls, competitor_id: int, provider: SofascoreProvider) -> Self:
         """Fetch a competitor by its ID."""
-        entity_data = cls._fetch_entity(competitor_id, provider)
+        if not isinstance(competitor_id, int):
+            raise TypeError(f"Competitor ID must be an integer, got {type(competitor_id)}")
 
-        logger.info(f"Entity class: {cls.__name__}")
-        instance = cls(entity_data, provider)
-        if not issubclass(type(instance), cls):
-            raise TypeError(
-                f"ID {competitor_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
-                f"Use {type(instance).__name__}.from_id() instead."
-            )
-        return instance
+        try:
+            entity_data = cls._fetch_entity(competitor_id, provider)
+            logger.info(f"Entity class: {cls.__name__}")
+            instance = cls(entity_data, provider)
+            if not issubclass(type(instance), cls):
+                raise TypeError(
+                    f"ID {competitor_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
+                    f"Use {type(instance).__name__}.from_id() instead."
+                )
+            return instance
+        except ProviderNotFoundError as e:
+            raise EntityNotFoundError(f"Competitor with id {competitor_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Network error while fetching competitor with id {competitor_id}") from e
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Competitor]:
         """Search for competitors matching the given query, returning up to max_results results."""
+        cls._validate_query(query)
         team_results = Team.search(query, provider, max_results)
         player_results = Athlete.search(query, provider, max_results)
         combined = ScoredEntityCollection.merge(team_results, player_results)
@@ -202,20 +228,19 @@ class Competitor(SearchableMixin, EventAwareMixin):
 
     @overload
     @classmethod
-    def _fetch_entity(cls, entity_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_TeamData | _PlayerData]: ...
+    def _fetch_entity(cls, entity_id: int, provider: SofascoreProvider, strict: Literal[False]) -> _TeamData | _PlayerData | None: ...
 
     @classmethod
-    def _fetch_entity(cls, competitor_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_TeamData | _PlayerData]:
+    def _fetch_entity(cls, competitor_id: int, provider: SofascoreProvider, strict: bool = True) -> _TeamData | _PlayerData | None:
         """Fetch the complete event data from the provider."""
         raw_id, type_idx = cls.decode_id(competitor_id)
 
         try:
             if type_idx == 1:
                 return cls._fetch_team_data(raw_id, provider)
-            elif type_idx == 2:
+            if type_idx == 2:
                 return cls._fetch_player_data(raw_id, provider)
-            else:
-                raise TypeError(f"Invalid competitor ID {competitor_id}: unknown type index {type_idx}")
+            raise TypeError(f"Invalid competitor ID {competitor_id}: unknown type index {type_idx}")
 
         except ProviderNotFoundError:
             logger.debug(f"Competitor with id {competitor_id} not found during fetch")
@@ -243,7 +268,7 @@ class Competitor(SearchableMixin, EventAwareMixin):
 class Team(Competitor):
     """
     A sports team competitor, which may have associated players, a manager, and a home venue.
-    
+
     Attributes:
         name_code (str | None): The name code of the team, if available.
         national (bool | None): Whether this team is a national team, if available.
@@ -263,12 +288,12 @@ class Team(Competitor):
             raise TypeError("Team data with player_team_info should be represented as a Athlete, not a Team")
 
     @property
-    def name_code(self) -> Optional[str]:
+    def name_code(self) -> str | None:
         """The name code of the team, if available."""
         return self._data.name_code
 
     @property
-    def national(self) -> Optional[bool]:
+    def national(self) -> bool | None:
         """Whether this team is a national team, if available."""
         return self._data.national
 
@@ -276,7 +301,7 @@ class Team(Competitor):
     def players(self) -> EntityCollection[Athlete]:
         """
         The players of this team, if available and applicable.
-        For motorsports teams, this will return the drivers, for cycling teams, the riders, etc. 
+        For motorsports teams, this will return the drivers, for cycling teams, the riders, etc.
         """
         return self._get_players() | self._get_drivers()
 
@@ -295,14 +320,14 @@ class Team(Competitor):
             return EntityCollection()
 
     @cached_property
-    def manager(self) -> Optional[Manager]:
+    def manager(self) -> Manager | None:
         """The manager of this team, if available."""
         self._full_load()
         from .manager import Manager
         return Manager(self._data.manager, self._provider) if self._data.manager else None
 
     @cached_property
-    def venue(self) -> Optional[Venue]:
+    def venue(self) -> Venue | None:
         """The venue this team plays at, if available."""
         self._full_load()
         from .venue import Venue
@@ -322,7 +347,7 @@ class Team(Competitor):
 class Athlete(Competitor):
     """
     A player competitor, associated with a team and potentially having detailed information.
-    
+
     Attributes:
         first_name (str | None): The first name of the player, if available.
         last_name (str | None): The last name of the player, if available.
@@ -339,40 +364,56 @@ class Athlete(Competitor):
             raise TypeError("Team data without player_team_info should be represented as a Team, not a Athlete")
 
     @property
-    def first_name(self) -> Optional[str]:
+    def first_name(self) -> str | None:
         """The first name of the player, if available."""
         if isinstance(self._data, _PlayerData):
             return self._data.first_name
-        elif isinstance(self._data, _TeamData):
+        if isinstance(self._data, _TeamData):
             name = HumanName(self._data.full_name or self._data.name)
             return name.first
+        raise TypeError(
+            f"Internal state error: Expected _data to be _TeamData or "
+            f"_PlayerData, but got {type(self._data).__name__}."
+        )
 
     @property
-    def last_name(self) -> Optional[str]:
+    def last_name(self) -> str | None:
         """The last name of the player, if available."""
         if isinstance(self._data, _PlayerData):
             return self._data.last_name
-        elif isinstance(self._data, _TeamData):
+        if isinstance(self._data, _TeamData):
             name = HumanName(self._data.full_name or self._data.name)
             return name.last
+        raise TypeError(
+            f"Internal state error: Expected _data to be _TeamData or "
+            f"_PlayerData, but got {type(self._data).__name__}."
+        )
 
     @cached_property
-    def parent(self) -> Optional[Team]:
+    def parent(self) -> Team | None:
         """The team this player belongs to, if available and applicable."""
         self._full_load()
         if isinstance(self._data, _PlayerData):
             return Team(self._data.team, self._provider) if self._data.team else None
-        elif isinstance(self._data, _TeamData):
+        if isinstance(self._data, _TeamData):
             return Team(self._data.parent_team, self._provider) if self._data.parent_team else None
+        raise TypeError(
+            f"Internal state error: Expected _data to be _TeamData or "
+            f"_PlayerData, but got {type(self._data).__name__}."
+        )
 
     @cached_property
-    def info(self) -> Optional[AthleteInfo]:
+    def info(self) -> AthleteInfo | None:
         """Additional player info, if available."""
         self._full_load()
         if isinstance(self._data, _PlayerData):
             return AthleteInfo._from_parsed_player(self._data)
-        elif isinstance(self._data, _TeamData) and self._data.player_team_info is not None:
+        if isinstance(self._data, _TeamData) and self._data.player_team_info is not None:
             return AthleteInfo._from_parsed_player_team_info(self._data.player_team_info)
+        raise TypeError(
+            f"Internal state error: Expected _data to be _TeamData or "
+            f"_PlayerData, but got {type(self._data).__name__}."
+        )
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Athlete]:
@@ -408,24 +449,24 @@ class AthleteInfo(BaseModel):
     """
 
     # --- Identity & Physical Attributes ---
-    weight: Optional[float] = None
-    height: Optional[int] = None
-    date_of_birth: Optional[date] = None
-    place_of_birth: Optional[str] = None
-    retired: Optional[bool] = None
-    deceased: Optional[bool] = None
+    weight: float | None = None
+    height: int | None = None
+    date_of_birth: date | None = None
+    place_of_birth: str | None = None
+    retired: bool | None = None
+    deceased: bool | None = None
 
     # --- Technical Profile & Gameplay ---
-    number: Optional[int] = None
-    preferred_foot: Optional[str] = None  # e.g. "left", "right", "both"
-    preferred_hand: Optional[str] = None  # e.g. "left", "right", "both"
-    positions: Optional[list[str]] = None
+    number: int | None = None
+    preferred_foot: str | None = None  # e.g. "left", "right", "both"
+    preferred_hand: str | None = None  # e.g. "left", "right", "both"
+    positions: list[str] | None = None
 
     # --- Valuation & Contractual Data ---
-    total_prizes: Optional[Amount] = None
-    salary: Optional[Amount] = None
-    market_value: Optional[Amount] = None
-    contract_expiry: Optional[date] = None
+    total_prizes: Amount | None = None
+    salary: Amount | None = None
+    market_value: Amount | None = None
+    contract_expiry: date | None = None
 
     @classmethod
     def _from_parsed_player_team_info(cls, data: _PlayerTeamInfoData) -> AthleteInfo:
@@ -452,7 +493,12 @@ class AthleteInfo(BaseModel):
             number=int(data.shirt_number) if data.shirt_number is not None else None,
             preferred_foot=data.preferred_foot,
             preferred_hand=data.preferred_hand,
-            positions=data.positions_detailed or [data.position] or [data.primary_position] or None,
+            positions=(
+                data.positions_detailed if data.positions_detailed is not None else
+                [data.position] if data.position is not None else
+                [data.primary_position] if data.primary_position is not None else
+                None
+            ),
             salary=data.salary,
             market_value=data.proposed_market_value,
             contract_expiry=data.contract_until.date() if data.contract_until else None,

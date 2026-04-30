@@ -1,21 +1,31 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+import logging
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Self
+from typing import TYPE_CHECKING, Self
 
-from . import logger
-from .base import SearchableMixin
-from .collections import ScoredEntityCollection
-from .event import EventAwareMixin
-from .utils import merge_pydantic_models
-from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
+from pydantic import BaseModel
+
+from sportindex.exceptions import (
+    DomainError,
+    EntityNotFoundError,
+    FetchError,
+    ProviderNotFoundError,
+)
 from sportindex.provider.models import _RefereeData
 
+from .base import SearchableMixin
+from .event import EventAwareMixin
+from .utils import merge_pydantic_models
+
 if TYPE_CHECKING:
+    from sportindex.provider import SofascoreProvider
+
+    from .collections import ScoredEntityCollection
     from .core import Country, Sport
     from .event import EventCollection
-    from sportindex.provider import SofascoreProvider
+
+logger = logging.getLogger(__name__)
 
 
 class Cards(BaseModel):
@@ -84,19 +94,19 @@ class Referee(SearchableMixin, EventAwareMixin):
         return Sport(self._data.sport, self._provider)
 
     @cached_property
-    def country(self) -> Optional[Country]:
+    def country(self) -> Country | None:
         """The country this referee is associated with, if any."""
         from .core import Country
         return Country(self._data.country, self._provider) if self._data.country else None
 
     @cached_property
-    def games(self) -> Optional[int]:
+    def games(self) -> int | None:
         """Get the number of games this referee has officiated."""
         self._full_load()
         return int(self._data.games)
 
     @cached_property
-    def cards(self) -> Optional[Cards]:
+    def cards(self) -> Cards | None:
         """Get the number of cards this referee has given."""
         self._full_load()
         return Cards(
@@ -119,7 +129,7 @@ class Referee(SearchableMixin, EventAwareMixin):
     def _full_load(self) -> None:
         """
         Lazy-loads the complete referee from the provider.
-        Called automatically when accessing properties that require full details 
+        Called automatically when accessing properties that require full details
         missing from the initial lightweight API response.
         """
         if self._full_loaded:
@@ -138,15 +148,16 @@ class Referee(SearchableMixin, EventAwareMixin):
         """Fetch a referee by its ID."""
         try:
             parsed_data = provider.get_referee(referee_id)
+            return cls(parsed_data, provider)
         except ProviderNotFoundError as e:
             raise EntityNotFoundError(f"Referee with id {referee_id} not found") from e
         except FetchError as e:
             raise DomainError(f"Network error while fetching referee {referee_id}") from e
-        return cls(parsed_data, provider)
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Referee]:
         """Search for referees matching the given query, returning up to max_results results."""
+        cls._validate_query(query)
         return cls._paginate_search(
             query=query,
             provider=provider,

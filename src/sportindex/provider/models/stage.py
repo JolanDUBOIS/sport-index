@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from datetime import datetime  # noqa: TC003
 from enum import IntEnum
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
-from pydantic import Field, BeforeValidator
+from pydantic import BeforeValidator, Field
 
 from .base import BaseSchema
 
 if TYPE_CHECKING:
-    from .core import _CountryData, _CategoryData
+    from .core import _CategoryData, _CountryData
     from .primitives import EventStatus
     from .team import _TeamData
 
@@ -46,8 +46,8 @@ class StageTier(IntEnum):
 
         try:
             tier_member = cls[enum_key]
-        except KeyError:
-            raise ValueError(f"Unrecognized StageTier name afzaefzrvz: '{value['name']}'")
+        except KeyError as e:
+            raise ValueError(f"Unrecognized StageTier name: '{value['name']}'") from e
 
         if tier_member.value != provided_id:
             raise ValueError(f"StageTier mismatch: '{value['name']}' expects id {tier_member.value}, got {provided_id}")

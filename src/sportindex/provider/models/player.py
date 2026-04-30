@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal, TYPE_CHECKING, Any
+from datetime import datetime  # noqa: TC003
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, ValidationInfo, model_validator
 
@@ -72,7 +72,7 @@ class TeamPlayers(BaseSchema):
                         unwrapped_list.append(item["player"])
                     else:
                         unwrapped_list.append(item)
-                
+
                 data[key] = unwrapped_list
 
         return data

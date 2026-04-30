@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any
 
 from pydantic import Field, ValidationInfo, model_validator
@@ -8,8 +8,8 @@ from pydantic import Field, ValidationInfo, model_validator
 from .base import BaseSchema
 
 if TYPE_CHECKING:
-    from .referee import _RefereeData
     from .primitives import EventStatus, Score
+    from .referee import _RefereeData
     from .team import _TeamData
     from .tournament import _SeasonData, _TournamentData
     from .venue import _VenueData
@@ -155,12 +155,12 @@ class _EventData(BaseSchema):
                 key = f"period{k}TieBreak"
                 if key in home_score and key in away_score:
                     score_dict = {"home": home_score[key], "away": away_score[key]}
-                    
+
                     label = period_labels.get(key)
                     if not label:
                         parent_label = period_labels.get(f"period{k}")
                         label = f"{parent_label} Tie-Break" if parent_label else None
-                        
+
                     periods_list.append({
                         "key": key,
                         "type": "tiebreak",
@@ -216,7 +216,7 @@ class _EventData(BaseSchema):
 
         # 3. Reshape 'Home' and 'Away' Team Data
         for side in ("home", "away"):
-            raw_score = data.get(f"{side}Score")            
+            raw_score = data.get(f"{side}Score")
             data[side] = {
                 "team": data.get(f"{side}Team"),
                 "seed": data.get(f"{side}TeamSeed"),

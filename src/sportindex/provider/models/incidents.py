@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Annotated, Union
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from pydantic import Field, ValidationInfo, model_validator
 
@@ -8,8 +8,8 @@ from .base import BaseSchema
 
 if TYPE_CHECKING:
     from .manager import _ManagerData
-    from .primitives import Score
     from .player import _PlayerData
+    from .primitives import Score
 
 
 # =====================================================================
@@ -83,7 +83,7 @@ class CardIncident(_BaseIncident):
     id: int
     time: int                                 # -5 means card given on bench
     side: str
-    recipient: Annotated[Union[_PlayerData, _ManagerData], Field(discriminator="role")]
+    recipient: Annotated[_PlayerData | _ManagerData, Field(discriminator="role")]
     rescinded: bool = Field(default=False)
     reason: str | None = None
     extra_time: int | None = Field(default=None, alias="addedTime")

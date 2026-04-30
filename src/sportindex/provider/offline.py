@@ -1,16 +1,16 @@
-import re
-import json
 import hashlib
+import json
 import logging
+import re
 import urllib.parse
 from pathlib import Path
-from typing import Optional
+
 from requests import Response
 
 from .fetcher import Fetcher
 
-
 logger = logging.getLogger(__name__)
+
 
 class RecordingFetcher(Fetcher):
     """
@@ -48,10 +48,10 @@ class RecordingFetcher(Fetcher):
             return self._load_fixture(file_path, url)
 
         response = super().fetch_url(
-            url, 
-            params=params, 
-            max_retries=max_retries, 
-            retry_delay=retry_delay, 
+            url,
+            params=params,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
             initial_delay=initial_delay
         )
 
@@ -62,7 +62,7 @@ class RecordingFetcher(Fetcher):
 
     def _load_fixture(self, file_path: Path, url: str) -> Response:
         logger.info(f"Loading API response from fixture {file_path} for URL: {url}")
-        with open(file_path, "r", encoding="utf-8") as f:
+        with file_path.open("r", encoding="utf-8") as f:
             raw_json_text = f.read()
 
         response = Response()
@@ -74,26 +74,26 @@ class RecordingFetcher(Fetcher):
 
     def _save_fixture(self, file_path: Path, response: Response) -> None:
         logger.info(f"Recording API response to {file_path} for URL: {response.url}")
-        with open(file_path, "w", encoding="utf-8") as f:
+        with file_path.open("w", encoding="utf-8") as f:
             json.dump(response.json(), f, indent=2)
 
-    def _generate_filename(self, url: str, params: Optional[dict]) -> str:
+    def _generate_filename(self, url: str, params: dict | None) -> str:
         parsed_url = urllib.parse.urlparse(url)
         path_slug = parsed_url.path.strip("/").replace("/", "_")
-        
+
         if path_slug.startswith("api_v1_"):
             path_slug = path_slug[7:]
-            
+
         path_slug = re.sub(r'[^a-zA-Z0-9_]', '_', path_slug)[:100]
 
         full_url = url
         if params:
             sorted_params = sorted(params.items())
             full_url += "?" + urllib.parse.urlencode(sorted_params)
-            
+
         short_hash = hashlib.md5(full_url.encode()).hexdigest()[:8]
-        
+
         if not path_slug:
             path_slug = "root"
-            
+
         return f"{path_slug}_{short_hash}.json"

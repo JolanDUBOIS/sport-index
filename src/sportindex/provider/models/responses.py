@@ -8,11 +8,11 @@ from .base import BaseSchema
 
 if TYPE_CHECKING:
     from .channel import _ChannelData
-    from .event import _EventData, Round
+    from .event import Round, _EventData
     from .leaderboard import _RankingEntryData, _RankingTypeData
     from .lineup import Lineup
     from .stage import _StageData
-    from .stats_event import PeriodStats, MomentumPoint
+    from .stats_event import MomentumPoint, PeriodStats
     from .team import _TeamData
     from .tournament import _SeasonData, _UniqueTournamentData
 
