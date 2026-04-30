@@ -1,11 +1,13 @@
-import time
+import logging
 import random
-from requests import Response, RequestException, ConnectionError
+import time
 
 import cloudscraper
+from requests import ConnectionError, RequestException, Response
 
-from . import logger
-from sportindex.exceptions import RateLimitError, ProviderNotFoundError, FetchError
+from sportindex.exceptions import FetchError, ProviderNotFoundError, RateLimitError
+
+logger = logging.getLogger(__name__)
 
 
 class Fetcher:
@@ -25,6 +27,7 @@ class Fetcher:
     ) -> Response:
         """ Fetch a URL with retries, backoff, and bot-mitigation. """
         last_status = None
+        logger.info(f"Fetching URL: {url}")
         time.sleep(initial_delay + random.uniform(0, 1))
 
         for retry in range(max_retries):
@@ -36,7 +39,7 @@ class Fetcher:
 
                 if response.status_code == 200:
                     return response
-                elif response.status_code == 429:
+                if response.status_code == 429:
                     logger.warning(f"Rate limit (429) for {url}, attempt {retry+1}/{max_retries}. Retrying in {next_delay:.1f}s...")
                 elif response.status_code == 403:
                     logger.warning(f"Access forbidden (403) for {url}, attempt {retry+1}/{max_retries}. Retrying in {next_delay:.1f}s...")

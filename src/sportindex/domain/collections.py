@@ -1,27 +1,29 @@
 from __future__ import annotations
 
 from collections import UserList
+from collections.abc import Iterable
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any, Literal, Iterable, Optional, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from typing_extensions import TypeVar
 
-from .base import IdentifiableEntity
 from sportindex.exceptions import EntityNotFoundError
+
+from .base import IdentifiableEntity
 
 if TYPE_CHECKING:
     from .event import Event, MatchEvent, StageEvent
 
 
-I = TypeVar("I", bound="IdentifiableEntity", default="IdentifiableEntity")
-I_other = TypeVar("I_other", bound="IdentifiableEntity", default="IdentifiableEntity")
+EntityT = TypeVar("EntityT", bound="IdentifiableEntity", default="IdentifiableEntity")
+OtherEntityT = TypeVar("OtherEntityT", bound="IdentifiableEntity", default="IdentifiableEntity")
 
 # ===== Entity Collection =====
 
-class EntityCollection(UserList[I]):
+class EntityCollection(UserList[EntityT]):
     """
     A collection of identifiable entities that supports basic list operations and provides
-    additional methods for retrieving entities by attributes and searching by query. The 
+    additional methods for retrieving entities by attributes and searching by query. The
     collection ensures that all entities are unique based on their IDs.
 
     Disabled Methods:
@@ -38,7 +40,7 @@ class EntityCollection(UserList[I]):
         EntityNotFoundError: If strict is True and no matching entity is found in the get() method.
     """
 
-    def __init__(self, initlist: Iterable[I] | None = None) -> None:
+    def __init__(self, initlist: Iterable[EntityT] | None = None) -> None:
         if initlist is not None:
             items = list(initlist)
             self._validate_iterable(items)
@@ -54,30 +56,30 @@ class EntityCollection(UserList[I]):
         for item in items:
             self._validate_item(item)
 
-    def add(self, item: I) -> None:
+    def add(self, item: EntityT) -> None:
         self._validate_item(item)
         if item not in self.data:
             self.data.append(item)
 
-    def update(self, other: Iterable[I]) -> None:
+    def update(self, other: Iterable[EntityT]) -> None:
         other_items = other.data if isinstance(other, UserList) else list(other)
         self._validate_iterable(other_items)
         self.data = list(dict.fromkeys(self.data + other_items))
 
-    def append(self, item: I) -> None:
+    def append(self, item: EntityT) -> None:
         raise NotImplementedError("Use .add() to add entities to a unique collection.")
 
-    def extend(self, other: Iterable[I]) -> None:
+    def extend(self, other: Iterable[EntityT]) -> None:
         raise NotImplementedError("Use .update() to merge iterable entities into a unique collection.")
 
-    def insert(self, i: int, item: I) -> None:
+    def insert(self, i: int, item: EntityT) -> None:
         raise NotImplementedError("Direct insertion is disabled to maintain unique sequence integrity.")
 
     def __setitem__(self, i: int | slice, item: Any) -> None:
         raise NotImplementedError("Index assignment is disabled to maintain unique sequence integrity.")
 
     @overload
-    def __add__(self, other: EntityCollection[I_other] | Iterable[I_other]) -> EntityCollection[I | I_other]: ...
+    def __add__(self, other: EntityCollection[OtherEntityT] | Iterable[OtherEntityT]) -> EntityCollection[EntityT | OtherEntityT]: ...
 
     def __add__(self, other: Any) -> Any:
         if not isinstance(other, Iterable) or isinstance(other, (str, bytes)):
@@ -88,7 +90,7 @@ class EntityCollection(UserList[I]):
         return self.__class__(merged)
 
     @overload
-    def __or__(self, other: EntityCollection[I_other] | Iterable[I_other]) -> EntityCollection[I | I_other]: ...
+    def __or__(self, other: EntityCollection[OtherEntityT] | Iterable[OtherEntityT]) -> EntityCollection[EntityT | OtherEntityT]: ...
 
     def __or__(self, other: Any) -> Any:
         if not isinstance(other, Iterable) or isinstance(other, (str, bytes)):
@@ -98,7 +100,7 @@ class EntityCollection(UserList[I]):
         return self.__class__(dict.fromkeys(self.data + other_items))
 
     @overload
-    def __and__(self, other: EntityCollection[I_other] | Iterable[I_other]) -> EntityCollection[I | I_other]: ...
+    def __and__(self, other: EntityCollection[OtherEntityT] | Iterable[OtherEntityT]) -> EntityCollection[EntityT | OtherEntityT]: ...
 
     def __and__(self, other: Any) -> Any:
         if not isinstance(other, Iterable) or isinstance(other, (str, bytes)):
@@ -108,19 +110,19 @@ class EntityCollection(UserList[I]):
         return self.__class__([item for item in self.data if item in other_items])
 
     @overload
-    def get(self, *, strict: Literal[True], **kwargs: Any) -> I: ...
+    def get(self, *, strict: Literal[True], **kwargs: Any) -> EntityT: ...
 
     @overload
-    def get(self, *, strict: Literal[False] = False, **kwargs: Any) -> I | None: ...
+    def get(self, *, strict: Literal[False] = False, **kwargs: Any) -> EntityT | None: ...
 
-    def get(self, *, strict: bool = False, **kwargs: Any) -> I | None:
+    def get(self, *, strict: bool = False, **kwargs: Any) -> EntityT | None:
         """
         Retrieve an entity from the collection that matches the given attribute filters.
 
         Args:
             strict (bool): If True, raises EntityNotFoundError if no matching entity is found. If False, returns None instead.
             **kwargs: Attribute filters to match against the entities in the collection.
-        
+
         Returns:
             I | None: The matching entity if found, otherwise None (if strict is False).
 
@@ -140,7 +142,7 @@ class EntityCollection(UserList[I]):
 
         return None
 
-    def search(self, query: str, *, by: str = "name") -> EntityCollection[I]:
+    def search(self, query: str, *, by: str = "name") -> EntityCollection[EntityT]:
         """
         Search for entities in the collection where the query string is a substring of the specified attribute.
 
@@ -164,10 +166,10 @@ class EntityCollection(UserList[I]):
 
 # ===== Scored Entity Collection =====
 
-class ScoredEntityCollection(EntityCollection[I]):
+class ScoredEntityCollection(EntityCollection[EntityT]):
     """
     A read-only collection of entities resulting from a scored operation (like a search).
-    Behaves exactly like a standard EntityCollection during iteration and indexing, 
+    Behaves exactly like a standard EntityCollection during iteration and indexing,
     but internally tracks scores to allow for score-based filtering and sorting.
 
     If multiple score entries for the same entity are provided during initialization,
@@ -181,16 +183,17 @@ class ScoredEntityCollection(EntityCollection[I]):
         get_score(entity_id: int) -> float: Retrieve the score for a specific entity ID in the collection.
         sort_by_score(descending: bool = True) -> ScoredEntityCollection[I]: Return a new collection sorted by the internal scores.
         filter_by_score(min_score: float | None = None, max_score: float | None = None) -> ScoredEntityCollection[I]: Return a new collection filtered by a score range.
-        merge(*collections: ScoredEntityCollection[IdentifiableEntity]) -> ScoredEntityCollection[IdentifiableEntity]: Internal helper to merge multiple ScoredEntityCollections, retaining the highest scores for duplicate entities.
+        merge(*collections: ScoredEntityCollection[IdentifiableEntity]) -> ScoredEntityCollection[IdentifiableEntity]: Internal helper to merge multiple ScoredEntityCollections,
+            retaining the highest scores for duplicate entities.
 
     Raises:
         ValueError: If get_score is called with an entity ID that is not in the collection.
         NotImplementedError: If any of the disabled modification methods are called.
     """
 
-    def __init__(self, items_with_scores: Iterable[tuple[I, float]] | None = None) -> None:
+    def __init__(self, items_with_scores: Iterable[tuple[EntityT, float]] | None = None) -> None:
         self._scores: dict[int, float] = {}
-        unique_entities: dict[int, I] = {}
+        unique_entities: dict[int, EntityT] = {}
 
         if items_with_scores is not None:
             for entity, score in items_with_scores:
@@ -213,7 +216,7 @@ class ScoredEntityCollection(EntityCollection[I]):
             raise ValueError(f"Entity ID {entity_id} not found in this scored collection.")
         return self._scores[entity_id]
 
-    def sort_by_score(self, descending: bool = True) -> ScoredEntityCollection[I]:
+    def sort_by_score(self, descending: bool = True) -> ScoredEntityCollection[EntityT]:
         """Return a new collection sorted by the internal scores."""
         sorted_pairs = sorted(
             [(e, self._scores[e.id]) for e in self.data],
@@ -222,7 +225,7 @@ class ScoredEntityCollection(EntityCollection[I]):
         )
         return self.__class__(sorted_pairs)
 
-    def filter_by_score(self, min_score: float | None = None, max_score: float | None = None) -> ScoredEntityCollection[I]:
+    def filter_by_score(self, min_score: float | None = None, max_score: float | None = None) -> ScoredEntityCollection[EntityT]:
         """Return a new collection filtered by a score range."""
         filtered_pairs = []
         for e in self.data:
@@ -232,20 +235,20 @@ class ScoredEntityCollection(EntityCollection[I]):
             if max_score is not None and score > max_score:
                 continue
             filtered_pairs.append((e, score))
-            
+
         return self.__class__(filtered_pairs)
 
-    def to_collection(self) -> EntityCollection[I]:
+    def to_collection(self) -> EntityCollection[EntityT]:
         """Convert this scored collection to a standard EntityCollection, discarding scores."""
         return EntityCollection(self.data)
 
     @overload
-    def __getitem__(self, i: int) -> I: ...
+    def __getitem__(self, i: int) -> EntityT: ...
 
     @overload
-    def __getitem__(self, i: slice) -> ScoredEntityCollection[I]: ...
+    def __getitem__(self, i: slice) -> ScoredEntityCollection[EntityT]: ...
 
-    def __getitem__(self, i: int | slice) -> I | ScoredEntityCollection[I]:
+    def __getitem__(self, i: int | slice) -> EntityT | ScoredEntityCollection[EntityT]:
         if isinstance(i, slice):
             return self.__class__([(e, self._scores[e.id]) for e in self.data[i]])
         return self.data[i]
@@ -277,7 +280,7 @@ class ScoredEntityCollection(EntityCollection[I]):
         merged_items: list[tuple[IdentifiableEntity, float]] = []
         for col in collections:
             merged_items.extend((e, col.get_score(e.id)) for e in col.data)
-        
+
         return cls(merged_items)
 
 
@@ -303,12 +306,12 @@ class EventCollection(EntityCollection[E]):
         from .event import StageEvent
         return EventCollection([e for e in self.data if isinstance(e, StageEvent)])
 
-    def filter_by_date(self, *, before: Optional[date | datetime] = None, after: Optional[date | datetime] = None) -> EventCollection[E]:
+    def filter_by_date(self, *, before: date | datetime | None = None, after: date | datetime | None = None) -> EventCollection[E]:
         """Return a new EventCollection filtered by date."""
         results = self.data
 
         def to_dt(val: date | datetime) -> datetime:
-            if isinstance(val, datetime): 
+            if isinstance(val, datetime):
                 return val
             return datetime.combine(val, datetime.min.time())
 

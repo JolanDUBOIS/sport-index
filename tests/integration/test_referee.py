@@ -4,7 +4,6 @@ import sportindex
 from sportindex import Referee
 from sportindex.provider import SofascoreProvider
 
-
 logger = logging.getLogger(__name__)
 
 def test_referee(provider: SofascoreProvider):

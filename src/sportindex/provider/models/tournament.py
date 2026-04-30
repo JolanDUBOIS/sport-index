@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING
 
 from pydantic import Field
@@ -8,11 +8,8 @@ from pydantic import Field
 from .base import BaseSchema
 
 if TYPE_CHECKING:
-    from .core import _SportData, _CountryData, _CategoryData
-    from .manager import _ManagerData
-    from .primitives import Amount
+    from .core import _CategoryData
     from .team import _TeamData
-    from .venue import _VenueData
 
 
 # ===========================================================================
@@ -53,7 +50,7 @@ class _UniqueTournamentData(BaseSchema):
     title_holder: _TeamData | None = None
     most_titles_teams: list[_TeamData] = Field(default_factory=list)
     linked_unique_tournaments: list[_UniqueTournamentData] = Field(default_factory=list)
-    
+
 
 # ===========================================================================
 # Tournament

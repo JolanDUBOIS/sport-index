@@ -1,21 +1,31 @@
 from __future__ import annotations
 
+import logging
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Self
+from typing import TYPE_CHECKING, Self
 
-from . import logger
+from sportindex.exceptions import (
+    DomainError,
+    EntityNotFoundError,
+    FetchError,
+    ProviderNotFoundError,
+)
+from sportindex.provider.models import ManagerTenure as _ManagerTenure
+from sportindex.provider.models import _ManagerData
+
 from .base import SearchableMixin
-from .collections import ScoredEntityCollection
 from .event import EventAwareMixin
 from .utils import merge_pydantic_models
-from sportindex.exceptions import EntityNotFoundError, DomainError, ProviderNotFoundError, FetchError
-from sportindex.provider.models import _ManagerData, ManagerTenure as _ManagerTenure
 
 if TYPE_CHECKING:
+    from sportindex.provider import SofascoreProvider
+
+    from .collections import ScoredEntityCollection
     from .competitor import Competitor
     from .core import Country, Sport
     from .event import EventCollection
-    from sportindex.provider import SofascoreProvider
+
+logger = logging.getLogger(__name__)
 
 
 class ManagerTenure(_ManagerTenure):
@@ -95,13 +105,13 @@ class Manager(SearchableMixin, EventAwareMixin):
         return Sport(self._data.sport, self._provider)
 
     @cached_property
-    def country(self) -> Optional[Country]:
+    def country(self) -> Country | None:
         """The country this manager is associated with, if any."""
         from .core import Country
         return Country(self._data.country, self._provider) if self._data.country else None
 
     @cached_property
-    def team(self) -> Optional[Competitor]:
+    def team(self) -> Competitor | None:
         self._full_load()
         from .competitor import Competitor
         return Competitor(self._data.team, self._provider) if self._data.team else None
@@ -125,7 +135,7 @@ class Manager(SearchableMixin, EventAwareMixin):
     def _full_load(self) -> None:
         """
         Lazy-loads the complete manager from the provider.
-        Called automatically when accessing properties that require full details 
+        Called automatically when accessing properties that require full details
         missing from the initial lightweight API response.
         """
         if self._full_loaded:
@@ -142,17 +152,20 @@ class Manager(SearchableMixin, EventAwareMixin):
     @classmethod
     def from_id(cls, manager_id: int, provider: SofascoreProvider) -> Self:
         """Fetch a manager by its ID."""
+        if not isinstance(manager_id, int):
+            raise TypeError(f"Manager ID must be an integer, got {type(manager_id)}")
         try:
             parsed_data = provider.get_manager(manager_id)
+            return cls(parsed_data, provider)
         except ProviderNotFoundError as e:
             raise EntityNotFoundError(f"Manager with id {manager_id} not found") from e
         except FetchError as e:
             raise DomainError(f"Network error while fetching manager {manager_id}") from e
-        return cls(parsed_data, provider)
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Manager]:
         """Search for managers matching the given query, returning up to max_results results."""
+        cls._validate_query(query)
         return cls._paginate_search(
             query=query,
             provider=provider,

@@ -1,26 +1,36 @@
 from __future__ import annotations
 
+import logging
+from datetime import UTC, datetime
 from functools import cached_property
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional, Literal, Self, overload
+from typing import TYPE_CHECKING, Literal, Self, overload
 
 from typing_extensions import TypeVar
 
-from . import logger
+from sportindex.exceptions import (
+    DomainError,
+    EntityNotFoundError,
+    FetchError,
+    InsufficientDataError,
+    ProviderNotFoundError,
+)
+from sportindex.provider.models import StageTier, _SeasonData, _StageData
+
 from .base import IdentifiableEntity
 from .event import EventAwareMixin
 from .types import SportContestNature
 from .utils import merge_pydantic_models
-from sportindex.exceptions import InsufficientDataError, ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
-from sportindex.provider.models import _SeasonData, _StageData, StageTier
 
 if TYPE_CHECKING:
-    from .competition import Competition
-    from .core import Sport
-    from .event import Event, MatchEvent, StageEvent, EventCollection
-    from .leaderboard import Standings
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import BaseSchema, Round, _SeasonRoundsResponse
+
+    from .competition import Competition
+    from .core import Sport
+    from .event import Event, EventCollection, MatchEvent, StageEvent
+    from .leaderboard import Standings
+
+logger = logging.getLogger(__name__)
 
 
 E = TypeVar("E", bound="Event", default="Event")
@@ -87,7 +97,7 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
         """
         if competition_id > 0xFFFFFF or raw_season_id > 0xFFFFFF:
             raise ValueError("Competition ID or Season ID exceeds 24-bit maximum (16.7M)")
-            
+
         return (type_idx << 48) | (competition_id << 24) | raw_season_id
 
     @classmethod
@@ -96,9 +106,9 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
         Unpacks the 52-bit integer back into its parts.
         Returns: (raw_season_id, type_idx, competition_id)
         """
-        raw_season_id = encoded_id & 0xFFFFFF              
-        competition_id = (encoded_id >> 24) & 0xFFFFFF     
-        type_idx = encoded_id >> 48                        
+        raw_season_id = encoded_id & 0xFFFFFF
+        competition_id = (encoded_id >> 24) & 0xFFFFFF
+        type_idx = encoded_id >> 48
 
         return raw_season_id, type_idx, competition_id
 
@@ -113,7 +123,7 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
         return self._data.year
 
     @property
-    def start(self) -> Optional[datetime]:
+    def start(self) -> datetime | None:
         """The start date of the season, if available."""
         return self._data.start
 
@@ -127,10 +137,9 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
         """The nature of the sport for this season."""
         if isinstance(self._data, _SeasonData):
             return SportContestNature.OPPOSITION
-        elif isinstance(self._data, _StageData):
+        if isinstance(self._data, _StageData):
             return SportContestNature.COMPARISON
-        else:
-            raise TypeError(f"Unsupported season data type {type(self._data)}.")
+        raise TypeError(f"Unsupported season data type {type(self._data)}.")
 
     @cached_property
     def competition(self) -> Competition:
@@ -138,35 +147,38 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
         from .competition import Competition
         if "competition" in self._kwargs and isinstance(self._kwargs["competition"], Competition):
             return self._kwargs["competition"]
-        else:
-            if isinstance(self._data, _SeasonData):
-                # _SeasonData doesn't contain any competition info, so it must be passed in via kwargs (either with competition key or uniqueTournament key)
-                if "uniqueTournament" not in self._kwargs:
-                    raise InsufficientDataError("Season data requires 'competition' or 'uniqueTournament' to be passed in via kwargs")
-                return Competition(self._kwargs["uniqueTournament"], self._provider)
-            elif isinstance(self._data, _StageData):
-                if self._data.unique_stage:
-                    return Competition(self._data.unique_stage, self._provider)
-                else:
-                    raise InsufficientDataError("Stage-based season data requires 'unique_stage' to be present in the data")
+        if isinstance(self._data, _SeasonData):
+            # _SeasonData doesn't contain any competition info, so it must be passed in via kwargs (either with competition key or uniqueTournament key)
+            if "uniqueTournament" not in self._kwargs:
+                raise InsufficientDataError("Season data requires 'competition' or 'uniqueTournament' to be passed in via kwargs")
+            return Competition(self._kwargs["uniqueTournament"], self._provider)
+        if isinstance(self._data, _StageData):
+            if self._data.unique_stage:
+                return Competition(self._data.unique_stage, self._provider)
+            raise InsufficientDataError("Stage-based season data requires 'unique_stage' to be present in the data")
+        raise TypeError(
+            f"Unable to determine competition for season data type '{type(self._data).__name__}'. "
+            "This data type is currently unsupported for competition mapping."
+        )
 
     @property
-    def current_round(self) -> Optional[Round]:
+    def current_round(self) -> Round | None:
         """The current round of the season, if match-based season and available."""
         return self._season_rounds.current_round if self._season_rounds else None
 
     @property
-    def rounds(self) -> Optional[list[Round]]:
+    def rounds(self) -> list[Round] | None:
         """The list of rounds in the season, if match-based season and available."""
         return self._season_rounds.rounds if self._season_rounds else None
 
     @cached_property
-    def _season_rounds(self) -> Optional[_SeasonRoundsResponse]:
+    def _season_rounds(self) -> _SeasonRoundsResponse | None:
         if isinstance(self._data, _SeasonData):
             return self._provider.get_unique_tournament_rounds(self.competition._data.id, self._data.id)
-        elif isinstance(self._data, _StageData):
-            logger.debug(f"No rounds for stages, skipping fetch...")
+        if isinstance(self._data, _StageData):
+            logger.debug("No rounds for stages, skipping fetch...")
             return None
+        raise TypeError(f"Cannot fetch rounds for unknown data type: {type(self._data).__name__}")
 
     @property
     def standings(self) -> list[Standings]:
@@ -183,7 +195,7 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
             except ProviderNotFoundError as e:
                 logger.debug(f"Failed to fetch away standings for season {self.id}: {e}")
             return [Standings(s, self._provider) for s in standings]
-        elif isinstance(self._data, _StageData):
+        if isinstance(self._data, _StageData):
             try:
                 competitors_standings = self._provider.get_stage_standings_competitors(self._data.id)
             except ProviderNotFoundError as e:
@@ -198,34 +210,37 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
                 Standings(competitors_standings, self._provider, name=f"Individuals {self.name}", kind="individuals"),
                 Standings(teams_standings, self._provider, name=f"Teams {self.name}", kind="teams")
             ]
+        raise TypeError(f"Cannot fetch standings for unknown data type: {type(self._data).__name__}")
 
     def get_fixtures(self, silent: bool = False) -> EventCollection[E]:
         """Fetch all fixtures for this season."""
         if isinstance(self._data, _SeasonData):
             return self._fetch_paginated_events(
-                self._provider.get_unique_tournament_fixtures, 
-                self.competition._data.id, 
+                self._provider.get_unique_tournament_fixtures,
+                self.competition._data.id,
                 self._data.id
             )
-        elif isinstance(self._data, _StageData):
+        if isinstance(self._data, _StageData):
             from .event import Event, EventCollection
             substages = self._provider.get_stage_substages(self._data.id)
-            future_substages = [s for s in substages if s.start >= datetime.now(tz=timezone.utc)]
+            future_substages = [s for s in substages if s.start >= datetime.now(tz=UTC)]
             return EventCollection([Event(s, self._provider) for s in future_substages])
+        raise TypeError(f"Cannot fetch fixtures for unknown data type: {type(self._data).__name__}")
 
     def get_results(self, silent: bool = False) -> EventCollection[E]:
         """Fetch all results for this season."""
         if isinstance(self._data, _SeasonData):
             return self._fetch_paginated_events(
-                self._provider.get_unique_tournament_results, 
-                self.competition._data.id, 
+                self._provider.get_unique_tournament_results,
+                self.competition._data.id,
                 self._data.id
             )
-        elif isinstance(self._data, _StageData):
+        if isinstance(self._data, _StageData):
             from .event import Event, EventCollection
             substages = self._provider.get_stage_substages(self._data.id)
-            past_substages = [s for s in substages if s.end < datetime.now(tz=timezone.utc)]
+            past_substages = [s for s in substages if s.end < datetime.now(tz=UTC)]
             return EventCollection([Event(s, self._provider) for s in past_substages])
+        raise TypeError(f"Cannot fetch results for unknown data type: {type(self._data).__name__}")
 
     def _full_load(self) -> None:
         """
@@ -244,21 +259,29 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
     @classmethod
     def from_id(cls, season_id: int, provider: SofascoreProvider) -> Self:
         """Factory method to create a Season instance from an encoded ID."""
-        _, type_idx, competition_id = cls.decode_id(season_id)
-        entity_data = cls._fetch_entity(season_id, provider)
-        
-        kwargs = {}
-        if type_idx == 1:
-            from .competition import Competition
-            kwargs["competition"] = Competition.from_id(competition_id, provider)
+        if not isinstance(season_id, int):
+            raise TypeError(f"Season ID must be an integer, got {type(season_id)}")
 
-        instance = cls(entity_data, provider, **kwargs)
-        if not issubclass(type(instance), cls):
-            raise TypeError(
-                f"ID {season_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
-                f"This likely indicates a mismatch between the encoded type index and the expected season data types."
-            )
-        return instance
+        try:
+            _, type_idx, competition_id = cls.decode_id(season_id)
+            entity_data = cls._fetch_entity(season_id, provider)
+
+            kwargs = {}
+            if type_idx == 1:
+                from .competition import Competition
+                kwargs["competition"] = Competition.from_id(competition_id, provider)
+
+            instance = cls(entity_data, provider, **kwargs)
+            if not issubclass(type(instance), cls):
+                raise TypeError(
+                    f"ID {season_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
+                    f"This likely indicates a mismatch between the encoded type index and the expected season data types."
+                )
+            return instance
+        except EntityNotFoundError as e:
+            raise EntityNotFoundError(f"Season with ID {season_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Network error while fetching season with ID {season_id}") from e
 
     @overload
     @classmethod
@@ -266,10 +289,10 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
 
     @overload
     @classmethod
-    def _fetch_entity(cls, competition_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_SeasonData | _StageData]: ...
+    def _fetch_entity(cls, competition_id: int, provider: SofascoreProvider, strict: Literal[False]) -> _SeasonData | _StageData | None: ...
 
     @classmethod
-    def _fetch_entity(cls, season_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_SeasonData | _StageData]:
+    def _fetch_entity(cls, season_id: int, provider: SofascoreProvider, strict: bool = True) -> _SeasonData | _StageData | None:
         """Fetch the complete season data from the provider by its ID."""
         raw_id, type_idx, competition_id = cls.decode_id(season_id)
 
@@ -278,10 +301,9 @@ class Season(IdentifiableEntity, EventAwareMixin[E]):
                 from .competition import Competition
                 unique_tournament_id, _ = Competition.decode_id(competition_id)
                 return cls._fetch_season_data(raw_id, unique_tournament_id, provider)
-            elif type_idx == 2:
+            if type_idx == 2:
                 return cls._fetch_stage_data(raw_id, provider)
-            else:
-                raise TypeError(f"Invalid season ID {season_id}: unknown type index {type_idx}")
+            raise TypeError(f"Invalid season ID {season_id}: unknown type index {type_idx}")
 
         except ProviderNotFoundError:
             logger.debug(f"Season with ID {season_id} not found during fetch")

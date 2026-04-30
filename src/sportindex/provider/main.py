@@ -6,37 +6,9 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
-from .fetcher import Fetcher
 from .endpoints import ENDPOINTS
+from .fetcher import Fetcher
 from .models import (
-    _CategoryData,
-    _ChannelData,
-    _EventData,
-    _ManagerData,
-    _PlayerData,
-    _RacingStandingsEntryData,
-    _RefereeData,
-    _SearchResultData,
-    _SeasonData,
-    _StageData,
-    _TeamData,
-    _TeamStandingsData,
-    _UniqueStageData,
-    _UniqueTournamentData,
-    _VenueData,
-
-    _ChannelEventVotesResponse,
-    _ChannelScheduleResponse,
-    _CountryChannelsResponse,
-    _EventsResponse,
-    _EventStatisticsResponse,
-    _LineupsResponse,
-    _MomentumGraphResponse,
-    _RankingsResponse,
-    _SeasonRoundsResponse,
-    _TeamResponse,
-    _UniqueTournamentSeasonsResponse,
-
     DriverCareerHistory,
     DriverPerformance,
     Incident,
@@ -45,7 +17,33 @@ from .models import (
     RaceResults,
     TeamPlayers,
     TeamSeasonStats,
-    TeamYearSurfaceStats
+    TeamYearSurfaceStats,
+    _CategoryData,
+    _ChannelData,
+    _ChannelEventVotesResponse,
+    _ChannelScheduleResponse,
+    _CountryChannelsResponse,
+    _EventData,
+    _EventsResponse,
+    _EventStatisticsResponse,
+    _LineupsResponse,
+    _ManagerData,
+    _MomentumGraphResponse,
+    _PlayerData,
+    _RacingStandingsEntryData,
+    _RankingsResponse,
+    _RefereeData,
+    _SearchResultData,
+    _SeasonData,
+    _SeasonRoundsResponse,
+    _StageData,
+    _TeamData,
+    _TeamResponse,
+    _TeamStandingsData,
+    _UniqueStageData,
+    _UniqueTournamentData,
+    _UniqueTournamentSeasonsResponse,
+    _VenueData,
 )
 
 logger = logging.getLogger(__name__)
@@ -359,7 +357,7 @@ class SofascoreProvider:
         try:
             datetime.strptime(date, "%Y-%m-%d")
         except ValueError:
-            raise TypeError(f"Invalid date format: {date}. Expected YYYY-MM-DD.")
+            raise TypeError(f"Invalid date format: {date}. Expected YYYY-MM-DD.") from None
         url = self._format("scheduled-events", sport=sport, date=date)
         return _EventsResponse.model_validate(self._fetch(url))
 

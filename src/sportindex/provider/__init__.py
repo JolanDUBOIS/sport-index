@@ -8,14 +8,32 @@ that should not be directly imported or used by external consumers.
 Main exports are intended for internal use only within the sportindex package.
 """
 
-import logging
-logger = logging.getLogger(__name__)
-
 from .fetcher import Fetcher
 from .main import SofascoreProvider
 from .models import (
-    Amount, Score, Round, MatchPeriod,
-    PeriodStats, MomentumPoint, Promotion,
-    StageTier, EventStatus
+    Amount,
+    EventStatus,
+    MatchPeriod,
+    MomentumPoint,
+    PeriodStats,
+    Promotion,
+    Round,
+    Score,
+    StageTier,
 )
 from .offline import RecordingFetcher
+
+__all__ = [
+    "Fetcher",
+    "SofascoreProvider",
+    "Amount",
+    "Score",
+    "Round",
+    "MatchPeriod",
+    "PeriodStats",
+    "MomentumPoint",
+    "Promotion",
+    "StageTier",
+    "EventStatus",
+    "RecordingFetcher",
+]

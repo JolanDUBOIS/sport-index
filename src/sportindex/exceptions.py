@@ -47,10 +47,6 @@ class InsufficientDataError(DomainError):
     """Raised when required data is missing or incomplete for domain operations."""
 
 
-class BusinessRuleViolation(DomainError):
-    """Raised when a domain/business rule is violated."""
-
-
 __all__ = [
     "SportIndexError",
     "ParseError",
@@ -63,5 +59,4 @@ __all__ = [
     "EntityNotFoundError",
     "ConflictError",
     "InsufficientDataError",
-    "BusinessRuleViolation",
 ]

@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import os
 import logging
+import os
 from collections import defaultdict
-from typing import Optional, TypeVar, Any, Literal, overload
+from typing import Any, Literal, TypeVar, overload
 
 from .domain import (
     Category,
-    Country,
     Competition,
-    Competitor,
+    Country,
     EntityCollection,
     Event,
     IdentifiableEntity,
@@ -18,10 +17,11 @@ from .domain import (
     Sport,
 )
 from .exceptions import EntityNotFoundError
-from .provider import SofascoreProvider, Fetcher, RecordingFetcher
-
+from .provider import Fetcher, RecordingFetcher, SofascoreProvider
 
 logger = logging.getLogger(__name__)
+
+
 _default_provider = None
 
 def _get_default_provider() -> SofascoreProvider:
@@ -42,7 +42,7 @@ def _get_default_provider() -> SofascoreProvider:
 
 
 S = TypeVar("S", bound="SearchableMixin")
-I = TypeVar("I", bound="IdentifiableEntity")
+E = TypeVar("E", bound="IdentifiableEntity")
 
 class SportClient:
     """Main client for accessing sports data.
@@ -85,7 +85,7 @@ class SportClient:
 
     # --- Cache Helpers ---
 
-    def _get_cached(self, entity_cls: type[I], entity_id: int) -> Optional[I]:
+    def _get_cached(self, entity_cls: type[E], entity_id: int) -> E | None:
         """Return an entity from the cache if it exists.
 
         Args:
@@ -98,7 +98,7 @@ class SportClient:
         ns = self._resolve_ns(entity_cls)
         return self._cache[ns].get(entity_id)
 
-    def _set_cached(self, entity_cls: type[I], entity: I) -> I:
+    def _set_cached(self, entity_cls: type[E], entity: E) -> E:
         """Add an entity to the cache and return it.
 
         Args:
@@ -112,7 +112,7 @@ class SportClient:
         self._cache[ns][entity.id] = entity
         return entity
 
-    def _hydrate_cache(self, entity_cls: type[I], collection: EntityCollection) -> EntityCollection:
+    def _hydrate_cache(self, entity_cls: type[E], collection: EntityCollection) -> EntityCollection:
         """Cache all entities in an iterable collection.
 
         Args:
@@ -127,7 +127,7 @@ class SportClient:
             self._cache[ns][entity.id] = entity
         return collection
 
-    def clear_cache(self, namespace: Optional[str] = None) -> None:
+    def clear_cache(self, namespace: str | None = None) -> None:
         """Clear cached entities to free memory.
 
         Expected namespaces include: 'sport', 'country', 'category', 'competition', 'season', 'event', 'competitor', 'manager', 'referee', 'venue'.
@@ -140,7 +140,7 @@ class SportClient:
         """
         ns = namespace.lower() if namespace else None
         if ns:
-            if ns in self._cache.keys():
+            if ns in self._cache:
                 self._cache[ns].clear()
             else:
                 raise KeyError(f"Unknown cache namespace: {ns}")
@@ -150,17 +150,17 @@ class SportClient:
     # --- Unified GET ---
 
     @overload
-    def get(self, entity_cls: type[I], entity_id: int, strict: Literal[True]) -> I: ...
+    def get(self, entity_cls: type[E], entity_id: int, strict: Literal[True]) -> E: ...
 
     @overload
-    def get(self, entity_cls: type[I], entity_id: int, strict: Literal[False] = False) -> Optional[I]: ...
+    def get(self, entity_cls: type[E], entity_id: int, strict: Literal[False] = False) -> E | None: ...
 
-    def get(self, entity_cls: type[I], entity_id: int, strict: bool = False) -> Optional[I]:
+    def get(self, entity_cls: type[E], entity_id: int, strict: bool = False) -> E | None:
         """Fetch an identifiable entity by its class and ID.
 
         Supported classes include: Sport, Competition, Event (including its subclasses),
             Competitor (including its subclasses), Manager, Referee, Venue.
-        
+
         Args:
             entity_cls (type[IdentifiableEntity]): The class of the entity to fetch.
             entity_id (int): The unique identifier of the entity.
@@ -211,7 +211,7 @@ class SportClient:
     def list(self, entity_cls: type[Category], *, sport_id: int) -> EntityCollection[Category]: ...
 
     @overload
-    def list(self, entity_cls: type[Competition], *, category_id: int, sport_id: Optional[int] = None) -> EntityCollection[Competition]: ...
+    def list(self, entity_cls: type[Competition], *, category_id: int, sport_id: int | None = None) -> EntityCollection[Competition]: ...
 
     @overload
     def list(self, entity_cls: type[Season], *, competition_id: int) -> EntityCollection[Season]: ...
@@ -219,23 +219,23 @@ class SportClient:
     @overload
     def list(self, entity_cls: type[Event], *, season_id: int) -> EntityCollection[Event]: ...
 
-    def list(self, entity_cls: type[I], **kwargs: Any) -> EntityCollection[I]:
+    def list(self, entity_cls: type[E], **kwargs: Any) -> EntityCollection[E]:
         """
         List entities of a given class with optional filters.
 
         Args:
             entity_cls (type[IdentifiableEntity]): The class of entities to list.
             **kwargs: Optional filters (e.g., category_id for competitions).
-        
+
         Returns:
             EntityCollection[IdentifiableEntity]: A collection of entities matching the criteria.
-        
+
         Raises:
             EntityNotFoundError: If additional filtering criteria are provided but no matching entities are found.
             NotImplementedError: If listing logic for the given entity class is not implemented.
-        
+
         .. Warning::
-            This method may rely on multiple API calls and can take a few seconds to complete on the first call. 
+            This method may rely on multiple API calls and can take a few seconds to complete on the first call.
         """
         if not issubclass(entity_cls, IdentifiableEntity):
             raise TypeError(f"{entity_cls.__name__} is not an identifiable entity class.")

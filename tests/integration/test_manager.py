@@ -4,7 +4,6 @@ import sportindex
 from sportindex import Manager
 from sportindex.provider import SofascoreProvider
 
-
 logger = logging.getLogger(__name__)
 
 def test_manager(provider: SofascoreProvider):

@@ -9,13 +9,13 @@ class Endpoint:
     def format(self, **kwargs) -> str:
         clean_kwargs = {k: v for k, v in kwargs.items() if v is not None}
         url = self.base.format(**clean_kwargs)
-        
+
         for opt in self.optionals:
             try:
                 url += opt.format(**clean_kwargs)
             except KeyError:
                 break
-                
+
         return url
 
 

@@ -2,26 +2,29 @@ from __future__ import annotations
 
 from contextlib import suppress
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Self, Any, Generic
+from typing import TYPE_CHECKING, Any, Generic, Self
 
 import pycountry
 from typing_extensions import TypeVar
 
+from sportindex.exceptions import (
+    DomainError,
+    EntityNotFoundError,
+    FetchError,
+    ProviderNotFoundError,
+)
+from sportindex.provider.models import _CategoryData, _CountryData, _SportData
+
 from .base import IdentifiableEntity
 from .collections import EntityCollection
-from sportindex.exceptions import ProviderNotFoundError, EntityNotFoundError
-from sportindex.provider.models import (
-    _SportData,
-    _CountryData,
-    _CategoryData
-)
 
 if TYPE_CHECKING:
+    from sportindex.provider import SofascoreProvider
+
     from .competition import Competition
     from .event import Event
     from .leaderboard import Rankings
     from .types import SportContestNature
-    from sportindex.provider import SofascoreProvider
 
 
 E = TypeVar("E", bound="Event", default="Event")
@@ -40,7 +43,7 @@ class Sport(IdentifiableEntity, Generic[E]):
 
     Methods:
         get_rankings(gender: Optional[str] = None) -> list[Rankings]: Fetch official rankings for the sport.
-    
+
     Class Methods:
         all(provider) -> EntityCollection[Sport]: Returns a collection of all supported sports.
         from_id(sport_id, provider) -> Sport: Create a Sport instance from its unique ID.
@@ -86,7 +89,7 @@ class Sport(IdentifiableEntity, Generic[E]):
             for c in self._provider.get_categories(self.slug)
         ])
 
-    def get_rankings(self, gender: Optional[str] = None) -> list[Rankings]:
+    def get_rankings(self, gender: str | None = None) -> list[Rankings]:
         """Fetch all rankings for this sport."""
         from .leaderboard import Rankings
         from .static import SPORT_RANKINGS
@@ -102,8 +105,9 @@ class Sport(IdentifiableEntity, Generic[E]):
     @classmethod
     def all(cls, provider: SofascoreProvider) -> EntityCollection[Sport]:
         """Returns a collection of all supported sports."""
-        from .static import SPORTS_REGISTRY
         from sportindex.provider.models import _SportData
+
+        from .static import SPORTS_REGISTRY
         return EntityCollection([
             cls(_SportData(id=s.id, slug=s.slug, name=s.name), provider)
             for s in SPORTS_REGISTRY
@@ -112,10 +116,18 @@ class Sport(IdentifiableEntity, Generic[E]):
     @classmethod
     def from_id(cls, sport_id: int, provider: SofascoreProvider) -> Self:
         """Create a Sport instance from its unique ID."""
-        sport = cls.all(provider).get(id=sport_id)
-        if not sport:
-            raise EntityNotFoundError(f"Sport with ID {sport_id} not found")
-        return sport
+        if not isinstance(sport_id, int):
+            raise TypeError(f"Sport ID must be an integer, got {type(sport_id)}")
+
+        try:
+            sport = cls.all(provider).get(id=sport_id)
+            if not sport:
+                raise EntityNotFoundError(f"Sport with ID {sport_id} not found")
+            return sport
+        except ProviderNotFoundError as e:
+            raise EntityNotFoundError(f"Sport with ID {sport_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Error fetching sport with ID {sport_id}") from e
 
     # NOTE - Look for a way to get fixtures for a sport if possible (without any category or competition context)...
 
@@ -159,12 +171,10 @@ class Country(IdentifiableEntity):
             self._pycountry_obj = pycountry.countries.get(alpha_2=self._data.alpha2.upper())
         elif self._data.alpha3:
             self._pycountry_obj = pycountry.countries.get(alpha_3=self._data.alpha3.upper())
-    
+
         if not self._pycountry_obj:
-            try:
+            with suppress(LookupError):
                 self._pycountry_obj = pycountry.countries.lookup(self.name)
-            except LookupError:
-                pass
 
         if not self._pycountry_obj:
             raise ValueError(f"Country '{self.name}' (slug: {self.slug}) not found in pycountry database")
@@ -185,11 +195,11 @@ class Country(IdentifiableEntity):
         return self._data.slug
 
     @property
-    def alpha2(self) -> Optional[str]:
+    def alpha2(self) -> str | None:
         return self._data.alpha2 or (getattr(self._pycountry_obj, "alpha_2", None) if self._pycountry_obj else None)
 
     @property
-    def alpha3(self) -> Optional[str]:
+    def alpha3(self) -> str | None:
         return self._data.alpha3 or (getattr(self._pycountry_obj, "alpha_3", None) if self._pycountry_obj else None)
 
     @classmethod
@@ -203,26 +213,32 @@ class Country(IdentifiableEntity):
     @classmethod
     def from_id(cls, country_id: int, provider: SofascoreProvider) -> Country:
         """Fetch a Country by its domain ID."""
-        pycountry_obj = pycountry.countries.get(numeric=str(country_id).zfill(3))
-        if not pycountry_obj:
-            raise EntityNotFoundError(f"Country with ID '{country_id}' not found in pycountry database")
-        return cls._from_pycountry(pycountry_obj, provider)
+        if not isinstance(country_id, int):
+            raise TypeError(f"Country ID must be an integer, got {type(country_id)}")
+
+        try:
+            pycountry_obj = pycountry.countries.get(numeric=str(country_id).zfill(3))
+            if not pycountry_obj:
+                raise EntityNotFoundError(f"Country with ID '{country_id}' not found in pycountry database")
+            return cls._from_pycountry(pycountry_obj, provider)
+        except LookupError as e:
+            raise EntityNotFoundError(f"Country with ID '{country_id}' not found in pycountry database") from e
 
     @classmethod
     def from_alpha(cls, alpha: str, provider: SofascoreProvider) -> Country:
         try:
             pycountry_obj = pycountry.countries.lookup(alpha.upper())
             return cls._from_pycountry(pycountry_obj, provider)
-        except LookupError:
-            raise EntityNotFoundError(f"Country with alpha code '{alpha}' not found in pycountry database")
+        except LookupError as e:
+            raise EntityNotFoundError(f"Country with alpha code '{alpha}' not found in pycountry database") from e
 
     @classmethod
     def from_name(cls, name: str, provider: SofascoreProvider) -> Country:
         try:
             pycountry_obj = pycountry.countries.lookup(name)
             return cls._from_pycountry(pycountry_obj, provider)
-        except LookupError:
-            raise EntityNotFoundError(f"Country '{name}' not found in pycountry database")
+        except LookupError as e:
+            raise EntityNotFoundError(f"Country '{name}' not found in pycountry database") from e
 
     @classmethod
     def _from_pycountry(cls, pycountry_obj: Any, provider: SofascoreProvider) -> Country:
@@ -251,7 +267,7 @@ class Category(IdentifiableEntity, Generic[E]):
         event_format (EventFormat): The event format for this category, derived from its sport.
         country (Country | None): The country this category belongs to, or None if international.
         competitions (EntityCollection[Competition[E]]]): All competitions under this category.
-    
+
     Class Methods:
         all(provider) -> EntityCollection[Category]: Fetch all categories across all sports (expensive).
         from_id(category_id, provider) -> Category: Create a Category instance from its ID (expensive).
@@ -292,7 +308,7 @@ class Category(IdentifiableEntity, Generic[E]):
         return self.sport.nature
 
     @cached_property
-    def country(self) -> Optional[Country]:
+    def country(self) -> Country | None:
         """The country this category belongs to, or None if it's an international category."""
         if self._data.country:
             return Country(self._data.country, self._provider)
@@ -342,7 +358,15 @@ class Category(IdentifiableEntity, Generic[E]):
         Create a Category instance from its ID.
         Warning: This requires N API calls (one per sport) on the first call to build the cache.
         """
-        category = cls.all(provider).get(id=category_id)
-        if not category:
-            raise EntityNotFoundError(f"Category with ID {category_id} not found")
-        return category
+        if not isinstance(category_id, int):
+            raise TypeError(f"Category ID must be an integer, got {type(category_id)}")
+
+        try:
+            category = cls.all(provider).get(id=category_id)
+            if not category:
+                raise EntityNotFoundError(f"Category with ID {category_id} not found")
+            return category
+        except ProviderNotFoundError as e:
+            raise EntityNotFoundError(f"Category with ID {category_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Error fetching category with ID {category_id}") from e

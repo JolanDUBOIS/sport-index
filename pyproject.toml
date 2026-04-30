@@ -31,7 +31,8 @@ dev = [
     "ipykernel>=7.1.0,<8.0.0",
     "mkdocs-material>=9.7.6,<10.0.0",
     "mkdocstrings[python]>=1.0.3,<2.0.0",
-    "mike>=2.1.4,<3.0.0"
+    "mike>=2.1.4,<3.0.0",
+    "ruff>=0.15.12",
 ]
 
 [tool.pytest.ini_options]
@@ -39,3 +40,17 @@ pythonpath = ["."]
 log_level = "DEBUG"
 log_format = "%(asctime)s [%(levelname)8s] (%(filename)s:%(lineno)s) %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"
+
+[tool.ruff]
+line-length = 88 
+
+[tool.ruff.lint]
+select = [
+    "F", "E", "W", "B", "UP", "I", "FA", "C4", "SIM", 
+    "RET", "RSE", "PIE", "N", "PTH", "TC", "S", "BLE"
+]
+
+ignore = ["D", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]

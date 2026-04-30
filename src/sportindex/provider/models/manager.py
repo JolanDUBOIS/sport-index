@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal, TYPE_CHECKING
+from datetime import datetime  # noqa: TC003
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
 from .base import BaseSchema
 
 if TYPE_CHECKING:
-    from .core import _SportData, _CountryData
+    from .core import _CountryData, _SportData
     from .primitives import Performance
     from .team import _TeamData
 

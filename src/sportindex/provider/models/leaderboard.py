@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING
 
 from pydantic import Field
@@ -8,7 +8,7 @@ from pydantic import Field
 from .base import BaseSchema
 
 if TYPE_CHECKING:
-    from .core import _SportData, _CountryData, _CategoryData
+    from .core import _CategoryData, _CountryData, _SportData
     from .event import _EventData
     from .primitives import Promotion
     from .team import _TeamData

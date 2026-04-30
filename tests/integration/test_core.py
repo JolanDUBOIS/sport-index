@@ -1,9 +1,8 @@
 import logging
 
 import sportindex
-from sportindex import SportClient, Sport, Country, Category, SportContestNature
+from sportindex import Category, Country, Sport, SportClient, SportContestNature
 from sportindex.provider import SofascoreProvider
-
 
 logger = logging.getLogger(__name__)
 

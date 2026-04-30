@@ -1,20 +1,25 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Callable, Self, Any, Sequence
+from typing import TYPE_CHECKING, Any, Self
 
-from pydantic import GetCoreSchemaHandler
 from pydantic_core import core_schema
 
-from . import logger
 from sportindex.exceptions import ProviderNotFoundError
-from sportindex.provider.models import BaseSchema
 
 if TYPE_CHECKING:
-    from .collections import ScoredEntityCollection
+    from collections.abc import Callable, Sequence
+
+    from pydantic import GetCoreSchemaHandler
+
     from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import _SearchResultData
+    from sportindex.provider.models import BaseSchema, _SearchResultData
+
+    from .collections import ScoredEntityCollection
+
+logger = logging.getLogger(__name__)
 
 
 # ===== Base Entity =====
@@ -133,7 +138,7 @@ class SearchableMixin(IdentifiableEntity):
 
             if not matches:
                 break
-            
+
             for item in matches:
                 if valid_types is None or isinstance(item.entity, valid_types):
                     scored_items.append((cls(item.entity, provider), item.score))
@@ -146,6 +151,11 @@ class SearchableMixin(IdentifiableEntity):
 
         from .collections import ScoredEntityCollection
         return ScoredEntityCollection(scored_items[:max_results])
+
+    @staticmethod
+    def _validate_query(query: str) -> None:
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("Search query must be a non-empty string")
 
     @classmethod
     @abstractmethod

@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-from typing import Generic, Any
-from pydantic import model_validator
+from typing import Any, Generic
 
+from pydantic import model_validator
 from typing_extensions import TypeVar
 
 from .base import BaseSchema
+from .event import _EventData
 from .manager import _ManagerData
 from .player import _PlayerData
 from .referee import _RefereeData
+from .stage import _StageData, _UniqueStageData
 from .team import _TeamData
 from .tournament import _UniqueTournamentData
-from .stage import _UniqueStageData, _StageData
 from .venue import _VenueData
 
-
 AnyEntity = (
-    _ManagerData
+    _EventData
+    | _ManagerData
     | _PlayerData
     | _RefereeData
     | _TeamData
@@ -27,6 +28,7 @@ AnyEntity = (
 )
 
 ENTITY_MAP: dict[str, type[BaseSchema]] = {
+    "event": _EventData,
     "manager": _ManagerData,
     "player": _PlayerData,
     "referee": _RefereeData,

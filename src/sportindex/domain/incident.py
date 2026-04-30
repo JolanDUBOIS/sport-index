@@ -2,20 +2,23 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
-from .competitor import Competitor
-from .manager import Manager
+from sportindex.provider.models import CardIncident as ProviderCard
 from sportindex.provider.models import (
-    Incident as ProviderIncident,
-    GoalIncident as ProviderGoal,
-    PenaltyIncident as ProviderPenalty,
-    PenaltyShootoutIncident as ProviderPenaltyShootout,
-    CardIncident as ProviderCard,
-    SubstitutionIncident as ProviderSubstitution,
+    ExtraTimeIncident,
     PeriodIncident,
     VarDecisionIncident,
-    ExtraTimeIncident,
-    _ManagerData
+    _ManagerData,
 )
+from sportindex.provider.models import GoalIncident as ProviderGoal
+from sportindex.provider.models import Incident as ProviderIncident
+from sportindex.provider.models import PenaltyIncident as ProviderPenalty
+from sportindex.provider.models import (
+    PenaltyShootoutIncident as ProviderPenaltyShootout,
+)
+from sportindex.provider.models import SubstitutionIncident as ProviderSubstitution
+
+from .competitor import Competitor
+from .manager import Manager
 
 
 class GoalIncident(ProviderGoal):
@@ -56,17 +59,17 @@ def to_domain_incident(raw: ProviderIncident, provider: Any) -> Incident:
             scorer=Competitor(raw.scorer, provider),
             assist=Competitor(raw.assist, provider) if raw.assist else None
         )
-    
-    if isinstance(raw, ProviderPenalty) or isinstance(raw, ProviderPenaltyShootout):
-        DomainClass = PenaltyIncident if isinstance(raw, ProviderPenalty) else PenaltyShootoutIncident
-        return DomainClass(
+
+    if isinstance(raw, (ProviderPenalty, ProviderPenaltyShootout)):
+        domain_class = PenaltyIncident if isinstance(raw, ProviderPenalty) else PenaltyShootoutIncident
+        return domain_class(
             **raw.model_dump(by_alias=True, exclude={"shooter"}),
             shooter=Competitor(raw.shooter, provider)
         )
 
     if isinstance(raw, ProviderCard):
         recipient = (
-            Manager(raw.recipient, provider) 
+            Manager(raw.recipient, provider)
             if isinstance(raw.recipient, _ManagerData)
             else Competitor(raw.recipient, provider)
         )
