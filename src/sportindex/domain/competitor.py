@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import date  # noqa: TC003
 from functools import cached_property
 from typing import TYPE_CHECKING, Literal, Self, overload
 
@@ -21,8 +22,6 @@ from .event import EventAwareMixin
 from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
-    from datetime import date
-
     from sportindex.provider import SofascoreProvider
     from sportindex.provider.models import BaseSchema, _PlayerTeamInfoData
 
