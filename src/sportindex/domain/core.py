@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Generic, Self
@@ -25,6 +26,8 @@ if TYPE_CHECKING:
     from .event import Event
     from .leaderboard import Rankings
     from .types import SportContestNature
+
+logger = logging.getLogger(__name__)
 
 
 E = TypeVar("E", bound="Event", default="Event")
@@ -347,6 +350,7 @@ class Category(IdentifiableEntity, Generic[E]):
         if provider_key not in cls._all_cache:
             all_categories = []
             for sport in Sport.all(provider):
+                logger.debug(f"Fetching categories for sport '{sport.name}' (ID: {sport.id})...")
                 all_categories.extend(sport.categories)
             cls._all_cache[provider_key] = EntityCollection(all_categories)
 
