@@ -4,8 +4,8 @@ TEST_CONFIG = {
     # =========================================================
     "football": {
         "sport": "football",
-        "valid_dates": ["2026-02-08", "2026-02-10", "2026-05-16"], 
-        
+        "valid_dates": ["2026-02-08", "2026-02-10", "2026-05-16"],
+
         # Categories -> Unique Tournaments -> Seasons -> Tournaments
         "tournaments": [
             {
@@ -68,8 +68,8 @@ TEST_CONFIG = {
     # =========================================================
     "basketball": {
         "sport": "basketball",
-        "valid_dates": [], 
-        
+        "valid_dates": [],
+
         # Categories -> Unique Tournaments -> Seasons -> Tournaments
         "tournaments": [
             {
@@ -107,7 +107,7 @@ TEST_CONFIG = {
     # =========================================================
     "tennis": {
         "sport": "tennis",
-        
+
         # Categories -> Unique Tournaments -> Seasons -> Tournaments
         "tournaments": [
             {
@@ -139,7 +139,7 @@ TEST_CONFIG = {
     # =========================================================
     "motorsport": {
         "sport": "motorsport",
-        
+
         # Categories -> Unique Stages -> Seasons -> Stages (Race)
         "stages": [
             {
@@ -161,7 +161,7 @@ TEST_CONFIG = {
                 "stage_id": 209953, # Monaco GP Race
             },
         ],
-    
+
         # Independent Entities
         "teams": [214910, 271315], # Mercedes, George Russell
     },
@@ -171,7 +171,7 @@ TEST_CONFIG = {
     # =========================================================
     "cycling": {
         "sport": "cycling",
-        
+
         # Categories -> Unique Stages -> Seasons -> Stages (Cycling)
         "stages": [
             {

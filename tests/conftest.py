@@ -4,8 +4,9 @@ from collections.abc import Generator
 import pytest
 
 from sportindex import SportClient
-from sportindex.fetcher import RecordingFetcher
 from sportindex.api_client import SofascoreProvider
+from sportindex.fetcher import RecordingFetcher
+from sportindex.sitemaps import SofascoreSitemapProvider
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -27,3 +28,7 @@ def client() -> SportClient:
 def provider() -> SofascoreProvider:
     fetcher = RecordingFetcher(mode="auto", cache_dir="tests/mock_cache")
     return SofascoreProvider(fetcher=fetcher, fetch_delay=0.1)
+
+@pytest.fixture
+def sitemap_provider() -> SofascoreSitemapProvider:
+    return SofascoreSitemapProvider(fetch_delay=0.1) # No recording for sitemaps, not sure it would work...
