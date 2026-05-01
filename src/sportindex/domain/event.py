@@ -16,13 +16,13 @@ import pycountry
 from pydantic import BaseModel
 from typing_extensions import TypeVar
 
+from sportindex.api_client.models import StageTier, _EventData, _StageData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.api_client.models import StageTier, _EventData, _StageData
 
 from .base import IdentifiableEntity
 from .collections import EntityCollection, EventCollection

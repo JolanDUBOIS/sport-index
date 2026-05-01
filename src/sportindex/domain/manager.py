@@ -4,14 +4,14 @@ import logging
 from functools import cached_property
 from typing import TYPE_CHECKING, Self
 
+from sportindex.api_client.models import ManagerTenure as _ManagerTenure
+from sportindex.api_client.models import _ManagerData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.api_client.models import ManagerTenure as _ManagerTenure
-from sportindex.api_client.models import _ManagerData
 
 from .base import SearchableMixin
 from .event import EventAwareMixin

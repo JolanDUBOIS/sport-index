@@ -3,13 +3,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Self
 
+from sportindex.api_client.models import _ChannelData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.api_client.models import _ChannelData
 
 from .base import IdentifiableEntity
 from .event import EventAwareMixin

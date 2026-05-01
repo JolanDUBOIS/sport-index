@@ -8,7 +8,6 @@ that should not be directly imported or used by external consumers.
 Main exports are intended for internal use only within the sportindex package.
 """
 
-from .provider import SofascoreProvider
 from .models import (
     Amount,
     EventStatus,
@@ -20,6 +19,7 @@ from .models import (
     Score,
     StageTier,
 )
+from .provider import SofascoreProvider
 
 __all__ = [
     "SofascoreProvider",

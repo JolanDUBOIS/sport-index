@@ -8,13 +8,13 @@ from typing import TYPE_CHECKING, Literal, Self, overload
 from nameparser import HumanName
 from pydantic import BaseModel
 
+from sportindex.api_client.models import Amount, _PlayerData, _TeamData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.api_client.models import Amount, _PlayerData, _TeamData
 
 from .base import SearchableMixin
 from .collections import EntityCollection, ScoredEntityCollection

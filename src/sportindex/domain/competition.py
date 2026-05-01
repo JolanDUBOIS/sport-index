@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING, Generic, Literal, Self, overload
 
 from typing_extensions import TypeVar
 
+from sportindex.api_client.models import _UniqueStageData, _UniqueTournamentData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.api_client.models import _UniqueStageData, _UniqueTournamentData
 
 from .base import SearchableMixin
 from .collections import EntityCollection, ScoredEntityCollection

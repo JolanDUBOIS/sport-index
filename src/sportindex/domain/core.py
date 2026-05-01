@@ -8,13 +8,13 @@ from typing import TYPE_CHECKING, Any, Generic, Self
 import pycountry
 from typing_extensions import TypeVar
 
+from sportindex.api_client.models import _CategoryData, _CountryData, _SportData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.api_client.models import _CategoryData, _CountryData, _SportData
 
 from .base import IdentifiableEntity
 from .collections import EntityCollection

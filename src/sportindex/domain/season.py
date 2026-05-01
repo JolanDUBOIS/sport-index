@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Literal, Self, overload
 
 from typing_extensions import TypeVar
 
+from sportindex.api_client.models import StageTier, _SeasonData, _StageData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
@@ -14,7 +15,6 @@ from sportindex.exceptions import (
     InsufficientDataError,
     ProviderNotFoundError,
 )
-from sportindex.api_client.models import StageTier, _SeasonData, _StageData
 
 from .base import IdentifiableEntity
 from .event import EventAwareMixin

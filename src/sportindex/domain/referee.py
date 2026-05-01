@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING, Self
 
 from pydantic import BaseModel
 
+from sportindex.api_client.models import _RefereeData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.api_client.models import _RefereeData
 
 from .base import SearchableMixin
 from .event import EventAwareMixin
