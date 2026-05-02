@@ -1,11 +1,9 @@
 import gzip
 import logging
 import re
-from collections import deque
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, TypeVar
-
-from defusedxml import ElementTree as ET  # noqa: N817
 
 from ..fetcher import Fetcher
 from .endpoints import ENDPOINTS
@@ -25,13 +23,16 @@ logger = logging.getLogger(__name__)
 T = TypeVar('T', bound=_SitemapStub)
 
 LOC_REGEX = re.compile(b"<[^>]*loc>([^<]+)</[^>]*loc>")
+SITEMAPINDEX_TAG = b"sitemapindex"
+URLSET_TAG = b"urlset"
 
 class SofascoreSitemapProvider:
     """Provider class for Sofascore sitemaps fetching."""
 
-    def __init__(self, fetcher: Fetcher = None, fetch_delay: float = 0.5):
+    def __init__(self, fetcher: Fetcher = None, fetch_delay: float = 0.5, max_workers: int = 10):
         self._fetcher = fetcher or Fetcher()
         self._fetch_delay = fetch_delay
+        self._max_workers = max_workers
 
     def get_managers_list(self) -> list[_ManagerStub]:
         url = self._format("managers")
@@ -67,32 +68,33 @@ class SofascoreSitemapProvider:
             raise ValueError(f"Endpoint '{endpoint_name}' is not defined.")
         return ENDPOINTS[endpoint_name].format(**kwargs)
 
-    def _extract_urls(self, root: Any) -> list[str]:
-        ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-        loc_elements = root.findall('.//sm:loc', namespaces=ns) or root.findall('.//loc')
-        return [elem.text.strip() for elem in loc_elements if elem.text]
+    def _fetch_and_decompress(self, url: str) -> tuple[str, bytes]:
+        response = self._fetcher.fetch_url(url, initial_delay=self._fetch_delay)
+        return url, gzip.decompress(response.content)
 
-    def _traverse_sitemap_tree(self, url: str, fetch_delay: float | None = None) -> Iterator[bytes]:
-        queue = deque([url])
-        delay = fetch_delay if fetch_delay is not None else self._fetch_delay
+    def _traverse_sitemap_tree(self, initial_url: str) -> Iterator[bytes]:
+        queue = [initial_url]
 
         while queue:
-            current_url = queue.popleft()
-            logger.debug(f"Fetching sitemap URL: {current_url}")
+            current_batch = queue[:]
+            queue.clear()
 
-            response = self._fetcher.fetch_url(current_url, initial_delay=delay)
-            xml_bytes = gzip.decompress(response.content)
+            with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+                futures = {executor.submit(self._fetch_and_decompress, url): url for url in current_batch}
 
-            root = ET.fromstring(xml_bytes)
-            tag_name = root.tag.split('}')[-1]
+                for future in as_completed(futures):
+                    try:
+                        _, xml_bytes = future.result()
+                        head = xml_bytes[:256].lower()
 
-            if tag_name == 'sitemapindex':
-                queue.extend(self._extract_urls(root))
-            elif tag_name == 'urlset':
-                yield xml_bytes
+                        if SITEMAPINDEX_TAG in head:
+                            queue.extend(match.decode('utf-8').strip() for match in LOC_REGEX.findall(xml_bytes))
+                        elif URLSET_TAG in head:
+                            yield xml_bytes
+                    except Exception as e:
+                        logger.exception(f"Error fetching/parsing sitemap URL: {e}")
 
     def _extract_urls_from_sitemap(self, xml_bytes: bytes) -> list[str]:
-        # root = ET.fromstring(xml_bytes)
         return [match.decode('utf-8').strip() for match in LOC_REGEX.findall(xml_bytes)]
 
     def _fetch_and_parse_sitemap(self, url: str, model_cls: type[T]) -> list[T]:

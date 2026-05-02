@@ -6,7 +6,7 @@ from dataclasses import dataclass
 BASE_URL_LEN = len("https://www.sofascore.com/")
 
 
-@dataclass
+@dataclass(slots=True)
 class _SitemapStub(ABC):
     id: int
     slug: str
@@ -22,7 +22,7 @@ class _SitemapStub(ABC):
         raise NotImplementedError
 
 
-@dataclass
+@dataclass(slots=True)
 class _ManagerStub(_SitemapStub):
     sport_slug: str
 
@@ -44,7 +44,7 @@ class _ManagerStub(_SitemapStub):
         ]
 
 
-@dataclass
+@dataclass(slots=True)
 class _PlayerStub(_SitemapStub):
     sport_slug: str
 
@@ -66,7 +66,7 @@ class _PlayerStub(_SitemapStub):
         ]
 
 
-@dataclass
+@dataclass(slots=True)
 class _RaceStub(_SitemapStub):
     sport_slug: str
 
@@ -88,7 +88,7 @@ class _RaceStub(_SitemapStub):
         ]
 
 
-@dataclass
+@dataclass(slots=True)
 class _TeamStub(_SitemapStub):
     sport_slug: str
 
@@ -110,7 +110,7 @@ class _TeamStub(_SitemapStub):
         ]
 
 
-@dataclass
+@dataclass(slots=True)
 class _TournamentStub(_SitemapStub):
     sport_slug: str
     category_slug: str
@@ -139,7 +139,7 @@ class _TournamentStub(_SitemapStub):
         ]
 
 
-@dataclass
+@dataclass(slots=True)
 class _VenueStub(_SitemapStub):
     country_slug: str
 

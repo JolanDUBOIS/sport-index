@@ -31,4 +31,4 @@ def provider() -> SofascoreProvider:
 
 @pytest.fixture
 def sitemap_provider() -> SofascoreSitemapProvider:
-    return SofascoreSitemapProvider(fetch_delay=0.1) # No recording for sitemaps, not sure it would work...
+    return SofascoreSitemapProvider(fetch_delay=0.1, max_workers=5)
