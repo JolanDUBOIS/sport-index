@@ -3,7 +3,7 @@ from datetime import datetime
 
 import sportindex
 from sportindex import SportClient, Standings
-from sportindex.provider import SofascoreProvider
+from sportindex.api_client import SofascoreProvider
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,7 @@ from sportindex import (
     MatchEvent,
     StageEvent,
 )
-from sportindex.provider import SofascoreProvider
+from sportindex.api_client import SofascoreProvider
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,6 @@
 import logging
 import random
+import threading
 import time
 
 import cloudscraper
@@ -20,15 +21,27 @@ class Fetcher:
 
     def __init__(self):
         self._scraper = cloudscraper.create_scraper()
+        self._lock = threading.Lock()
+        self._last_request_time = 0.0
 
     def fetch_url(
         self, url: str, *, params: dict = None, max_retries: int = 3,
         retry_delay: int = 5, initial_delay: float = 5.0
     ) -> Response:
         """ Fetch a URL with retries, backoff, and bot-mitigation. """
+        if initial_delay > 0:
+            with self._lock:
+                now = time.time()
+                elapsed = now - self._last_request_time
+                target_delay = initial_delay + random.uniform(0, 1)  # noqa: S311
+
+                if elapsed < target_delay:
+                    time.sleep(target_delay - elapsed)
+
+                self._last_request_time = time.time()
+
         last_status = None
         logger.info(f"Fetching URL: {url}")
-        time.sleep(initial_delay + random.uniform(0, 1))
 
         for retry in range(max_retries):
             next_delay = self._get_delay(retry_delay, retry)
@@ -68,5 +81,5 @@ class Fetcher:
     def _get_delay(retry_delay: int, retry: int, max_delay: int = 30) -> float:
         """ Return retry delay with exponential backoff and small random jitter. """
         exp_backoff = retry_delay * (2 ** retry)
-        jitter = random.uniform(0, 1)
+        jitter = random.uniform(0, 1)  # noqa: S311
         return min(exp_backoff + jitter, max_delay)

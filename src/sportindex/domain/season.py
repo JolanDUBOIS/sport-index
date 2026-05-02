@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Literal, Self, overload
 
 from typing_extensions import TypeVar
 
+from sportindex.api_client.models import StageTier, _SeasonData, _StageData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
@@ -14,7 +15,6 @@ from sportindex.exceptions import (
     InsufficientDataError,
     ProviderNotFoundError,
 )
-from sportindex.provider.models import StageTier, _SeasonData, _StageData
 
 from .base import IdentifiableEntity
 from .event import EventAwareMixin
@@ -22,8 +22,8 @@ from .types import SportContestNature
 from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
-    from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import BaseSchema, Round, _SeasonRoundsResponse
+    from sportindex.api_client import SofascoreProvider
+    from sportindex.api_client.models import BaseSchema, Round, _SeasonRoundsResponse
 
     from .competition import Competition
     from .core import Sport

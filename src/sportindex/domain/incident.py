@@ -2,20 +2,20 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
-from sportindex.provider.models import CardIncident as ProviderCard
-from sportindex.provider.models import (
+from sportindex.api_client.models import CardIncident as ProviderCard
+from sportindex.api_client.models import (
     ExtraTimeIncident,
     PeriodIncident,
     VarDecisionIncident,
     _ManagerData,
 )
-from sportindex.provider.models import GoalIncident as ProviderGoal
-from sportindex.provider.models import Incident as ProviderIncident
-from sportindex.provider.models import PenaltyIncident as ProviderPenalty
-from sportindex.provider.models import (
+from sportindex.api_client.models import GoalIncident as ProviderGoal
+from sportindex.api_client.models import Incident as ProviderIncident
+from sportindex.api_client.models import PenaltyIncident as ProviderPenalty
+from sportindex.api_client.models import (
     PenaltyShootoutIncident as ProviderPenaltyShootout,
 )
-from sportindex.provider.models import SubstitutionIncident as ProviderSubstitution
+from sportindex.api_client.models import SubstitutionIncident as ProviderSubstitution
 
 from .competitor import Competitor
 from .manager import Manager

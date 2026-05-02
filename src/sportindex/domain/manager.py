@@ -4,21 +4,21 @@ import logging
 from functools import cached_property
 from typing import TYPE_CHECKING, Self
 
+from sportindex.api_client.models import ManagerTenure as _ManagerTenure
+from sportindex.api_client.models import _ManagerData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.provider.models import ManagerTenure as _ManagerTenure
-from sportindex.provider.models import _ManagerData
 
 from .base import SearchableMixin
 from .event import EventAwareMixin
 from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
-    from sportindex.provider import SofascoreProvider
+    from sportindex.api_client import SofascoreProvider
 
     from .collections import ScoredEntityCollection
     from .competitor import Competitor

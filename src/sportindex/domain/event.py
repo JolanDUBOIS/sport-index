@@ -16,13 +16,13 @@ import pycountry
 from pydantic import BaseModel
 from typing_extensions import TypeVar
 
+from sportindex.api_client.models import StageTier, _EventData, _StageData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.provider.models import StageTier, _EventData, _StageData
 
 from .base import IdentifiableEntity
 from .collections import EntityCollection, EventCollection
@@ -33,8 +33,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from datetime import datetime
 
-    from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import (
+    from sportindex.api_client import SofascoreProvider
+    from sportindex.api_client.models import (
         EventStatus,
         MatchPeriod,
         MomentumPoint,
@@ -336,7 +336,7 @@ class MatchEvent(Event):
     @property
     def score(self) -> Score | None:
         """The score for this event, if available."""
-        from sportindex.provider.models import Score
+        from sportindex.api_client.models import Score
         return Score(
             home=self._data.home.score,
             away=self._data.away.score

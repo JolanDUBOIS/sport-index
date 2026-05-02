@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sportindex import Competition, Season, SportContestNature
-from sportindex.provider import SofascoreProvider
+from sportindex.api_client import SofascoreProvider
 
 
 def test_competition(provider: SofascoreProvider):

@@ -14,6 +14,17 @@ import logging
 from importlib.metadata import PackageNotFoundError, version
 
 from . import exceptions
+from .api_client import (
+    Amount,
+    EventStatus,
+    MatchPeriod,
+    MomentumPoint,
+    PeriodStats,
+    Promotion,
+    Round,
+    Score,
+    StageTier,
+)
 from .client import SportClient
 
 # Import domain types in logical groups (alphabetical within each group)
@@ -53,19 +64,9 @@ from .domain import (
     Team,
     Venue,
 )
-from .provider import (
-    Amount,
-    EventStatus,
-    MatchPeriod,
-    MomentumPoint,
-    PeriodStats,
-    Promotion,
-    Round,
-    Score,
-    StageTier,
-)
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
+
 
 try:
     __version__ = version("sport-index")

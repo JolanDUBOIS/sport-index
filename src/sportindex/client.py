@@ -5,6 +5,7 @@ import os
 from collections import defaultdict
 from typing import Any, Literal, TypeVar, overload
 
+from .api_client import SofascoreProvider
 from .domain import (
     Category,
     Competition,
@@ -17,7 +18,7 @@ from .domain import (
     Sport,
 )
 from .exceptions import EntityNotFoundError
-from .provider import Fetcher, RecordingFetcher, SofascoreProvider
+from .fetcher import Fetcher, RecordingFetcher
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@ import logging
 
 import sportindex
 from sportindex import Manager
-from sportindex.provider import SofascoreProvider
+from sportindex.api_client import SofascoreProvider
 
 logger = logging.getLogger(__name__)
 

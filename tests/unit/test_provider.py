@@ -3,9 +3,8 @@ from contextlib import contextmanager
 
 import pytest
 
-from sportindex.exceptions import ProviderNotFoundError
-from sportindex.provider import RecordingFetcher, SofascoreProvider
-from sportindex.provider.models import (
+from sportindex.api_client import SofascoreProvider
+from sportindex.api_client.models import (
     DriverCareerHistory,
     ManagerTenure,
     PlayerSeasonStats,
@@ -37,6 +36,7 @@ from sportindex.provider.models import (
     _UniqueTournamentSeasonsResponse,
     _VenueData,
 )
+from sportindex.exceptions import ProviderNotFoundError
 from tests.unit.test_config import TEST_CONFIG
 
 logger = logging.getLogger(__name__)

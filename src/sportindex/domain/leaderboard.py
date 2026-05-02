@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from sportindex.provider.models import (
+from sportindex.api_client.models import (
     Promotion,
     _RacingStandingsEntryData,
     _RankingEntryData,
@@ -22,7 +22,7 @@ from .competitor import Competitor
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from sportindex.provider import SofascoreProvider
+    from sportindex.api_client import SofascoreProvider
 
     from .core import Category, Sport
     from .enums import Gender

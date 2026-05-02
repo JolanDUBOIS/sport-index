@@ -8,13 +8,13 @@ from typing import TYPE_CHECKING, Literal, Self, overload
 from nameparser import HumanName
 from pydantic import BaseModel
 
+from sportindex.api_client.models import Amount, _PlayerData, _TeamData
 from sportindex.exceptions import (
     DomainError,
     EntityNotFoundError,
     FetchError,
     ProviderNotFoundError,
 )
-from sportindex.provider.models import Amount, _PlayerData, _TeamData
 
 from .base import SearchableMixin
 from .collections import EntityCollection, ScoredEntityCollection
@@ -22,8 +22,8 @@ from .event import EventAwareMixin
 from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
-    from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import BaseSchema, _PlayerTeamInfoData
+    from sportindex.api_client import SofascoreProvider
+    from sportindex.api_client.models import BaseSchema, _PlayerTeamInfoData
 
     from .core import Country, Sport
     from .enums import Gender
