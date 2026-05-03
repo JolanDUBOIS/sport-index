@@ -57,13 +57,13 @@ from .domain import (
     SearchableMixin,
     Season,
     Sport,
-    SportContestNature,
     StageEvent,
     Standings,
     StandingsEntry,
     Team,
     Venue,
 )
+from .types import SportContestNature
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 

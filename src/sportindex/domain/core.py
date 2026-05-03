@@ -22,10 +22,10 @@ from .collections import EntityCollection
 if TYPE_CHECKING:
     from sportindex.api_client import SofascoreProvider
 
+    from ..types import SportContestNature
     from .competition import Competition
     from .event import Event
     from .leaderboard import Rankings
-    from .types import SportContestNature
 
 logger = logging.getLogger(__name__)
 

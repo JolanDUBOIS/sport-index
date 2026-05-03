@@ -16,9 +16,9 @@ from sportindex.exceptions import (
     ProviderNotFoundError,
 )
 
+from ..types import SportContestNature
 from .base import IdentifiableEntity
 from .event import EventAwareMixin
-from .types import SportContestNature
 from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:

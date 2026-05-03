@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import Final, NamedTuple
 
+from ..types import SportContestNature
 from .enums import Gender
-from .types import SportContestNature
 
 
 class SportEntry(NamedTuple):

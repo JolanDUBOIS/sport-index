@@ -24,9 +24,9 @@ from sportindex.exceptions import (
     ProviderNotFoundError,
 )
 
+from ..types import SportContestNature
 from .base import IdentifiableEntity
 from .collections import EntityCollection, EventCollection
-from .types import SportContestNature
 from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
@@ -701,7 +701,7 @@ class EventAwareMixin(ABC, Generic[E]):
                 logger.warning(f"Network error while fetching events for page {page}: {e}. Ending pagination.")
                 break
 
-            if not getattr(events_response, "hasNextPage", False):
+            if not events_response.has_next_page:
                 break
 
         return EventCollection([Event(e, self._provider) for e in parsed_events])

@@ -25,11 +25,11 @@ if TYPE_CHECKING:
     from sportindex.api_client import SofascoreProvider
     from sportindex.api_client.models import BaseSchema, _PlayerTeamInfoData
 
+    from ..types import SportContestNature
     from .core import Country, Sport
     from .enums import Gender
     from .event import EventCollection
     from .manager import Manager
-    from .types import SportContestNature
     from .venue import Venue
 
 logger = logging.getLogger(__name__)

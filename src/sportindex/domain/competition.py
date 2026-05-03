@@ -14,9 +14,9 @@ from sportindex.exceptions import (
     ProviderNotFoundError,
 )
 
+from ..types import SportContestNature
 from .base import SearchableMixin
 from .collections import EntityCollection, ScoredEntityCollection
-from .types import SportContestNature
 from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
