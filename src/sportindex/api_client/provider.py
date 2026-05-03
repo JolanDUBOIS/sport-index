@@ -30,7 +30,7 @@ from .models import (
     _ManagerData,
     _MomentumGraphResponse,
     _PlayerData,
-    _RacingStandingsEntryData,
+    _RacingStandingsData,
     _RankingsResponse,
     _RefereeData,
     _SearchResultData,
@@ -394,17 +394,19 @@ class SofascoreProvider:
         data = self._fetch(url)
         return _StageData.model_validate(data.get("stage", {}))
 
-    def get_stage_standings_competitors(self, stage_id: int) -> list[_RacingStandingsEntryData]:
+    def get_stage_standings_competitors(self, stage_id: int) -> _RacingStandingsData:
         """Fetch competitor standings for a stage."""
         url = self._format("standings-competitors", stage_id=stage_id)
         data = self._fetch(url)
-        return [_RacingStandingsEntryData.model_validate(entry) for entry in data.get("standings", [])]
+        data["type_"] = "competitors"
+        return _RacingStandingsData.model_validate(data)
 
-    def get_stage_standings_teams(self, stage_id: int) -> list[_RacingStandingsEntryData]:
+    def get_stage_standings_teams(self, stage_id: int) -> _RacingStandingsData:
         """Fetch team/driver standings for a stage."""
         url = self._format("standings-teams", stage_id=stage_id)
         data = self._fetch(url)
-        return [_RacingStandingsEntryData.model_validate(entry) for entry in data.get("standings", [])]
+        data["type_"] = "teams"
+        return _RacingStandingsData.model_validate(data)
 
     def get_stage_drivers_performance(self, team_id: int, stage_id: int) -> list[DriverPerformance]:
         """Fetch drivers performance for a team + stage (season stage in motorsport)."""

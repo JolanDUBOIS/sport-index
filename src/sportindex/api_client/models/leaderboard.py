@@ -90,6 +90,11 @@ class _RacingStandingsEntryData(BaseSchema):
     shirt: str | None = None
 
 
+class _RacingStandingsData(BaseSchema):
+    type_: str | None = None
+    standings: list[_RacingStandingsEntryData] = Field(default_factory=list)
+
+
 # =====================================================================
 # Rankings
 # =====================================================================
