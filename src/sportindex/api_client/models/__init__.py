@@ -24,6 +24,7 @@ from .incidents import (
     VarDecisionIncident,
 )
 from .leaderboard import (
+    _RacingStandingsData,
     _RacingStandingsEntryData,
     _RankingEntryData,
     _RankingTypeData,
@@ -119,6 +120,7 @@ _SeasonRoundsResponse.model_rebuild(_types_namespace=_shared_namespace)
 _TeamStandingsData.model_rebuild(_types_namespace=_shared_namespace)
 _TeamResponse.model_rebuild(_types_namespace=_shared_namespace)
 _RacingStandingsEntryData.model_rebuild(_types_namespace=_shared_namespace)
+_RacingStandingsData.model_rebuild(_types_namespace=_shared_namespace)
 RaceResults.model_rebuild(_types_namespace=_shared_namespace)
 PeriodStats.model_rebuild(_types_namespace=_shared_namespace)
 _EventStatisticsResponse.model_rebuild(_types_namespace=_shared_namespace)
