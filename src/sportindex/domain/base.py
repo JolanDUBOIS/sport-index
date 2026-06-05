@@ -10,7 +10,7 @@ from pydantic_core import core_schema
 from sportindex.exceptions import ProviderNotFoundError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable
 
     from pydantic import GetCoreSchemaHandler
 
@@ -26,16 +26,16 @@ logger = logging.getLogger(__name__)
 
 class BaseEntity(ABC):
     """Base class for all domain entities."""
-    _data: BaseSchema | Sequence[BaseSchema]
+    _data: BaseSchema
     _REPR_FIELDS = ()
 
-    def __init__(self, data: BaseSchema | Sequence[BaseSchema], provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: BaseSchema, provider: SofascoreProvider, **kwargs) -> None:
         self._data = data
         self._provider = provider
         self._kwargs = kwargs
 
     @property
-    def source(self) -> BaseSchema | Sequence[BaseSchema]:
+    def source(self) -> BaseSchema:
         """Return the parsed data source for this entity."""
         return self._data
 
