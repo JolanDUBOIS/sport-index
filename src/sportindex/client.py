@@ -52,14 +52,14 @@ class SportClient:
     Caches entities in memory to minimize redundant API calls and improve performance. Cache can be cleared manually if needed.
 
     Methods:
-        get(entity_cls: type[IdentifiableEntity], entity_id: int) -> Optional[IdentifiableEntity]: Fetch an identifiable entity by its class and ID.
+        get(entity_cls: type[IdentifiableEntity], entity_id: str) -> Optional[IdentifiableEntity]: Fetch an identifiable entity by its class and ID.
         search(entity_cls: type[SearchableMixin], query: str, max_results: int = 20) -> EntityCollection[SearchableMixin]: Search for entities that implement SearchableMixin.
         list(entity_cls: type[IdentifiableEntity], **kwargs) -> EntityCollection: List entities of a given class with optional filters (e.g., list competitions by category_id).
 
     Usage:
         >>> client = SportClient()
-        >>> sport = client.get(Sport, entity_id=1)
-        >>> events = client.list(Event, season_id=123)
+        >>> sport = client.get(Sport, entity_id="spt:1")
+        >>> events = client.list(Event, season_id="trnc:123:trns:456")
         >>> referee = client.search(Referee, query="John Doe")
 
     Raises:
@@ -73,7 +73,7 @@ class SportClient:
         """
         self._provider = _get_default_provider()
 
-        self._cache: dict[str, dict[int, Any]] = defaultdict(dict)
+        self._cache: dict[str, dict[str, Any]] = defaultdict(dict)
 
     def _resolve_ns(self, entity_cls: type[IdentifiableEntity]) -> str:
         """
@@ -86,12 +86,12 @@ class SportClient:
 
     # --- Cache Helpers ---
 
-    def _get_cached(self, entity_cls: type[E], entity_id: int) -> E | None:
+    def _get_cached(self, entity_cls: type[E], entity_id: str) -> E | None:
         """Return an entity from the cache if it exists.
 
         Args:
             entity_cls (type[IdentifiableEntity]): The class of the entity to retrieve.
-            entity_id (int): The unique identifier of the entity.
+            entity_id (str): The unique identifier of the entity.
 
         Returns:
             Optional[IdentifiableEntity]: The cached entity, or None if not found.
@@ -151,12 +151,12 @@ class SportClient:
     # --- Unified GET ---
 
     @overload
-    def get(self, entity_cls: type[E], entity_id: int, strict: Literal[True]) -> E: ...
+    def get(self, entity_cls: type[E], entity_id: str, strict: Literal[True]) -> E: ...
 
     @overload
-    def get(self, entity_cls: type[E], entity_id: int, strict: Literal[False] = False) -> E | None: ...
+    def get(self, entity_cls: type[E], entity_id: str, strict: Literal[False] = False) -> E | None: ...
 
-    def get(self, entity_cls: type[E], entity_id: int, strict: bool = False) -> E | None:
+    def get(self, entity_cls: type[E], entity_id: str, strict: bool = False) -> E | None:
         """Fetch an identifiable entity by its class and ID.
 
         Supported classes include: Sport, Competition, Event (including its subclasses),
@@ -164,7 +164,7 @@ class SportClient:
 
         Args:
             entity_cls (type[IdentifiableEntity]): The class of the entity to fetch.
-            entity_id (int): The unique identifier of the entity.
+            entity_id (str): The unique identifier of the entity.
             strict (bool): If True, raises EntityNotFoundError if the entity is not found. If False, returns None.
 
         Returns:
@@ -209,16 +209,16 @@ class SportClient:
     def list(self, entity_cls: type[Country]) -> EntityCollection[Country]: ...
 
     @overload
-    def list(self, entity_cls: type[Category], *, sport_id: int) -> EntityCollection[Category]: ...
+    def list(self, entity_cls: type[Category], *, sport_id: str) -> EntityCollection[Category]: ...
 
     @overload
-    def list(self, entity_cls: type[Competition], *, category_id: int, sport_id: int | None = None) -> EntityCollection[Competition]: ...
+    def list(self, entity_cls: type[Competition], *, category_id: str, sport_id: str | None = None) -> EntityCollection[Competition]: ...
 
     @overload
-    def list(self, entity_cls: type[Season], *, competition_id: int) -> EntityCollection[Season]: ...
+    def list(self, entity_cls: type[Season], *, competition_id: str) -> EntityCollection[Season]: ...
 
     @overload
-    def list(self, entity_cls: type[Event], *, season_id: int) -> EntityCollection[Event]: ...
+    def list(self, entity_cls: type[Event], *, season_id: str) -> EntityCollection[Event]: ...
 
     def list(self, entity_cls: type[E], **kwargs: Any) -> EntityCollection[E]:
         """

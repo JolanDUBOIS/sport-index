@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from functools import cached_property
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING
 
 from sportindex.api_client.models import ManagerTenure as _ManagerTenure
 from sportindex.api_client.models import _ManagerData
@@ -15,7 +15,6 @@ from sportindex.exceptions import (
 
 from .base import SearchableMixin
 from .event import EventAwareMixin
-from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
     from sportindex.api_client import SofascoreProvider
@@ -48,7 +47,7 @@ class Manager(SearchableMixin, EventAwareMixin):
     for properties that require more detailed API responses.
 
     Attributes:
-        id (int): Unique identifier of the manager.
+        id (str): Unique identifier of the manager.
         name (str): Full name of the manager.
         slug (str): URL-friendly slug of the manager.
         short_name (str): Shortened name or abbreviation (e.g., "Z. Zidane").
@@ -68,6 +67,7 @@ class Manager(SearchableMixin, EventAwareMixin):
             Search for managers matching a query string (up to 20 results).
     """
     _data: _ManagerData
+    _PREFIX = "mng"
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "sport", "country")
 
     def __init__(self, data: _ManagerData, provider: SofascoreProvider, **kwargs) -> None:
@@ -79,9 +79,9 @@ class Manager(SearchableMixin, EventAwareMixin):
         self._full_loaded = False
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the manager."""
-        return self._data.id
+        return self.encode_id(self._data.id)
 
     @property
     def name(self) -> str:
@@ -132,35 +132,17 @@ class Manager(SearchableMixin, EventAwareMixin):
         """Fetch all results for this manager."""
         return self._fetch_paginated_events(self._provider.get_manager_results, self._data.id)
 
-    def _full_load(self) -> None:
-        """
-        Lazy-loads the complete manager from the provider.
-        Called automatically when accessing properties that require full details
-        missing from the initial lightweight API response.
-        """
-        if self._full_loaded:
-            return
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _ManagerData:
+        """Fetch the manager data from the provider by its raw ID."""
         try:
-            self._data = merge_pydantic_models(self._data, self._provider.get_manager(self._data.id))
-        except ProviderNotFoundError:
-            logger.debug(f"Manager with id {self._data.id} not found during full load")
-        except FetchError as e:
-            logger.debug(f"Network error while fully loading manager with id {self._data.id}: {e}")
-        self._full_loaded = True
-        self._clear_cache()
-
-    @classmethod
-    def from_id(cls, manager_id: int, provider: SofascoreProvider) -> Self:
-        """Fetch a manager by its ID."""
-        if not isinstance(manager_id, int):
-            raise TypeError(f"Manager ID must be an integer, got {type(manager_id)}")
-        try:
-            parsed_data = provider.get_manager(manager_id)
-            return cls(parsed_data, provider)
+            return provider.get_manager(raw_id)
         except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Manager with id {manager_id} not found") from e
+            logger.debug(f"Manager with id {raw_id} not found: {e}")
+            raise EntityNotFoundError(f"Manager with id {raw_id} not found") from e
         except FetchError as e:
-            raise DomainError(f"Network error while fetching manager {manager_id}") from e
+            logger.error(f"Network error while fetching manager with id {raw_id}: {e}")
+            raise DomainError(f"Network error while fetching manager with id {raw_id}") from e
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Manager]:

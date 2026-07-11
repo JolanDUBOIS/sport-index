@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from abc import abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Literal, Self, overload
+from typing import TYPE_CHECKING, overload
 
 from sportindex.api_client.models import _StageData, _VenueData
 from sportindex.exceptions import (
@@ -15,11 +16,9 @@ from sportindex.exceptions import (
 from .base import SearchableMixin
 from .collections import EntityCollection, EventCollection, ScoredEntityCollection
 from .event import EventAwareMixin
-from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
     from sportindex.api_client import SofascoreProvider
-    from sportindex.api_client.models import BaseSchema
 
     from .competitor import Competitor
     from .core import Country
@@ -34,7 +33,7 @@ class Venue(SearchableMixin, EventAwareMixin):
     lazy full-loading for detailed API properties.
 
     Attributes:
-        id (int): Unique identifier of the venue.
+        id (str): Unique identifier of the venue.
         name (str): Name of the venue.
         city (str | None): City where the venue is located.
         capacity (int | None): Seating or attendance capacity of the venue.
@@ -53,133 +52,56 @@ class Venue(SearchableMixin, EventAwareMixin):
     """
     _data: _VenueData | _StageData
     _REPR_FIELDS = ("id", "name")
-    _N_TYPES: int = 2
-    _TYPE_MAP: dict[type[BaseSchema], int] = {_VenueData: 1, _StageData: 2}
 
-    def __init__(self, data: _VenueData | _StageData, provider: SofascoreProvider, **kwargs) -> None:
-        super().__init__(data, provider, **kwargs)
+    @overload
+    def __new__(cls, data: _VenueData, provider: SofascoreProvider, **kwargs) -> _StdVenue: ...
 
-        if not isinstance(data, (_VenueData, _StageData)):
+    @overload
+    def __new__(cls, data: _StageData, provider: SofascoreProvider, **kwargs) -> _StageVenue: ...
+
+    def __new__(cls, data: _VenueData | _StageData, provider: SofascoreProvider, **kwargs):
+        if cls is Venue:
+            if isinstance(data, _VenueData):
+                return object().__new__(_StdVenue)
+            if isinstance(data, _StageData):
+                return object().__new__(_StageVenue)
             raise TypeError(f"Venue data must be either _VenueData or _StageData, got {type(data)}")
-
-        self._full_loaded = False
+        return super().__new__(cls)
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the venue."""
-        type_idx = self._TYPE_MAP[type(self._data)]
-        return self.encode_id(self._data.id, type_idx)
+        return self.encode_id(self._data.id)
 
     @property
+    @abstractmethod
     def name(self) -> str:
         """The name of the venue."""
-        if isinstance(self._data, _VenueData):
-            return self._data.name or (self._data.stadium.name if self._data.stadium else "")
-        if isinstance(self._data, _StageData):
-            return self._data.info.circuit if self._data.info else ""
-        raise TypeError(f"Cannot determine name for data type: {type(self._data).__name__}")
+        raise NotImplementedError("Subclasses must implement the 'name' property")
 
     @property
+    @abstractmethod
     def city(self) -> str | None:
-        """The city where the venue is located."""
-        self._full_load()
-        if isinstance(self._data, _VenueData):
-            return self._data.city.name if self._data.city else None
-        if isinstance(self._data, _StageData):
-            return self._data.info.circuit_city if self._data.info else None
-        raise TypeError(f"Cannot determine city for data type: {type(self._data).__name__}")
+        """The city where the venue is located, if available."""
+        raise NotImplementedError("Subclasses must implement the 'city' property")
 
     @property
+    @abstractmethod
     def capacity(self) -> int | None:
         """The capacity of the venue, if available."""
-        if isinstance(self._data, _VenueData):
-            self._full_load()
-            return self._data.capacity or (self._data.stadium.capacity if self._data.stadium else None)
-        if isinstance(self._data, _StageData):
-            return None
-        raise TypeError(f"Cannot determine capacity for data type: {type(self._data).__name__}")
+        raise NotImplementedError("Subclasses must implement the 'capacity' property")
 
-    @cached_property
+    @property
+    @abstractmethod
     def country(self) -> Country | None:
         """The country where the venue is located, if available."""
-        self._full_load()
-        from .core import Country
-        if isinstance(self._data, _VenueData):
-            return Country(self._data.country, self._provider)
-        if isinstance(self._data, _StageData):
-            return Country.from_name(self._data.info.circuit_country, self._provider) if self._data.info and self._data.info.circuit_country else None
-        raise TypeError(f"Cannot determine country for data type: {type(self._data).__name__}")
+        raise NotImplementedError("Subclasses must implement the 'country' property")
 
-    @cached_property
+    @property
+    @abstractmethod
     def teams(self) -> EntityCollection[Competitor]:
-        self._full_load()
-        from .competitor import Competitor
-        if isinstance(self._data, _VenueData):
-            return EntityCollection([
-                Competitor(t, self._provider)
-                for t in self._data.main_teams
-            ])
-        if isinstance(self._data, _StageData):
-            logger.warning("Teams for stages are not available in the current provider implementation, returning empty collection")
-            return EntityCollection()
-        raise TypeError(f"Cannot determine teams for data type: {type(self._data).__name__}")
-
-    def get_fixtures(self, silent: bool = False) -> EventCollection:
-        """Fetch all fixtures for this venue."""
-        if isinstance(self._data, _VenueData):
-            return self._fetch_paginated_events(self._provider.get_venue_fixtures, self._data.id)
-        if isinstance(self._data, _StageData):
-            if not silent:
-                logger.warning("Fixtures for stages are not available in the current provider implementation, returning empty collection")
-            return EventCollection()
-        raise TypeError(f"Cannot fetch fixtures for data type: {type(self._data).__name__}")
-
-    def get_results(self, silent: bool = False) -> EventCollection:
-        """Fetch all results for this venue."""
-        if isinstance(self._data, _VenueData):
-            return self._fetch_paginated_events(self._provider.get_venue_results, self._data.id)
-        if isinstance(self._data, _StageData):
-            if not silent:
-                logger.warning("Results for stages are not available in the current provider implementation, returning empty collection")
-            return EventCollection()
-        raise TypeError(f"Cannot fetch results for data type: {type(self._data).__name__}")
-
-    def _full_load(self) -> None:
-        """
-        Lazy-loads the complete venue from the provider.
-        Called automatically when accessing properties that require full details
-        missing from the initial lightweight API response.
-        """
-        if self._full_loaded:
-            return
-        try:
-            self._data = merge_pydantic_models(self._data, self._provider.get_venue(self._data.id))
-        except ProviderNotFoundError:
-            logger.debug(f"Venue with id {self._data.id} not found during full load")
-        except FetchError as e:
-            logger.debug(f"Network error while fully loading venue with id {self._data.id}: {e}")
-        self._full_loaded = True
-        self._clear_cache()
-
-    @classmethod
-    def from_id(cls, venue_id: int, provider: SofascoreProvider) -> Self:
-        """Fetch a venue by its ID."""
-        if not isinstance(venue_id, int):
-            raise TypeError(f"Venue ID must be an integer, got {type(venue_id)}")
-
-        try:
-            entity_data = cls._fetch_entity(venue_id, provider)
-            instance = cls(entity_data, provider)
-            if not issubclass(type(instance), cls):
-                raise TypeError(
-                    f"ID {venue_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
-                    f"Use {type(instance).__name__}.from_id() instead."
-                )
-            return instance
-        except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Venue with id {venue_id} not found") from e
-        except FetchError as e:
-            raise DomainError(f"Network error while fetching venue with id {venue_id}") from e
+        """The main teams associated with the venue."""
+        raise NotImplementedError("Subclasses must implement the 'teams' property")
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Venue]:
@@ -195,44 +117,114 @@ class Venue(SearchableMixin, EventAwareMixin):
             max_results=max_results
         )
 
-    @overload
-    @classmethod
-    def _fetch_entity(cls, venue_id: int, provider: SofascoreProvider, strict: Literal[True] = True) -> _VenueData | _StageData: ...
 
-    @overload
-    @classmethod
-    def _fetch_entity(cls, venue_id: int, provider: SofascoreProvider, strict: Literal[False]) -> _VenueData | _StageData | None: ...
+class _StdVenue(Venue):
+    _PREFIX: str = "vnu"
 
-    @classmethod
-    def _fetch_entity(cls, venue_id: int, provider: SofascoreProvider, strict: bool = True) -> _VenueData | _StageData | None:
-        """Fetch the complete venue data from the provider by its ID."""
-        raw_id, type_idx = cls.decode_id(venue_id)
+    @property
+    def name(self) -> str:
+        """The name of the venue."""
+        return self._data.name or (self._data.stadium.name if self._data.stadium else "")
 
+    @property
+    def city(self) -> str | None:
+        """The city where the venue is located, if available."""
+        return self._data.city.name if self._data.city else None
+
+    @property
+    def capacity(self) -> int | None:
+        """The capacity of the venue, if available."""
+        self._full_load()
+        return self._data.capacity or (self._data.stadium.capacity if self._data.stadium else None)
+
+    @cached_property
+    def country(self) -> Country | None:
+        """The country where the venue is located, if available."""
+        self._full_load()
+        from .core import Country
+        return Country(self._data.country, self._provider) if self._data.country else None
+
+    @cached_property
+    def teams(self) -> EntityCollection[Competitor]:
+        """The main teams associated with the venue."""
+        self._full_load()
+        from .competitor import Competitor
+        return EntityCollection([
+            Competitor(t, self._provider)
+            for t in self._data.main_teams
+        ])
+
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
+        """Fetch all fixtures for this venue."""
+        return self._fetch_paginated_events(self._provider.get_venue_fixtures, self._data.id)
+
+    def get_results(self, silent: bool = False) -> EventCollection:
+        """Fetch all results for this venue."""
+        return self._fetch_paginated_events(self._provider.get_venue_results, self._data.id)
+
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _VenueData:
+        """Fetch the venue data from the provider by its raw ID."""
         try:
-            if type_idx == 1:
-                return cls._fetch_raw_venue(raw_id, provider)
-            if type_idx == 2:
-                return cls._fetch_raw_stage(raw_id, provider)
-            raise TypeError(f"Invalid venue ID {venue_id}: unknown type index {type_idx}")
-
-        except ProviderNotFoundError:
-            logger.debug(f"Venue with ID {venue_id} not found during fetch")
-            if strict:
-                raise EntityNotFoundError(f"Venue with ID {venue_id} not found during fetch") from None
-
+            return provider.get_venue(raw_id)
+        except ProviderNotFoundError as e:
+            logger.debug(f"Venue with ID {raw_id} not found: {e}")
+            raise EntityNotFoundError(f"Venue with ID {raw_id} not found") from e
         except FetchError as e:
-            logger.debug(f"Network error while fetching venue with ID {venue_id}: {e}")
-            if strict:
-                raise DomainError(f"Network error while fetching venue with ID {venue_id}") from e
+            logger.error(f"Network error while fetching venue with ID {raw_id}: {e}")
+            raise DomainError(f"Network error while fetching venue with ID {raw_id}") from e
 
+
+class _StageVenue(Venue):
+    _PREFIX: str = "stgv"
+
+    @property
+    def name(self) -> str:
+        """The name of the venue."""
+        return self._data.info.circuit if self._data.info else ""
+
+    @property
+    def city(self) -> str | None:
+        """The city where the venue is located, if available."""
+        return self._data.info.circuit_city if self._data.info else None
+
+    @property
+    def capacity(self) -> int | None:
+        """The capacity of the venue, if available."""
         return None
 
-    @staticmethod
-    def _fetch_raw_venue(venue_id: int, provider: SofascoreProvider) -> _VenueData:
-        """Fetch _VenueData by its ID."""
-        return provider.get_venue(venue_id)
+    @cached_property
+    def country(self) -> Country | None:
+        """The country where the venue is located, if available."""
+        from .core import Country
+        return Country.from_name(self._data.info.circuit_country, self._provider) if self._data.info and self._data.info.circuit_country else None
+
+    @cached_property
+    def teams(self) -> EntityCollection[Competitor]:
+        """The main teams associated with the venue."""
+        logger.warning("Teams for stages are not available in the current provider implementation, returning empty collection")
+        return EntityCollection()
+
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
+        """Fetch all fixtures for this venue."""
+        if not silent:
+            logger.warning("Fixtures for stages are not available in the current provider implementation, returning empty collection")
+        return EventCollection()
+
+    def get_results(self, silent: bool = False) -> EventCollection:
+        """Fetch all results for this venue."""
+        if not silent:
+            logger.warning("Results for stages are not available in the current provider implementation, returning empty collection")
+        return EventCollection()
 
     @staticmethod
-    def _fetch_raw_stage(stage_id: int, provider: SofascoreProvider) -> _StageData:
-        """Fetch _StageData by its ID."""
-        return provider.get_stage(stage_id)
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _StageData:
+        """Fetch the stage data from the provider by its raw ID."""
+        try:
+            return provider.get_stage(raw_id)
+        except ProviderNotFoundError as e:
+            logger.debug(f"Stage with ID {raw_id} not found: {e}")
+            raise EntityNotFoundError(f"Stage with ID {raw_id} not found") from e
+        except FetchError as e:
+            logger.error(f"Network error while fetching stage with ID {raw_id}: {e}")
+            raise DomainError(f"Network error while fetching stage with ID {raw_id}") from e

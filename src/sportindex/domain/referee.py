@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from functools import cached_property
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
@@ -16,7 +16,6 @@ from sportindex.exceptions import (
 
 from .base import SearchableMixin
 from .event import EventAwareMixin
-from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
     from sportindex.api_client import SofascoreProvider
@@ -43,7 +42,7 @@ class Referee(SearchableMixin, EventAwareMixin):
     detailed API responses.
 
     Attributes:
-        id (int): Unique identifier of the referee.
+        id (str): Unique identifier of the referee.
         name (str): Full name of the referee.
         slug (str): URL-friendly slug of the referee.
         sport (Sport): Sport associated with the referee.
@@ -62,6 +61,7 @@ class Referee(SearchableMixin, EventAwareMixin):
             Search for referees matching a query string (up to 20 results).
     """
     _data: _RefereeData
+    _PREFIX = "ref"
     _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
     def __init__(self, data: _RefereeData, provider: SofascoreProvider, **kwargs) -> None:
@@ -73,9 +73,9 @@ class Referee(SearchableMixin, EventAwareMixin):
         self._full_loaded = False
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the referee."""
-        return self._data.id
+        return self.encode_id(self._data.id)
 
     @property
     def name(self) -> str:
@@ -126,33 +126,17 @@ class Referee(SearchableMixin, EventAwareMixin):
         """Fetch all results for this referee."""
         return self._fetch_paginated_events(self._provider.get_referee_results, self._data.id)
 
-    def _full_load(self) -> None:
-        """
-        Lazy-loads the complete referee from the provider.
-        Called automatically when accessing properties that require full details
-        missing from the initial lightweight API response.
-        """
-        if self._full_loaded:
-            return
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _RefereeData:
+        """Fetch the referee data from the provider by its raw ID."""
         try:
-            self._data = merge_pydantic_models(self._data, self._provider.get_referee(self._data.id))
-        except ProviderNotFoundError:
-            logger.debug(f"Referee with id {self._data.id} not found during full load")
-        except FetchError as e:
-            logger.debug(f"Network error while fully loading referee with id {self._data.id}: {e}")
-        self._full_loaded = True
-        self._clear_cache()
-
-    @classmethod
-    def from_id(cls, referee_id: int, provider: SofascoreProvider) -> Self:
-        """Fetch a referee by its ID."""
-        try:
-            parsed_data = provider.get_referee(referee_id)
-            return cls(parsed_data, provider)
+            return provider.get_referee(raw_id)
         except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Referee with id {referee_id} not found") from e
+            logger.debug(f"Referee with id {raw_id} not found: {e}")
+            raise EntityNotFoundError(f"Referee with id {raw_id} not found") from e
         except FetchError as e:
-            raise DomainError(f"Network error while fetching referee {referee_id}") from e
+            logger.error(f"Network error while fetching referee with id {raw_id}: {e}")
+            raise DomainError(f"Network error while fetching referee with id {raw_id}") from e
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Referee]:

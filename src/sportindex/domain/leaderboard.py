@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from sportindex.api_client.models import (
     Promotion,
+    _RacingStandingsData,
     _RacingStandingsEntryData,
     _RankingEntryData,
     _RankingsResponse,
@@ -18,11 +19,6 @@ from sportindex.api_client.models import (
 from .base import BaseEntity
 from .competition import Competition
 from .competitor import Competitor
-from sportindex.provider.models import (
-    _TeamStandingsData, _RacingStandingsData,
-    _RankingsResponse, _TeamStandingsEntryData,
-    _RankingEntryData, Promotion, _RacingStandingsEntryData
-)
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -58,7 +54,7 @@ class Standings(BaseEntity):
     def __init__(self, data: _TeamStandingsData | _RacingStandingsData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
 
-        if not (isinstance(data, _TeamStandingsData) or isinstance(data, _RacingStandingsData)):
+        if not (isinstance(data, (_TeamStandingsData, _RacingStandingsData))):
             raise TypeError(f"Standings data must be either _TeamStandingsData or _RacingStandingsData, got {type(data)}")
 
     @property
@@ -80,8 +76,7 @@ class Standings(BaseEntity):
         """The date and time when the standings were last updated."""
         if isinstance(self._data, _TeamStandingsData):
             return self._data.updated_at
-        else:
-            return self._data.standings[0].updated_at if self._data else None
+        return self._data.standings[0].updated_at if self._data else None
 
     @cached_property
     def sport(self) -> Sport | None:

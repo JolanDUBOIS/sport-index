@@ -9,6 +9,8 @@ from pydantic_core import core_schema
 
 from sportindex.exceptions import ProviderNotFoundError
 
+from .utils import merge_pydantic_models
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -45,6 +47,17 @@ class BaseEntity(ABC):
                 if isinstance(attr_value, cached_property):
                     self.__dict__.pop(attr_name, None)
 
+    @property
+    def _public_class_name(self) -> str:
+        for cls in self.__class__.__mro__:
+            if not cls.__name__.startswith("_"):
+                return cls.__name__
+        return self.__class__.__name__
+
+    def __str__(self) -> str:
+        field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')}" for k in self._REPR_FIELDS)
+        return f"<{self._public_class_name} {field_str}>"
+
     def __repr__(self):
         field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')!r}" for k in self._REPR_FIELDS)
         return f"<{self.__class__.__name__} {field_str}>"
@@ -70,33 +83,90 @@ class BaseEntity(ABC):
 
 class IdentifiableEntity(BaseEntity):
     """Base class for entities that have a unique identifier."""
-    _N_TYPES: int = 1
+    _PREFIX: str
+
+    def __init__(self, data: BaseSchema, provider: SofascoreProvider, **kwargs) -> None:
+        super().__init__(data, provider, **kwargs)
+        self._full_loaded = False
 
     @property
     @abstractmethod
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the entity, encoded as a globally unique SDK ID."""
         raise NotImplementedError("Subclasses of IdentifiableEntity must implement the id property")
 
     @classmethod
-    def encode_id(cls, raw_id: int, type_idx: int) -> int:
-        """Encodes the raw provider ID and type index into a single unique SDK ID."""
-        if type_idx > cls._N_TYPES or type_idx < 1:
-            raise ValueError(f"type_idx {type_idx} exceeds maximum _N_TYPES ({cls._N_TYPES}) for {cls.__name__}")
-        return (raw_id * cls._N_TYPES) + (type_idx - 1)
+    def encode_id(cls, raw_id: int, parent_id: str | None = None) -> str:
+        """Encodes the raw provider ID into a single unique SDK ID."""
+        base_id = f"{cls._PREFIX}:{raw_id}"
+        return f"{parent_id}:{base_id}" if parent_id else base_id
 
     @classmethod
-    def decode_id(cls, sdk_id: int) -> tuple[int, int]:
-        """Decodes the combined SDK ID into (raw_id, type_idx)."""
-        raw_id = sdk_id // cls._N_TYPES
-        type_idx = (sdk_id % cls._N_TYPES) + 1
-        return raw_id, type_idx
+    def decode_id(cls, sdk_id: str) -> tuple[str | None, str, int]:
+        """Decodes the combined SDK ID into (parent_id, prefix, raw_id)."""
+        split = tuple(sdk_id.split(":"))
+        if len(split) == 2:
+            return None, split[0], int(split[1])
+        if len(split) == 3:
+            return split[0], split[1], int(split[2])
+        raise ValueError(f"Invalid SDK ID format: {sdk_id}")
 
     @classmethod
+    def _get_all_subclasses(cls, base_cls: type[Any]) -> set[type[Any]]:
+        subclasses = set()
+        for sub in base_cls.__subclasses__():
+            subclasses.add(sub)
+            subclasses.update(cls._get_all_subclasses(sub))
+        return subclasses
+
+    @classmethod
+    def _process_parent_id(cls, parent_id: str | None) -> dict[str, Any]:
+        return {}
+
+    @classmethod
+    def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Self:
+        parent_id, prefix, raw_id = cls.decode_id(entity_id)
+        logger.debug(f"Decoded ID '{entity_id}' into parent_id='{parent_id}', prefix='{prefix}', raw_id={raw_id}")
+        target_class = None
+
+        if getattr(cls, "_PREFIX", None) == prefix:
+            target_class = cls
+        else:
+            for sub in cls._get_all_subclasses(cls):
+                if getattr(sub, "_PREFIX", None) == prefix:
+                    target_class = sub
+                    break
+
+        if target_class is None:
+            for sub in cls._get_all_subclasses(IdentifiableEntity):
+                if getattr(sub, "_PREFIX", None) == prefix:
+                    raise ValueError(
+                        f"Prefix '{prefix}' matches {sub.__name__}, "
+                        f"which is not a subclass of {cls.__name__}."
+                    )
+                raise ValueError(f"No subclass found globally with prefix '{prefix}'.")
+
+        extra_kwargs = target_class._process_parent_id(parent_id)
+        data = target_class._fetch_entity(raw_id, provider, **extra_kwargs)
+        return target_class(data, provider)
+
+    def _full_load(self) -> None:
+        """
+        Lazy-loads the complete entity from the provider.
+        Called automatically when accessing properties that require full details
+        missing from the initial lightweight API response.
+        """
+        if self._full_loaded:
+            return
+        self._data = merge_pydantic_models(self._data, self._fetch_entity(self.decode_id(self.id)[2], self._provider))
+        self._full_loaded = True
+        self._clear_cache()
+
+    @staticmethod
     @abstractmethod
-    def from_id(cls, entity_id: int, provider: SofascoreProvider) -> Self:
-        """Create an instance of the entity from its unique ID."""
-        raise NotImplementedError("Subclasses of IdentifiableEntity must implement the from_id class method")
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> BaseSchema: # TODO - It actually returns the specific BaseSchema of _data...
+        """Fetch the complete entity data from the provider by its raw ID."""
+        raise NotImplementedError("Subclasses of IdentifiableEntity must implement the _fetch_entity static method")
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, type(self)):
@@ -138,6 +208,7 @@ class SearchableMixin(IdentifiableEntity):
 
             if not matches:
                 break
+
 
             for item in matches:
                 if valid_types is None or isinstance(item.entity, valid_types):

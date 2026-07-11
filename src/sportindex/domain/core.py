@@ -52,6 +52,7 @@ class Sport(IdentifiableEntity, Generic[E]):
         from_id(sport_id, provider) -> Sport: Create a Sport instance from its unique ID.
     """
     _data: _SportData
+    _PREFIX = "spt"
     _REPR_FIELDS = ("id", "name", "slug")
 
     def __init__(self, data: _SportData, provider: SofascoreProvider, **kwargs) -> None:
@@ -61,9 +62,9 @@ class Sport(IdentifiableEntity, Generic[E]):
             raise TypeError(f"Sport data must be of type _SportData, got {type(data)}")
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the sport."""
-        return self._data.id
+        return self.encode_id(self._data.id)
 
     @property
     def name(self) -> str:
@@ -74,15 +75,6 @@ class Sport(IdentifiableEntity, Generic[E]):
     def slug(self) -> str:
         """The slug of the sport (used in URLs)."""
         return self._data.slug or self._data.name.lower().replace(" ", "-")
-
-    @cached_property
-    def nature(self) -> SportContestNature:
-        """Determine the nature of the sport (opposition or comparison)."""
-        from .static import SPORTS_REGISTRY
-        for entry in SPORTS_REGISTRY:
-            if entry.id == self.id:
-                return entry.nature
-        raise RuntimeError(f"Unexpected sport slug '{self.slug}' not found in SPORT_FORMATS mapping")
 
     @cached_property
     def categories(self) -> EntityCollection[Category[E]]:
@@ -117,22 +109,21 @@ class Sport(IdentifiableEntity, Generic[E]):
         ])
 
     @classmethod
-    def from_id(cls, sport_id: int, provider: SofascoreProvider) -> Self:
+    def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Self:
         """Create a Sport instance from its unique ID."""
-        if not isinstance(sport_id, int):
-            raise TypeError(f"Sport ID must be an integer, got {type(sport_id)}")
-
         try:
-            sport = cls.all(provider).get(id=sport_id)
+            sport = cls.all(provider).get(id=entity_id)
             if not sport:
-                raise EntityNotFoundError(f"Sport with ID {sport_id} not found")
+                raise EntityNotFoundError(f"Sport with ID {entity_id} not found")
             return sport
         except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Sport with ID {sport_id} not found") from e
+            raise EntityNotFoundError(f"Sport with ID {entity_id} not found") from e
         except FetchError as e:
-            raise DomainError(f"Error fetching sport with ID {sport_id}") from e
+            raise DomainError(f"Error fetching sport with ID {entity_id}") from e
 
-    # NOTE - Look for a way to get fixtures for a sport if possible (without any category or competition context)...
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _SportData:
+        raise NotImplementedError("Sport entities are not fetched by ID and are instead instantiated from static data.")
 
 
 class Country(IdentifiableEntity):
@@ -157,6 +148,7 @@ class Country(IdentifiableEntity):
         ValueError: If the country cannot be found in the pycountry database.
     """
     _data: _CountryData
+    _PREFIX = "ctr"
     _REPR_FIELDS = ("id", "name", "slug", "alpha2", "alpha3")
 
     def __init__(self, data: _CountryData, provider: SofascoreProvider, **kwargs) -> None:
@@ -183,9 +175,9 @@ class Country(IdentifiableEntity):
             raise ValueError(f"Country '{self.name}' (slug: {self.slug}) not found in pycountry database")
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The ISO 3166-1 numeric code of the country."""
-        return int(self._pycountry_obj.numeric)
+        return self.encode_id(self._pycountry_obj.numeric)
 
     @property
     def name(self) -> str:
@@ -214,18 +206,16 @@ class Country(IdentifiableEntity):
         ])
 
     @classmethod
-    def from_id(cls, country_id: int, provider: SofascoreProvider) -> Country:
+    def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Country:
         """Fetch a Country by its domain ID."""
-        if not isinstance(country_id, int):
-            raise TypeError(f"Country ID must be an integer, got {type(country_id)}")
-
         try:
-            pycountry_obj = pycountry.countries.get(numeric=str(country_id).zfill(3))
+            _, _, raw_id = cls.decode_id(entity_id)
+            pycountry_obj = pycountry.countries.get(numeric=str(raw_id).zfill(3))
             if not pycountry_obj:
-                raise EntityNotFoundError(f"Country with ID '{country_id}' not found in pycountry database")
+                raise EntityNotFoundError(f"Country with ID '{entity_id}' not found in pycountry database")
             return cls._from_pycountry(pycountry_obj, provider)
         except LookupError as e:
-            raise EntityNotFoundError(f"Country with ID '{country_id}' not found in pycountry database") from e
+            raise EntityNotFoundError(f"Country with ID '{entity_id}' not found in pycountry database") from e
 
     @classmethod
     def from_alpha(cls, alpha: str, provider: SofascoreProvider) -> Country:
@@ -256,6 +246,10 @@ class Country(IdentifiableEntity):
             pycountry_obj=pycountry_obj
         )
 
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _SportData:
+        raise NotImplementedError("Country entities are not fetched by ID and are instead instantiated from pycountry data.")
+
 
 class Category(IdentifiableEntity, Generic[E]):
     """A category within a sport (e.g., 'France Amateur', 'Formula 1', 'International').
@@ -276,6 +270,7 @@ class Category(IdentifiableEntity, Generic[E]):
         from_id(category_id, provider) -> Category: Create a Category instance from its ID (expensive).
     """
     _data: _CategoryData
+    _PREFIX = "cat"
     _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
     _all_cache: dict[int, EntityCollection[Category]] = {}
 
@@ -286,9 +281,9 @@ class Category(IdentifiableEntity, Generic[E]):
             raise TypeError(f"Category data must be of type _CategoryData, got {type(data)}")
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the category."""
-        return self._data.id
+        return self.encode_id(self._data.id)
 
     @property
     def name(self) -> str:
@@ -357,20 +352,21 @@ class Category(IdentifiableEntity, Generic[E]):
         return cls._all_cache[provider_key]
 
     @classmethod
-    def from_id(cls, category_id: int, provider: SofascoreProvider) -> Self:
+    def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Self:
         """
         Create a Category instance from its ID.
         Warning: This requires N API calls (one per sport) on the first call to build the cache.
         """
-        if not isinstance(category_id, int):
-            raise TypeError(f"Category ID must be an integer, got {type(category_id)}")
-
         try:
-            category = cls.all(provider).get(id=category_id)
+            category = cls.all(provider).get(id=entity_id)
             if not category:
-                raise EntityNotFoundError(f"Category with ID {category_id} not found")
+                raise EntityNotFoundError(f"Category with ID {entity_id} not found")
             return category
         except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Category with ID {category_id} not found") from e
+            raise EntityNotFoundError(f"Category with ID {entity_id} not found") from e
         except FetchError as e:
-            raise DomainError(f"Error fetching category with ID {category_id}") from e
+            raise DomainError(f"Error fetching category with ID {entity_id}") from e
+
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _CategoryData:
+        raise NotImplementedError("Category entities are not fetched by ID and are instead instantiated from related sport data.")

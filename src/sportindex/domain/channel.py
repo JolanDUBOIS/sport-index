@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING
 
 from sportindex.api_client.models import _ChannelData
 from sportindex.exceptions import (
@@ -28,7 +28,7 @@ class Channel(IdentifiableEntity, EventAwareMixin):
     Provides access to the channel's name, ID, and scheduled events.
 
     Attributes:
-        id (int): Unique channel ID.
+        id (str): Unique channel ID.
         name (str): Channel name.
         events (EventCollection): Scheduled events broadcast on this channel.
 
@@ -38,6 +38,7 @@ class Channel(IdentifiableEntity, EventAwareMixin):
         DomainError: If a network or provider error occurs during fetch.
     """
     _data: _ChannelData
+    _PREFIX = "chl"
     _REPR_FIELDS = ("id", "name")
 
     def __init__(self, data: _ChannelData, provider: SofascoreProvider, **kwargs) -> None:
@@ -47,9 +48,9 @@ class Channel(IdentifiableEntity, EventAwareMixin):
             raise TypeError(f"Channel data must be of type _ChannelData, got {type(data)}")
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the channel."""
-        return self._data.id
+        return self.encode_id(self._data.id)
 
     @property
     def name(self) -> str:
@@ -59,7 +60,7 @@ class Channel(IdentifiableEntity, EventAwareMixin):
     def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all scheduled events for this channel."""
         from .event import Event, EventCollection
-        parsed_channel_events = self._provider.get_channel_schedule(self.id)
+        parsed_channel_events = self._provider.get_channel_schedule(self._data.id)
         return EventCollection([
             Event(e, self._provider) for e in parsed_channel_events.events
         ] + [
@@ -73,15 +74,15 @@ class Channel(IdentifiableEntity, EventAwareMixin):
             logger.warning("get_results for Channel is not supported, returning empty list")
         return EventCollection()
 
-    @classmethod
-    def from_id(cls, channel_id: int, provider: SofascoreProvider) -> Self:
-        """Fetch a channel by its ID."""
-        if not isinstance(channel_id, int):
-            raise TypeError(f"Channel ID must be an integer, got {type(channel_id)}")
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _ChannelData:
+        """Fetch the channel data from the provider by its raw ID."""
         try:
-            parsed_channel_events = provider.get_channel_schedule(channel_id)
-            return cls(parsed_channel_events.channel, provider)
+            parsed_channel_events = provider.get_channel_schedule(raw_id)
+            return parsed_channel_events.channel
         except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Channel with id {channel_id} not found") from e
+            logger.debug(f"Channel with id {raw_id} not found: {e}")
+            raise EntityNotFoundError(f"Channel with id {raw_id} not found") from e
         except FetchError as e:
-            raise DomainError(f"Network error while fetching channel {channel_id}") from e
+            logger.error(f"Network error while fetching channel with id {raw_id}: {e}")
+            raise DomainError(f"Network error while fetching channel with id {raw_id}") from e
