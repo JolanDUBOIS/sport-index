@@ -59,7 +59,8 @@ class SportClient:
 
     Usage:
         >>> client = SportClient()
-        >>> sport = client.get(Sport, entity_id="spt:1")
+        >>> sport = client.get(Sport, "spt:1")
+        >>> sport = client.get("spt:1")  # entity_cls is optional: resolved from the ID's prefix
         >>> events = client.list(Event, season_id="trnc:123:trns:456")
         >>> referee = client.search(Referee, query="John Doe")
 
@@ -159,14 +160,26 @@ class SportClient:
     @overload
     def get(self, entity_cls: type[E], entity_id: str, strict: Literal[False] = False) -> E | None: ...
 
-    def get(self, entity_cls: type[E], entity_id: str, strict: bool = False) -> E | None:
-        """Fetch an identifiable entity by its class and ID.
+    @overload
+    def get(self, entity_id: str, *, strict: Literal[True]) -> IdentifiableEntity: ...
+
+    @overload
+    def get(self, entity_id: str, *, strict: Literal[False] = False) -> IdentifiableEntity | None: ...
+
+    def get(
+        self,
+        entity_cls: type[E] | str | None = None,
+        entity_id: str | None = None,
+        strict: bool = False,
+    ) -> E | IdentifiableEntity | None:
+        """Fetch an identifiable entity by its ID, optionally with its class.
 
         Supported classes include: Sport, Competition, Event (including its subclasses),
             Competitor (including its subclasses), Manager, Referee, Venue.
 
         Args:
-            entity_cls (type[IdentifiableEntity]): The class of the entity to fetch.
+            entity_cls (type[IdentifiableEntity] | None): The class of the entity to fetch.
+                Optional — if omitted, the class is resolved from the ID's own prefix.
             entity_id (str): The unique identifier of the entity.
             strict (bool): If True, raises EntityNotFoundError if the entity is not found. If False, returns None.
 
@@ -174,18 +187,25 @@ class SportClient:
             Optional[IdentifiableEntity]: The requested entity, or None if not found.
 
         Raises:
-            TypeError: If the entity_cls is not supported.
+            TypeError: If the entity_cls is not supported, or entity_id is missing.
+            ValueError: If the entity's class can't be resolved from entity_id's prefix.
             EntityNotFoundError: If strict=True and the entity is not found.
         """
-        if not issubclass(entity_cls, IdentifiableEntity):
-            raise TypeError(f"{entity_cls.__name__} is not an identifiable entity class.")
+        if entity_id is None:
+            if not isinstance(entity_cls, str):
+                raise TypeError("entity_id is required.")
+            entity_cls, entity_id = None, entity_cls
 
-        if cached := self._get_cached(entity_cls, entity_id):
+        resolved_cls = entity_cls or IdentifiableEntity.resolve_class(entity_id)
+        if not issubclass(resolved_cls, IdentifiableEntity):
+            raise TypeError(f"{resolved_cls.__name__} is not an identifiable entity class.")
+
+        if cached := self._get_cached(resolved_cls, entity_id):
             return cached
 
         try:
-            entity = entity_cls.from_id(entity_id, self._provider)
-            return self._set_cached(entity_cls, entity)
+            entity = resolved_cls.from_id(entity_id, self._provider)
+            return self._set_cached(resolved_cls, entity)
         except EntityNotFoundError:
             if strict:
                 raise

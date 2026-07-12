@@ -131,27 +131,33 @@ class IdentifiableEntity(BaseEntity):
         return {}
 
     @classmethod
-    def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Self:
-        parent_id, prefix, raw_id = cls.decode_id(entity_id)
-        logger.debug(f"Decoded ID '{entity_id}' into parent_id='{parent_id}', prefix='{prefix}', raw_id={raw_id}")
-        target_class = None
+    def resolve_class(cls, entity_id: str) -> type[Self]:
+        """Resolve the concrete IdentifiableEntity subclass whose prefix matches `entity_id`.
+
+        Looks first among `cls`'s own subclasses, then falls back to a global search
+        (across every IdentifiableEntity) purely to raise a more helpful error.
+        """
+        _, prefix, _ = cls.decode_id(entity_id)
 
         if getattr(cls, "_PREFIX", None) == prefix:
-            target_class = cls
-        else:
-            for sub in cls._get_all_subclasses(cls):
-                if getattr(sub, "_PREFIX", None) == prefix:
-                    target_class = sub
-                    break
+            return cls
+        for sub in cls._get_all_subclasses(cls):
+            if getattr(sub, "_PREFIX", None) == prefix:
+                return sub
 
-        if target_class is None:
-            for sub in cls._get_all_subclasses(IdentifiableEntity):
-                if getattr(sub, "_PREFIX", None) == prefix:
-                    raise ValueError(
-                        f"Prefix '{prefix}' matches {sub.__name__}, "
-                        f"which is not a subclass of {cls.__name__}."
-                    )
-            raise ValueError(f"No subclass found globally with prefix '{prefix}'.")
+        for sub in cls._get_all_subclasses(IdentifiableEntity):
+            if getattr(sub, "_PREFIX", None) == prefix:
+                raise ValueError(
+                    f"Prefix '{prefix}' matches {sub.__name__}, "
+                    f"which is not a subclass of {cls.__name__}."
+                )
+        raise ValueError(f"No subclass found globally with prefix '{prefix}'.")
+
+    @classmethod
+    def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Self:
+        parent_id, _, raw_id = cls.decode_id(entity_id)
+        target_class = cls.resolve_class(entity_id)
+        logger.debug(f"Decoded ID '{entity_id}' into parent_id='{parent_id}', target_class='{target_class.__name__}', raw_id={raw_id}")
 
         extra_kwargs = target_class._process_parent_id(parent_id, provider)
         data = target_class._fetch_entity(raw_id, provider, **extra_kwargs)
