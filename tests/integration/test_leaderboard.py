@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 def test_standings(client: SportClient, provider: SofascoreProvider):
     """Test that the Standings entity behaves correctly."""
-    ucl = client.get(sportindex.Competition, "trnc:7")
+    ucl = client.get("trnc:7", sportindex.Competition)
 
     ucl_season = ucl.seasons[0] # Get the current season for testing
     standings = ucl_season.standings
@@ -25,7 +25,7 @@ def test_standings(client: SportClient, provider: SofascoreProvider):
 
 def test_rankings(client: SportClient, provider: SofascoreProvider):
     """Test that the Rankings entity behaves correctly."""
-    mma = client.get(sportindex.Sport, "spt:76")
+    mma = client.get("spt:76", sportindex.Sport)
     mma_rankings = mma.get_rankings()
     assert all(isinstance(r, sportindex.Rankings) for r in mma_rankings)
     assert len(mma_rankings) > 0

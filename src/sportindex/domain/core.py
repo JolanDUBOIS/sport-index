@@ -124,6 +124,10 @@ class Sport(IdentifiableEntity, Generic[E]):
     def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _SportData:
         raise NotImplementedError("Sport entities are not fetched by ID and are instead instantiated from static data.")
 
+    def _full_load(self) -> None:
+        """Sport entities are always fully loaded at construction time; nothing more to fetch."""
+        self._full_loaded = True
+
 
 class Country(IdentifiableEntity):
     """A country (e.g., France, England, Spain).
@@ -249,6 +253,10 @@ class Country(IdentifiableEntity):
     def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _SportData:
         raise NotImplementedError("Country entities are not fetched by ID and are instead instantiated from pycountry data.")
 
+    def _full_load(self) -> None:
+        """Country entities are always fully loaded at construction time; nothing more to fetch."""
+        self._full_loaded = True
+
 
 class Category(IdentifiableEntity, Generic[E]):
     """A category within a sport (e.g., 'France Amateur', 'Formula 1', 'International').
@@ -364,3 +372,7 @@ class Category(IdentifiableEntity, Generic[E]):
     @staticmethod
     def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _CategoryData:
         raise NotImplementedError("Category entities are not fetched by ID and are instead instantiated from related sport data.")
+
+    def _full_load(self) -> None:
+        """Category entities are always fully loaded at construction time; nothing more to fetch."""
+        self._full_loaded = True

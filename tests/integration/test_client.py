@@ -8,133 +8,133 @@ from sportindex.exceptions import EntityNotFoundError
 def test_client_cache(client: SportClient):
     """Test that the client handles caching correctly."""
     # Get an entity to populate the cache
-    football = client.get(sportindex.Sport, "spt:1")
+    football = client.get("spt:1", sportindex.Sport)
     assert football.id == "spt:1"
     assert football.name == "Football"
 
     # Get the same entity again and ensure it comes from the cache
-    football_cached = client.get(sportindex.Sport, "spt:1")
+    football_cached = client.get("spt:1", sportindex.Sport)
     assert football_cached is football
 
 
 def test_client_get(client: SportClient):
     """Test that the client can get identifiable entities from the API."""
     # Sport
-    football = client.get(sportindex.Sport, "spt:1")
+    football = client.get("spt:1", sportindex.Sport)
     assert football.id == "spt:1"
     assert football.name == "Football"
 
     # Country
-    france = client.get(sportindex.Country, "ctr:250")
+    france = client.get("ctr:250", sportindex.Country)
     assert france.id == "ctr:250"
     assert france.name == "France"
 
     # Category
-    england_football_cat = client.get(sportindex.Category, "cat:1")
+    england_football_cat = client.get("cat:1", sportindex.Category)
     assert england_football_cat.id == "cat:1"
     assert england_football_cat.name == "England"
 
-    challenger_tennis_cat = client.get(sportindex.Category, "cat:72")
+    challenger_tennis_cat = client.get("cat:72", sportindex.Category)
     assert challenger_tennis_cat.id == "cat:72"
     assert challenger_tennis_cat.name == "Challenger"
 
     # Channel
-    canal_plus = client.get(sportindex.Channel, "chl:287")
+    canal_plus = client.get("chl:287", sportindex.Channel)
     assert canal_plus.id == "chl:287"
     assert "Canal+" in canal_plus.name
 
-    bein_sport = client.get(sportindex.Channel, "chl:42")
+    bein_sport = client.get("chl:42", sportindex.Channel)
     assert bein_sport.id == "chl:42"
     assert "beIN" in bein_sport.name
 
     # Competition
-    ucl = client.get(sportindex.Competition, "trnc:7")
+    ucl = client.get("trnc:7", sportindex.Competition)
     assert ucl.id == "trnc:7"
     assert ucl.name == "UEFA Champions League"
 
-    f1 = client.get(sportindex.Competition, "stgc:40")
+    f1 = client.get("stgc:40", sportindex.Competition)
     assert f1.id == "stgc:40"
     assert f1.name == "Formula 1"
 
     # Season
-    ucl_2425 = client.get(sportindex.Season, "trnc:7:trns:61644")
+    ucl_2425 = client.get("trnc:7:trns:61644", sportindex.Season)
     assert ucl_2425.id == "trnc:7:trns:61644"
     assert ucl_2425.name == "UEFA Champions League 24/25"
 
-    f1_2026 = client.get(sportindex.Season, "stgc:40:stgs:214140")
+    f1_2026 = client.get("stgc:40:stgs:214140", sportindex.Season)
     assert f1_2026.id == "stgc:40:stgs:214140"
     assert f1_2026.name == "Formula 1 2026"
 
     # Event
-    psg_chelsea = client.get(sportindex.Event, "mch:15631341")
+    psg_chelsea = client.get("mch:15631341", sportindex.Event)
     assert psg_chelsea.id == "mch:15631341"
     assert psg_chelsea.name == "Paris Saint Germain Chelsea"
     assert isinstance(psg_chelsea, sportindex.MatchEvent)
 
-    psg_chelsea = client.get(sportindex.MatchEvent, "mch:15631341")
+    psg_chelsea = client.get("mch:15631341", sportindex.MatchEvent)
     assert psg_chelsea.id == "mch:15631341"
     assert psg_chelsea.name == "Paris Saint Germain Chelsea"
     assert isinstance(psg_chelsea, sportindex.MatchEvent)
 
-    japan_gp = client.get(sportindex.Event, "stg:214155")
+    japan_gp = client.get("stg:214155", sportindex.Event)
     assert japan_gp.id == "stg:214155"
     assert japan_gp.name == "Japan GP"
     assert isinstance(japan_gp, sportindex.StageEvent)
 
-    japan_gp = client.get(sportindex.StageEvent, "stg:214155")
+    japan_gp = client.get("stg:214155", sportindex.StageEvent)
     assert japan_gp.id == "stg:214155"
     assert japan_gp.name == "Japan GP"
     assert isinstance(japan_gp, sportindex.StageEvent)
 
     # Competitor
-    psg = client.get(sportindex.Competitor, "team:1644")
+    psg = client.get("team:1644", sportindex.Competitor)
     assert psg.id == "team:1644"
     assert psg.name == "Paris Saint-Germain"
     assert isinstance(psg, sportindex.Competitor)
     psg = psg.resolve()
     assert isinstance(psg, sportindex.Team)
 
-    psg = client.get(sportindex.Team, "team:1644")
+    psg = client.get("team:1644", sportindex.Team)
     assert psg.id == "team:1644"
     assert psg.name == "Paris Saint-Germain"
     assert isinstance(psg, sportindex.Team)
 
-    lewis_hamilton = client.get(sportindex.Competitor, "t-ath:7135")
+    lewis_hamilton = client.get("t-ath:7135", sportindex.Competitor)
     assert lewis_hamilton.id == "t-ath:7135"
     assert lewis_hamilton.name == "Lewis Hamilton"
     assert isinstance(lewis_hamilton, sportindex.Competitor)
     lewis_hamilton = lewis_hamilton.resolve()
     assert isinstance(lewis_hamilton, sportindex.Athlete)
 
-    lewis_hamilton = client.get(sportindex.Athlete, "t-ath:7135")
+    lewis_hamilton = client.get("t-ath:7135", sportindex.Athlete)
     assert lewis_hamilton.id == "t-ath:7135"
     assert lewis_hamilton.name == "Lewis Hamilton"
     assert isinstance(lewis_hamilton, sportindex.Athlete)
 
-    ousman_dembele = client.get(sportindex.Competitor, "p-ath:818244")
+    ousman_dembele = client.get("p-ath:818244", sportindex.Competitor)
     assert ousman_dembele.id == "p-ath:818244"
     assert ousman_dembele.name == "Ousmane Dembélé"
     assert isinstance(ousman_dembele, sportindex.Competitor)
     ousman_dembele = ousman_dembele.resolve()
     assert isinstance(ousman_dembele, sportindex.Athlete)
 
-    ousman_dembele = client.get(sportindex.Athlete, "p-ath:818244")
+    ousman_dembele = client.get("p-ath:818244", sportindex.Athlete)
     assert ousman_dembele.id == "p-ath:818244"
     assert ousman_dembele.name == "Ousmane Dembélé"
     assert isinstance(ousman_dembele, sportindex.Athlete)
 
     # Manager
-    luis_enrique = client.get(sportindex.Manager, "mng:129465")
+    luis_enrique = client.get("mng:129465", sportindex.Manager)
     assert luis_enrique.id == "mng:129465"
     assert luis_enrique.name == "Luis Enrique"
 
     # Referee
-    szymon_marciniak = client.get(sportindex.Referee, "ref:72926")
+    szymon_marciniak = client.get("ref:72926", sportindex.Referee)
     assert szymon_marciniak.id == "ref:72926"
     assert szymon_marciniak.name == "Szymon Marciniak"
 
     # Venue
-    parc_des_princes = client.get(sportindex.Venue, "vnu:843")
+    parc_des_princes = client.get("vnu:843", sportindex.Venue)
     assert parc_des_princes.id == "vnu:843"
     assert parc_des_princes.name == "Parc des Princes"
 

@@ -75,11 +75,11 @@ def test_category(client: SportClient, provider: SofascoreProvider):
     assert football_eu.country is None
     assert len(football_eu.competitions) > 0 and any(comp.id == "trnc:7" and comp.name == "UEFA Champions League" for comp in football_eu.competitions)
 
-    f1_cat = client.get(sportindex.Sport, "spt:11").categories.get(id="cat:36")
+    f1_cat = client.get("spt:11", sportindex.Sport).categories.get(id="cat:36")
     assert f1_cat.id == "cat:36"
     assert len(f1_cat.competitions) == 1
 
-    us_basketball_cat = client.get(sportindex.Sport, "spt:2").categories.get(id="cat:15")
+    us_basketball_cat = client.get("spt:2", sportindex.Sport).categories.get(id="cat:15")
     assert us_basketball_cat.id == "cat:15"
     assert len(us_basketball_cat.competitions) > 0
     assert us_basketball_cat.country == Country.from_alpha("USA", provider)
