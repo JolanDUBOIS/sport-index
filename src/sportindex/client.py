@@ -59,7 +59,7 @@ class SportClient:
 
     Usage:
         >>> client = SportClient()
-        >>> sport = client.get(Sport, "spt:1")
+        >>> sport = client.get("spt:1", Sport)
         >>> sport = client.get("spt:1")  # entity_cls is optional: resolved from the ID's prefix
         >>> events = client.list(Event, season_id="trnc:123:trns:456")
         >>> referee = client.search(Referee, query="John Doe")
@@ -155,21 +155,21 @@ class SportClient:
     # --- Unified GET ---
 
     @overload
-    def get(self, entity_cls: type[E], entity_id: str, strict: Literal[True]) -> E: ...
+    def get(self, entity_id: str, entity_cls: type[E], strict: Literal[True]) -> E: ...
 
     @overload
-    def get(self, entity_cls: type[E], entity_id: str, strict: Literal[False] = False) -> E | None: ...
+    def get(self, entity_id: str, entity_cls: type[E], strict: Literal[False] = False) -> E | None: ...
 
     @overload
-    def get(self, entity_id: str, *, strict: Literal[True]) -> IdentifiableEntity: ...
+    def get(self, entity_id: str, entity_cls: None = None, strict: Literal[True] = ...) -> IdentifiableEntity: ...
 
     @overload
-    def get(self, entity_id: str, *, strict: Literal[False] = False) -> IdentifiableEntity | None: ...
+    def get(self, entity_id: str, entity_cls: None = None, strict: Literal[False] = False) -> IdentifiableEntity | None: ...
 
     def get(
         self,
-        entity_cls: type[E] | str | None = None,
-        entity_id: str | None = None,
+        entity_id: str,
+        entity_cls: type[E] | None = None,
         strict: bool = False,
     ) -> E | IdentifiableEntity | None:
         """Fetch an identifiable entity by its ID, optionally with its class.
@@ -178,23 +178,21 @@ class SportClient:
             Competitor (including its subclasses), Manager, Referee, Venue.
 
         Args:
+            entity_id (str): The unique identifier of the entity.
             entity_cls (type[IdentifiableEntity] | None): The class of the entity to fetch.
                 Optional — if omitted, the class is resolved from the ID's own prefix.
-            entity_id (str): The unique identifier of the entity.
             strict (bool): If True, raises EntityNotFoundError if the entity is not found. If False, returns None.
 
         Returns:
             Optional[IdentifiableEntity]: The requested entity, or None if not found.
 
         Raises:
-            TypeError: If the entity_cls is not supported, or entity_id is missing.
+            TypeError: If entity_id is not a str, or entity_cls is not an identifiable entity class.
             ValueError: If the entity's class can't be resolved from entity_id's prefix.
             EntityNotFoundError: If strict=True and the entity is not found.
         """
-        if entity_id is None:
-            if not isinstance(entity_cls, str):
-                raise TypeError("entity_id is required.")
-            entity_cls, entity_id = None, entity_cls
+        if not isinstance(entity_id, str):
+            raise TypeError(f"entity_id must be a str, got {type(entity_id).__name__}.")
 
         resolved_cls = entity_cls or IdentifiableEntity.resolve_class(entity_id)
         if not issubclass(resolved_cls, IdentifiableEntity):
@@ -270,29 +268,29 @@ class SportClient:
         if entity_cls is Category:
             if "sport_id" not in kwargs:
                 return self._hydrate_cache(entity_cls, entity_cls.all(self._provider))
-            sport = self.get(Sport, kwargs["sport_id"], strict=True)
+            sport = self.get(kwargs["sport_id"], Sport, strict=True)
             return self._hydrate_cache(entity_cls, sport.categories)
 
         if entity_cls is Competition:
             if "category_id" not in kwargs:
                 raise EntityNotFoundError("category_id is required to list competitions.")
             if "sport_id" in kwargs:
-                sport = self.get(Sport, kwargs["sport_id"], strict=True)
+                sport = self.get(kwargs["sport_id"], Sport, strict=True)
                 category = sport.categories.get(id=kwargs["category_id"], strict=True)
                 return self._hydrate_cache(entity_cls, category.competitions)
-            category = self.get(Category, kwargs["category_id"], strict=True)
+            category = self.get(kwargs["category_id"], Category, strict=True)
             return self._hydrate_cache(entity_cls, category.competitions)
 
         if entity_cls is Season:
             if "competition_id" not in kwargs:
                 raise EntityNotFoundError("competition_id is required to list seasons.")
-            comp = self.get(Competition, kwargs["competition_id"], strict=True)
+            comp = self.get(kwargs["competition_id"], Competition, strict=True)
             return self._hydrate_cache(entity_cls, comp.seasons)
 
         if entity_cls is Event:
             if "season_id" not in kwargs:
                 raise EntityNotFoundError("season_id is required to list events.")
-            season = self.get(Season, kwargs["season_id"], strict=True)
+            season = self.get(kwargs["season_id"], Season, strict=True)
             return self._hydrate_cache(entity_cls, season.get_events())
 
         # NOTE - We might implement for competitors (teams and players) in the future
