@@ -57,7 +57,6 @@ from .domain import (
     SearchableMixin,
     Season,
     Sport,
-    SportContestNature,
     StageEvent,
     Standings,
     StandingsEntry,
@@ -81,7 +80,6 @@ __all__ = [
     # Base / collections
     "BaseEntity",
     "IdentifiableEntity",
-    "ScoredItem",
     "SearchableMixin",
 
     # Collections
@@ -130,9 +128,6 @@ __all__ = [
     "ManagerTenure",
     "Referee",
     "Cards",
-
-    # Types
-    "SportContestNature",
 
     # Venues
     "Venue",

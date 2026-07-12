@@ -135,6 +135,8 @@ class _TournamentSeason(Season):
     def competition(self) -> _TournamentCompetition:
         """The tournament competition this season belongs to."""
         from .competition import Competition
+        if "competition" in self._kwargs:
+            return self._kwargs["competition"]
         if "uniqueTournament" not in self._kwargs:
             raise InsufficientDataError("Season data requires 'competition' or 'uniqueTournament' to be passed in via kwargs")
         return Competition(self._kwargs["uniqueTournament"], self._provider)
@@ -185,15 +187,15 @@ class _TournamentSeason(Season):
         )
 
     @classmethod
-    def _process_parent_id(cls, parent_id: str) -> dict[str, Any]:
+    def _process_parent_id(cls, parent_id: str, provider: SofascoreProvider) -> dict[str, Any]:
         from .competition import Competition
-        return {"unique_tournament_id": Competition.decode_id(parent_id)[2]}
+        return {"competition": Competition.from_id(parent_id, provider)}
 
     @staticmethod
     def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _SeasonData:
         """Fetch the season data from the provider by its raw ID."""
         try:
-            ut_seasons = provider.get_unique_tournament_seasons(kwargs["unique_tournament_id"])
+            ut_seasons = provider.get_unique_tournament_seasons(kwargs["competition"]._data.id)
             return next((s for s in ut_seasons if s.id == raw_id), None)
         except ProviderNotFoundError as e:
             logger.debug(f"Season with id {raw_id} not found: {e}")

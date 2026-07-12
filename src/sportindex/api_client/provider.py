@@ -37,7 +37,6 @@ from .models import (
     _SeasonData,
     _SeasonRoundsResponse,
     _StageData,
-    _TeamData,
     _TeamResponse,
     _TeamStandingsData,
     _UniqueStageData,
@@ -52,7 +51,7 @@ logger = logging.getLogger(__name__)
 class SofascoreProvider:
     """Provider class for Sofascore API fetching."""
 
-    def __init__(self, fetcher: Fetcher = None, fetch_delay: float = 0.5):
+    def __init__(self, fetcher: Fetcher | None = None, fetch_delay: float = 0.5):
         self.fetcher = fetcher or Fetcher()
         self.fetch_delay = fetch_delay
 
@@ -441,35 +440,35 @@ class SofascoreProvider:
         """Search for all entities by name."""
         return [_SearchResultData.model_validate(sr) for sr in self._search("search-all", query, page)]
 
-    def search_unique_tournaments(self, query: str, page: int = 0) -> list[_SearchResultData[_UniqueTournamentData]]:
+    def search_unique_tournaments(self, query: str, page: int = 0) -> list[_SearchResultData]:
         """Search for unique tournaments by name."""
         return [_SearchResultData.model_validate(sr) for sr in self._search("search-unique-tournaments", query, page)]
 
-    def search_teams(self, query: str, page: int = 0) -> list[_SearchResultData[_TeamData]]:
+    def search_teams(self, query: str, page: int = 0) -> list[_SearchResultData]:
         """Search for teams by name."""
         return [_SearchResultData.model_validate(sr) for sr in self._search("search-teams", query, page)]
 
-    def search_events(self, query: str, page: int = 0) -> list[_SearchResultData[_EventData]]:
+    def search_events(self, query: str, page: int = 0) -> list[_SearchResultData]:
         """Search for events by name."""
         return [_SearchResultData.model_validate(sr) for sr in self._search("search-events", query, page)]
 
-    def search_players(self, query: str, page: int = 0) -> list[_SearchResultData[_PlayerData]]:
+    def search_players(self, query: str, page: int = 0) -> list[_SearchResultData]:
         """Search for players by name."""
         return [_SearchResultData.model_validate(sr) for sr in self._search("search-players", query, page)]
 
-    def search_managers(self, query: str, page: int = 0) -> list[_SearchResultData[_ManagerData]]:
+    def search_managers(self, query: str, page: int = 0) -> list[_SearchResultData]:
         """Search for managers by name."""
         return [_SearchResultData.model_validate(sr) for sr in self._search("search-managers", query, page)]
 
-    def search_referees(self, query: str, page: int = 0) -> list[_SearchResultData[_RefereeData]]:
+    def search_referees(self, query: str, page: int = 0) -> list[_SearchResultData]:
         """Search for referees by name."""
         return [_SearchResultData.model_validate(sr) for sr in self._search("search-referees", query, page)]
 
-    def search_venues(self, query: str, page: int = 0) -> list[_SearchResultData[_VenueData]]:
+    def search_venues(self, query: str, page: int = 0) -> list[_SearchResultData]:
         """Search for venues by name."""
         return [_SearchResultData.model_validate(sr) for sr in self._search("search-venues", query, page)]
 
-    def search_player_team_persons(self, query: str, page: int = 0) -> list[_SearchResultData[_PlayerData | _TeamData]]:
+    def search_player_team_persons(self, query: str, page: int = 0) -> list[_SearchResultData]:
         """Search for players or "individual person" teams by name."""
         return [_SearchResultData.model_validate(sr) for sr in self._search("search-player-team-persons", query, page)]
 

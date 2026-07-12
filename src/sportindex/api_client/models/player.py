@@ -43,7 +43,7 @@ class _PlayerData(BaseSchema):
 
 class PlayerPreviousTeam(BaseSchema):
     player: _PlayerData
-    previous_team: _TeamData
+    previous_team: _TeamData | None = None
     transfer_date: datetime
 
 
@@ -51,7 +51,7 @@ class TeamPlayers(BaseSchema):
     players: list[_PlayerData] = Field(default_factory=list)
     foreign_players: list[_PlayerData] = Field(default_factory=list)
     national_players: list[_PlayerData] = Field(default_factory=list)
-    player_previous_teams: list[PlayerPreviousTeam] = Field(default_factory=list)
+    player_previous_teams: list[PlayerPreviousTeam] = Field(default_factory=list, alias="playerPreviousTeam")
 
     @model_validator(mode='before')
     @classmethod
@@ -62,7 +62,7 @@ class TeamPlayers(BaseSchema):
         if info.context and info.context.get("preprocessed"):
             return data
 
-        list_keys = ["players", "nationalPlayers", "foreignPlayers", "playerPreviousTeams"]
+        list_keys = ["players", "nationalPlayers", "foreignPlayers"]
 
         for key in list_keys:
             if key in data and isinstance(data[key], list):

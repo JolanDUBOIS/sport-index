@@ -88,9 +88,19 @@ class Standings(BaseEntity):
 
     @cached_property
     def entries(self) -> list[StandingsEntry]:
-        """The entries in the standings."""
+        """The entries in the standings.
+
+        Entries that can't be represented (e.g. a DNF racer with no classified
+        position) are skipped rather than failing the whole standings table.
+        """
         entries = self._data.rows if isinstance(self._data, _TeamStandingsData) else self._data.standings
-        return [StandingsEntry._from_base_schema(e, self._provider) for e in entries]
+        result = []
+        for e in entries:
+            try:
+                result.append(StandingsEntry._from_base_schema(e, self._provider))
+            except ValueError as err:
+                logger.debug(f"Skipping standings entry in {self.name}: {err}")
+        return result
 
 
 class StandingsEntry(BaseModel):

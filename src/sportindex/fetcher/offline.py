@@ -33,7 +33,7 @@ class RecordingFetcher(Fetcher):
             raise ValueError(f"Invalid mode '{mode}'. Must be 'record', 'replay', or 'auto'.")
 
     def fetch_url(
-            self, url: str, *, params: dict = None, max_retries: int = 3,
+            self, url: str, *, params: dict | None = None, max_retries: int = 3,
             retry_delay: int = 5, initial_delay: float = 5.0
         ) -> Response:
         filename = self._generate_filename(url, params)

@@ -103,12 +103,19 @@ class IdentifiableEntity(BaseEntity):
 
     @classmethod
     def decode_id(cls, sdk_id: str) -> tuple[str | None, str, int]:
-        """Decodes the combined SDK ID into (parent_id, prefix, raw_id)."""
-        split = tuple(sdk_id.split(":"))
-        if len(split) == 2:
-            return None, split[0], int(split[1])
-        if len(split) == 3:
-            return split[0], split[1], int(split[2])
+        """Decodes the combined SDK ID into (parent_id, prefix, raw_id).
+
+        Splits from the right so a `parent_id` that is itself a compound ID
+        (e.g. a Competition ID nested inside a Season ID) is kept intact
+        instead of being shredded by a naive left-to-right split.
+        """
+        parts = sdk_id.rsplit(":", 2)
+        if len(parts) == 2:
+            prefix, raw_id = parts
+            return None, prefix, int(raw_id)
+        if len(parts) == 3:
+            parent_id, prefix, raw_id = parts
+            return parent_id, prefix, int(raw_id)
         raise ValueError(f"Invalid SDK ID format: {sdk_id}")
 
     @classmethod
@@ -120,7 +127,7 @@ class IdentifiableEntity(BaseEntity):
         return subclasses
 
     @classmethod
-    def _process_parent_id(cls, parent_id: str | None) -> dict[str, Any]:
+    def _process_parent_id(cls, parent_id: str | None, provider: SofascoreProvider) -> dict[str, Any]:
         return {}
 
     @classmethod
@@ -144,11 +151,11 @@ class IdentifiableEntity(BaseEntity):
                         f"Prefix '{prefix}' matches {sub.__name__}, "
                         f"which is not a subclass of {cls.__name__}."
                     )
-                raise ValueError(f"No subclass found globally with prefix '{prefix}'.")
+            raise ValueError(f"No subclass found globally with prefix '{prefix}'.")
 
-        extra_kwargs = target_class._process_parent_id(parent_id)
+        extra_kwargs = target_class._process_parent_id(parent_id, provider)
         data = target_class._fetch_entity(raw_id, provider, **extra_kwargs)
-        return target_class(data, provider)
+        return target_class(data, provider, **extra_kwargs)
 
     def _full_load(self) -> None:
         """
@@ -212,7 +219,10 @@ class SearchableMixin(IdentifiableEntity):
 
             for item in matches:
                 if valid_types is None or isinstance(item.entity, valid_types):
-                    scored_items.append((cls(item.entity, provider), item.score))
+                    try:
+                        scored_items.append((cls(item.entity, provider), item.score))
+                    except (ValueError, TypeError) as e:
+                        logger.debug(f"Skipping search result incompatible with {cls.__name__}: {e}")
 
                 if len(scored_items) >= max_results:
                     break

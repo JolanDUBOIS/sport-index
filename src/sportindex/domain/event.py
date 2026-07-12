@@ -73,7 +73,7 @@ class Event(IdentifiableEntity):
         winner (Competitor | None): Winner of the event.
 
     Methods:
-        from_id(event_id: int, provider) -> Event: Fetch an event by its unique ID.
+        from_id(event_id: str, provider) -> Event: Fetch an event by its unique ID.
     """
     _data: _EventData | _StageData
     _REPR_FIELDS = ("id", "name", "slug", "start")
@@ -161,7 +161,11 @@ class Event(IdentifiableEntity):
         Fetch the channels broadcasting this event in a specific country.
         Country can be specified as a name, alpha-2, or alpha-3 code.
         """
-        all_channels = self._get_all_channels()
+        try:
+            all_channels = self._get_all_channels()
+        except ProviderNotFoundError:
+            logger.debug(f"No channel data available for event {self.id}.")
+            return EntityCollection()
 
         try:
             parsed = pycountry.countries.lookup(country)
@@ -181,26 +185,6 @@ class Event(IdentifiableEntity):
     def _get_all_channels(self) -> dict[str, list[int]]:
         """Fetch all channels broadcasting this event, organized by country."""
         raise NotImplementedError("Method _get_all_channels must be implemented in subclasses")
-
-    @classmethod
-    def from_id(cls, event_id: int, provider: SofascoreProvider) -> Self:
-        """Fetch an event by its ID."""
-        if not isinstance(event_id, int):
-            raise TypeError(f"Event ID must be an integer, got {type(event_id)}")
-
-        try:
-            entity_data = cls._fetch_entity(event_id, provider)
-            instance = cls(entity_data, provider)
-            if not issubclass(type(instance), cls):
-                raise TypeError(
-                    f"ID {event_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
-                    f"Use {type(instance).__name__}.from_id() instead."
-                )
-            return instance
-        except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Event with ID {event_id} not found") from e
-        except FetchError as e:
-            raise DomainError(f"Network error while fetching event with ID {event_id}") from e
 
 
 class MatchEvent(Event):
@@ -274,9 +258,11 @@ class MatchEvent(Event):
         )
 
     @cached_property
-    def venue(self) -> Venue:
-        """The venue where this event takes place."""
+    def venue(self) -> Venue | None:
+        """The venue where this event takes place, if available."""
         self._full_load()
+        if self._data.venue is None:
+            return None
         from .venue import Venue
         return Venue(self._data.venue, self._provider)
 
@@ -285,6 +271,8 @@ class MatchEvent(Event):
     @property
     def score(self) -> Score | None:
         """The score for this event, if available."""
+        if self._data.home.score is None or self._data.away.score is None:
+            return None
         from sportindex.api_client.models import Score
         return Score(
             home=self._data.home.score,

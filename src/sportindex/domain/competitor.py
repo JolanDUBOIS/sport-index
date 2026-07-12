@@ -143,6 +143,7 @@ class Competitor(SearchableMixin, EventAwareMixin):
 
 class _TeamCompetitor(Competitor):
     _data: _TeamData
+    _PREFIX: str = "t-cpt"
 
     def __init__(self, data: _TeamData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -194,6 +195,7 @@ class _TeamCompetitor(Competitor):
 
 class _PlayerCompetitor(Competitor):
     _data: _PlayerData
+    _PREFIX: str = "p-cpt"
 
     def __init__(self, data: _PlayerData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -338,11 +340,11 @@ class Athlete(Competitor):
     def __new__(cls, data: _PlayerData | _TeamData, provider: SofascoreProvider, **kwargs):
         if cls is Athlete:
             if isinstance(data, _PlayerData):
-                return super().__new__(_PlayerAthlete)
+                return super().__new__(_PlayerAthlete, data, provider, **kwargs)
             if isinstance(data, _TeamData):
-                return super().__new__(_TeamAthlete)
+                return super().__new__(_TeamAthlete, data, provider, **kwargs)
             raise TypeError("Athlete data must be either _PlayerData or _TeamData")
-        return super().__new__(cls)
+        return super().__new__(cls, data, provider, **kwargs)
 
     @property
     @abstractmethod

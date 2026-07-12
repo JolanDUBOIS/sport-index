@@ -29,7 +29,7 @@ URLSET_TAG = b"urlset"
 class SofascoreSitemapProvider:
     """Provider class for Sofascore sitemaps fetching."""
 
-    def __init__(self, fetcher: Fetcher = None, fetch_delay: float = 0.5, max_workers: int = 10):
+    def __init__(self, fetcher: Fetcher | None = None, fetch_delay: float = 0.5, max_workers: int = 10):
         self._fetcher = fetcher or Fetcher()
         self._fetch_delay = fetch_delay
         self._max_workers = max_workers

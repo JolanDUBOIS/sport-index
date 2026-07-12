@@ -113,7 +113,7 @@ ENDPOINTS: dict[str, str | Endpoint] = {
     "country-channels": f"{BASE_API_URL}/tv/country/{{country_code}}/channels",
     "channel-schedule": f"{BASE_API_URL}/tv/channel/{{channel_id}}/schedule",
     "country-popular-channels": f"{BASE_API_URL}/tv/country/{{country_code}}/popular-channels", # Not added to provider, doesn't seem useful
-    "channel-event-votes": f"{BASE_API_URL}/tv/channel/{{channel_id}}/event/{{event_id}}/votes", # Not added to provider, could be useful (can validate if an event is on the channel or not)
+    "channel-event-votes": f"{BASE_API_URL}/tv/channel/{{channel_id}}/event/{{event_id}}/votes",
 
     # ------------------------------------------------------------------
     # Search (cross-sport)

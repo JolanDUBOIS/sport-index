@@ -9,6 +9,7 @@ from .api_client import SofascoreProvider
 from .domain import (
     Category,
     Competition,
+    Competitor,
     Country,
     EntityCollection,
     Event,
@@ -82,6 +83,8 @@ class SportClient:
         """
         if issubclass(entity_cls, Event):
             return "event"
+        if issubclass(entity_cls, Competitor):
+            return "competitor"
         return entity_cls.__name__.lower()
 
     # --- Cache Helpers ---
