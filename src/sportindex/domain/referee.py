@@ -103,12 +103,14 @@ class Referee(SearchableMixin, EventAwareMixin):
     def games(self) -> int | None:
         """Get the number of games this referee has officiated."""
         self._full_load()
-        return int(self._data.games)
+        return int(self._data.games) if self._data.games is not None else None
 
     @cached_property
     def cards(self) -> Cards | None:
         """Get the number of cards this referee has given."""
         self._full_load()
+        if self._data.yellow_cards is None or self._data.red_cards is None or self._data.yellow_red_cards is None:
+            return None
         return Cards(
             yellow=int(self._data.yellow_cards),
             red=int(self._data.red_cards),

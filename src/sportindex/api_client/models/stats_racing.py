@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class RaceResults(BaseSchema):
-    position: int
+    position: int | None = None
     points: int | None = None
     time: str | None = None                      # Finishing time
     stage: _StageData | None = None

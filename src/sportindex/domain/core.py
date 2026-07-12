@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from .competition import Competition
     from .event import Event
     from .leaderboard import Rankings
-    from .types import SportContestNature
 
 logger = logging.getLogger(__name__)
 
@@ -300,11 +299,6 @@ class Category(IdentifiableEntity, Generic[E]):
         """The sport this category belongs to."""
         return Sport(self._data.sport, self._provider)
 
-    @property
-    def sport_nature(self) -> SportContestNature:
-        """Determine the nature of the sport for this category."""
-        return self.sport.nature
-
     @cached_property
     def country(self) -> Country | None:
         """The country this category belongs to, or None if it's an international category."""
@@ -322,11 +316,11 @@ class Category(IdentifiableEntity, Generic[E]):
         """Fetch all competitions (unique tournaments / unique stages) for this category."""
         unique_tournaments = []
         with suppress(ProviderNotFoundError):
-            unique_tournaments = self._provider.get_category_unique_tournaments(self.id)
+            unique_tournaments = self._provider.get_category_unique_tournaments(self._data.id)
 
         unique_stages = []
         with suppress(ProviderNotFoundError):
-            unique_stages = self._provider.get_category_unique_stages(self.id)
+            unique_stages = self._provider.get_category_unique_stages(self._data.id)
 
         from .competition import Competition
         return EntityCollection(

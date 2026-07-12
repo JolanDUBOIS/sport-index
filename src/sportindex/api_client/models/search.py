@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Generic
+from typing import Any
 
 from pydantic import model_validator
-from typing_extensions import TypeVar
 
 from .base import BaseSchema
 from .event import _EventData
@@ -39,9 +38,7 @@ ENTITY_MAP: dict[str, type[BaseSchema]] = {
     "venue": _VenueData,
 }
 
-T = TypeVar("T", bound="BaseSchema", default="BaseSchema")
-
-class _SearchResultData(BaseSchema, Generic[T]):
+class _SearchResultData(BaseSchema):
     type: str
     score: float
     entity: AnyEntity

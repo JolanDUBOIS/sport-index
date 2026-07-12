@@ -33,7 +33,7 @@ class _VenueData(BaseSchema):
     city: _CityData | None = None
     stadium: _StadiumData | None = None
     country: _CountryData | None = None
-    coordinates: _CoordinatesData = Field(default=None, alias="venueCoordinates")
+    coordinates: _CoordinatesData | None = Field(default=None, alias="venueCoordinates")
     main_teams: list[_TeamData] = Field(default_factory=list)
 
 

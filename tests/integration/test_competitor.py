@@ -10,35 +10,35 @@ def test_competitor(provider: SofascoreProvider):
     logger.info("Testing Competitor entity...")
 
     # Team
-    psg = Competitor.from_id(3288, provider)
+    psg = Competitor.from_id("t-cpt:1644", provider)
     assert isinstance(psg, Competitor)
     psg = psg.resolve()
     assert isinstance(psg, Team)
-    assert psg.id == 3288
+    assert psg.id == "team:1644"
     assert psg.name == "Paris Saint-Germain"
     assert psg.slug == "paris-saint-germain"
     assert psg.short_name == "PSG"
     assert psg.full_name == "Paris Saint-Germain"
     assert psg.name_code == "PSG"
     assert psg.gender.value == "M"
-    assert psg.sport.id == 1
+    assert psg.sport.id == "spt:1"
     assert psg.country.alpha3 == "FRA"
     assert len(psg.players) > 0
-    assert any(player.id == 1636489 for player in psg.players)
-    assert psg.manager.id == 129465
-    assert psg.venue.id == 1686
+    assert any(player.id == "p-ath:818244" for player in psg.players)
+    assert psg.manager.id == "mng:129465"
+    assert psg.venue.id == "vnu:843"
 
     # Athlete
-    lewis_hamilton = Competitor.from_id(14270, provider)
+    lewis_hamilton = Competitor.from_id("t-cpt:7135", provider)
     assert isinstance(lewis_hamilton, Competitor)
     lewis_hamilton = lewis_hamilton.resolve()
     assert isinstance(lewis_hamilton, Athlete)
-    assert lewis_hamilton.id == 14270
+    assert lewis_hamilton.id == "t-ath:7135"
     assert lewis_hamilton.name == "Lewis Hamilton"
     assert lewis_hamilton.slug == "hamilton-lewis"
     assert lewis_hamilton.first_name == "Lewis"
     assert lewis_hamilton.last_name == "Hamilton"
-    assert lewis_hamilton.sport.id == 11
+    assert lewis_hamilton.sport.id == "spt:11"
     assert lewis_hamilton.country.alpha3 == "GBR"
     assert isinstance(lewis_hamilton.parent, Team)
     assert "Ferrari" in lewis_hamilton.parent.name

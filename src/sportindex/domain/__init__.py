@@ -34,7 +34,6 @@ from .leaderboard import Rankings, RankingsEntry, Standings, StandingsEntry
 from .manager import Manager, ManagerTenure
 from .referee import Cards, Referee
 from .season import Season
-from .types import SportContestNature
 from .venue import Venue
 
 __all__ = [
@@ -70,6 +69,5 @@ __all__ = [
     "Cards",
     "Referee",
     "Season",
-    "SportContestNature",
     "Venue",
 ]
