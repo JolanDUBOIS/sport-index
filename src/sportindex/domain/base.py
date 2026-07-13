@@ -222,7 +222,6 @@ class SearchableMixin(IdentifiableEntity):
             if not matches:
                 break
 
-
             for item in matches:
                 if valid_types is None or isinstance(item.entity, valid_types):
                     try:

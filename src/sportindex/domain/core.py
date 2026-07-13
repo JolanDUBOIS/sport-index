@@ -3,10 +3,9 @@ from __future__ import annotations
 import logging
 from contextlib import suppress
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Generic, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import pycountry
-from typing_extensions import TypeVar
 
 from sportindex.api_client.models import _CategoryData, _CountryData, _SportData
 from sportindex.exceptions import (
@@ -29,9 +28,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-E = TypeVar("E", bound="Event", default="Event")
-
-class Sport(IdentifiableEntity, Generic[E]):
+class Sport(IdentifiableEntity):
     """A sport (e.g., football, tennis, motorsport).
 
     Provides access to its categories and official rankings, and can be instantiated from minimal raw data without fetching full details.
@@ -41,7 +38,7 @@ class Sport(IdentifiableEntity, Generic[E]):
         name (str): Official sport name.
         slug (str): URL-friendly identifier.
         event_format (EventFormat): The event format for this sport (match-based or stage-based).
-        categories (EntityCollection[Category[E]]): All categories associated with this sport.
+        categories (EntityCollection[Category]): All categories associated with this sport.
 
     Methods:
         get_rankings(gender: Optional[str] = None) -> list[Rankings]: Fetch official rankings for the sport.
@@ -76,7 +73,7 @@ class Sport(IdentifiableEntity, Generic[E]):
         return self._data.slug or self._data.name.lower().replace(" ", "-")
 
     @cached_property
-    def categories(self) -> EntityCollection[Category[E]]:
+    def categories(self) -> EntityCollection[Category]:
         """Fetch all categories for this sport."""
         return EntityCollection([
             Category(c, self._provider)
@@ -258,7 +255,7 @@ class Country(IdentifiableEntity):
         self._full_loaded = True
 
 
-class Category(IdentifiableEntity, Generic[E]):
+class Category(IdentifiableEntity):
     """A category within a sport (e.g., 'France Amateur', 'Formula 1', 'International').
 
     Provides access to its sport, country (if applicable), and competitions.
@@ -270,7 +267,7 @@ class Category(IdentifiableEntity, Generic[E]):
         sport (Sport): The sport this category belongs to.
         event_format (EventFormat): The event format for this category, derived from its sport.
         country (Country | None): The country this category belongs to, or None if international.
-        competitions (EntityCollection[Competition[E]]]): All competitions under this category.
+        competitions (EntityCollection[Competition]): All competitions under this category.
 
     Class Methods:
         all(provider) -> EntityCollection[Category]: Fetch all categories across all sports (expensive).
@@ -303,7 +300,7 @@ class Category(IdentifiableEntity, Generic[E]):
         return self._data.slug or self._data.name.lower().replace(" ", "-")
 
     @cached_property
-    def sport(self) -> Sport[E]:
+    def sport(self) -> Sport:
         """The sport this category belongs to."""
         return Sport(self._data.sport, self._provider)
 
@@ -320,7 +317,7 @@ class Category(IdentifiableEntity, Generic[E]):
         return None
 
     @cached_property
-    def competitions(self) -> EntityCollection[Competition[E]]:
+    def competitions(self) -> EntityCollection[Competition]:
         """Fetch all competitions (unique tournaments / unique stages) for this category."""
         unique_tournaments = []
         with suppress(ProviderNotFoundError):
