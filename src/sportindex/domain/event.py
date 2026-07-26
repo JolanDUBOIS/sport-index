@@ -483,16 +483,17 @@ class StageEvent(Event):
     @property
     def standings(self) -> list[Standings] | None:
         """The standings for this event, if race and available."""
+        from sportindex.api_client.models import _RacingStandingsData
         try:
             competitors_standings = self._provider.get_stage_standings_competitors(self._data.id)
         except ProviderNotFoundError as e:
             logger.debug(f"Failed to fetch competitors standings for event {self.id}: {e}")
-            competitors_standings = []
+            competitors_standings = _RacingStandingsData()
         try:
             teams_standings = self._provider.get_stage_standings_teams(self._data.id)
         except ProviderNotFoundError as e:
             logger.debug(f"Failed to fetch teams standings for event {self.id}: {e}")
-            teams_standings = []
+            teams_standings = _RacingStandingsData()
         from .leaderboard import Standings
         return [
             Standings(competitors_standings, self._provider, name=f"Competitors {self.name}", kind="competitors"),

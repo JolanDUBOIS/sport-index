@@ -76,7 +76,7 @@ class Standings(BaseEntity):
         """The date and time when the standings were last updated."""
         if isinstance(self._data, _TeamStandingsData):
             return self._data.updated_at
-        return self._data.standings[0].updated_at if self._data else None
+        return self._data.standings[0].updated_at if self._data.standings else None
 
     @cached_property
     def sport(self) -> Sport | None:

@@ -159,7 +159,11 @@ class _TournamentSeason(Season):
     def standings(self) -> list[Standings]:
         """TODO"""
         from .leaderboard import Standings
-        standings = self._provider.get_unique_tournament_standings(self.competition._data.id, self._data.id, view="total")
+        try:
+            standings = self._provider.get_unique_tournament_standings(self.competition._data.id, self._data.id, view="total")
+        except ProviderNotFoundError as e:
+            logger.debug(f"Failed to fetch total standings for season {self.id}: {e}")
+            standings = []
         try:
             standings.extend(self._provider.get_unique_tournament_standings(self.competition._data.id, self._data.id, view="home"))
         except ProviderNotFoundError as e:
@@ -237,17 +241,19 @@ class _StageSeason(Season):
     @property
     def standings(self) -> list[Standings]:
         """TODO"""
+        from sportindex.api_client.models import _RacingStandingsData
+
         from .leaderboard import Standings
         try:
             competitors_standings = self._provider.get_stage_standings_competitors(self._data.id)
         except ProviderNotFoundError as e:
             logger.debug(f"Failed to fetch competitors standings for stage {self.id}: {e}")
-            competitors_standings = []
+            competitors_standings = _RacingStandingsData()
         try:
             teams_standings = self._provider.get_stage_standings_teams(self._data.id)
         except ProviderNotFoundError as e:
             logger.debug(f"Failed to fetch teams standings for stage {self.id}: {e}")
-            teams_standings = []
+            teams_standings = _RacingStandingsData()
         return [
             Standings(competitors_standings, self._provider, name=f"Individuals {self.name}", kind="individuals"),
             Standings(teams_standings, self._provider, name=f"Teams {self.name}", kind="teams")
@@ -264,7 +270,7 @@ class _StageSeason(Season):
         """Fetch all results for this season."""
         from .event import Event, EventCollection
         substages = self._provider.get_stage_substages(self._data.id)
-        past_substages = [s for s in substages if s.end < datetime.now(tz=UTC)]
+        past_substages = [s for s in substages if s.start < datetime.now(tz=UTC)]
         return EventCollection([Event(s, self._provider) for s in past_substages])
 
     @staticmethod

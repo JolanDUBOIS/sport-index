@@ -101,6 +101,7 @@ class Manager(SearchableMixin, EventAwareMixin):
     @cached_property
     def sport(self) -> Sport:
         """The sport this manager is associated with."""
+        self._full_load()
         from .core import Sport
         return Sport(self._data.sport, self._provider)
 
