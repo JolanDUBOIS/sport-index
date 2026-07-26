@@ -171,7 +171,7 @@ class IdentifiableEntity(BaseEntity):
         """
         if self._full_loaded:
             return
-        self._data = merge_pydantic_models(self._data, self._fetch_entity(self.decode_id(self.id)[2], self._provider))
+        self._data = merge_pydantic_models(self._data, self._fetch_entity(self.decode_id(self.id)[2], self._provider, **self._kwargs))
         self._full_loaded = True
         self._clear_cache()
 

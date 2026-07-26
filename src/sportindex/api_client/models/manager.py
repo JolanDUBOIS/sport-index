@@ -21,7 +21,7 @@ class _ManagerData(BaseSchema):
     sport: _SportData | None = None
     country: _CountryData | None = None
     nationality: str | None = None             # ISO3
-    nationalityISO2: str | None = None         # ISO2
+    nationalityISO2: str | None = None         # ISO2  # noqa: N815
     deceased: bool | None = None
     performance: Performance | None = None
     preferred_formation: str | None = None      # e.g. "4-3-3"

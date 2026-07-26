@@ -66,7 +66,6 @@ class Event(IdentifiableEntity):
         sport (Sport): Sport associated with this event.
 
     Abstract properties:
-        format (Literal["match", "stage"]): The format of the event, either 'match' or 'stage'.
         competition (Competition | None): Competition this event belongs to.
         season (Season): Season this event belongs to.
         venue (Venue | None): Venue where the event takes place.
@@ -207,7 +206,7 @@ class MatchEvent(Event):
     """
     _data: _EventData
     _PREFIX: str = "mch"
-    _REPR_FIELDS = ("id", "name", "slug", "round", "format", "start")
+    _REPR_FIELDS = ("id", "name", "slug", "round", "start")
 
     def __init__(self, data: _EventData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -386,7 +385,7 @@ class StageEvent(Event):
     """
     _data: _StageData
     _PREFIX: str = "stg"
-    _REPR_FIELDS = ("id", "name", "slug", "tier", "format", "start", "end")
+    _REPR_FIELDS = ("id", "name", "slug", "tier", "start", "end")
 
     def __init__(self, data: _StageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)

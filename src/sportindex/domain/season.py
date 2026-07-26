@@ -137,9 +137,9 @@ class _TournamentSeason(Season):
         from .competition import Competition
         if "competition" in self._kwargs:
             return self._kwargs["competition"]
-        if "uniqueTournament" not in self._kwargs:
-            raise InsufficientDataError("Season data requires 'competition' or 'uniqueTournament' to be passed in via kwargs")
-        return Competition(self._kwargs["uniqueTournament"], self._provider)
+        if "uniqueTournament" in self._kwargs:
+            return Competition(self._kwargs["uniqueTournament"], self._provider)
+        raise InsufficientDataError("Season data requires 'competition' or 'uniqueTournament' to be passed in via kwargs")
 
     @property
     def current_round(self) -> Round | None:

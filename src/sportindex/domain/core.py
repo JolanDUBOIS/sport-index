@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from sportindex.api_client import SofascoreProvider
 
     from .competition import Competition
-    from .event import Event
     from .leaderboard import Rankings
 
 logger = logging.getLogger(__name__)
@@ -37,7 +36,6 @@ class Sport(IdentifiableEntity):
         id (int): Unique sport ID.
         name (str): Official sport name.
         slug (str): URL-friendly identifier.
-        event_format (EventFormat): The event format for this sport (match-based or stage-based).
         categories (EntityCollection[Category]): All categories associated with this sport.
 
     Methods:
@@ -265,7 +263,6 @@ class Category(IdentifiableEntity):
         name (str): Category name.
         slug (str): URL-friendly identifier.
         sport (Sport): The sport this category belongs to.
-        event_format (EventFormat): The event format for this category, derived from its sport.
         country (Country | None): The country this category belongs to, or None if international.
         competitions (EntityCollection[Competition]): All competitions under this category.
 

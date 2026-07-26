@@ -91,7 +91,7 @@ class RecordingFetcher(Fetcher):
             sorted_params = sorted(params.items())
             full_url += "?" + urllib.parse.urlencode(sorted_params)
 
-        short_hash = hashlib.md5(full_url.encode()).hexdigest()[:8]
+        short_hash = hashlib.md5(full_url.encode()).hexdigest()[:8]  # noqa: S324
 
         if not path_slug:
             path_slug = "root"

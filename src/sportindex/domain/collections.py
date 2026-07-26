@@ -192,8 +192,8 @@ class ScoredEntityCollection(EntityCollection[EntityT]):
     """
 
     def __init__(self, items_with_scores: Iterable[tuple[EntityT, float]] | None = None) -> None:
-        self._scores: dict[int, float] = {}
-        unique_entities: dict[int, EntityT] = {}
+        self._scores: dict[str, float] = {}
+        unique_entities: dict[str, EntityT] = {}
 
         if items_with_scores is not None:
             for entity, score in items_with_scores:
@@ -210,7 +210,7 @@ class ScoredEntityCollection(EntityCollection[EntityT]):
         else:
             super().__init__()
 
-    def get_score(self, entity_id: int) -> float:
+    def get_score(self, entity_id: str) -> float:
         """Retrieve the score for a specific entity ID in the collection."""
         if entity_id not in self._scores:
             raise ValueError(f"Entity ID {entity_id} not found in this scored collection.")
