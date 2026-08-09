@@ -113,15 +113,10 @@ class Sport(IdentifiableEntity):
     @classmethod
     def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Self:
         """Create a Sport instance from its unique ID."""
-        try:
-            sport = cls.all(provider).get(id=entity_id)
-            if not sport:
-                raise EntityNotFoundError(f"Sport with ID {entity_id} not found")
-            return sport
-        except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Sport with ID {entity_id} not found") from e
-        except FetchError as e:
-            raise DomainError(f"Error fetching sport with ID {entity_id}") from e
+        sport = cls.all(provider).get(id=entity_id)
+        if not sport:
+            raise EntityNotFoundError(f"Sport with ID {entity_id} not found")
+        return sport
 
     @staticmethod
     def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _SportData:
@@ -141,10 +136,10 @@ class Country(IdentifiableEntity):
 
     Attributes:
         id (str): Globally unique SDK ID built from the ISO 3166-1 numeric code, e.g. "ctr:250".
-        name (str): Title-cased country name, e.g. "France". Read from the provider payload
-            rather than the ISO record, so see Raises for the no-name case.
-        slug (str): URL-friendly identifier, e.g. "france". Read from the provider payload,
-            whose field is optional, so this may be None despite the annotation.
+        name (str): Title-cased country name, e.g. "France". Falls back to the slug, then to
+            the ISO record, when the payload carries no name.
+        slug (str): URL-friendly identifier, e.g. "france". Derived from the name when the
+            payload carries no slug.
         alpha2 (str | None): ISO 3166-1 alpha-2 code, e.g. "FR".
         alpha3 (str | None): ISO 3166-1 alpha-3 code, e.g. "FRA".
         source (_CountryData): The parsed payload backing this entity. (inherited from BaseEntity)
@@ -160,8 +155,6 @@ class Country(IdentifiableEntity):
         TypeError: If constructed with data that is not `_CountryData`.
         ValueError: If the payload matches no ISO 3166-1 record.
         EntityNotFoundError: If `from_id`, `from_alpha` or `from_name` matches no ISO 3166-1 record.
-        AttributeError: If `name` is read on a payload carrying no name — the intended slug
-            fallback is evaluated too late to apply.
     """
     _data: _CountryData
     _PREFIX = "ctr"
@@ -198,12 +191,18 @@ class Country(IdentifiableEntity):
     @property
     def name(self) -> str:
         """The name of the country."""
-        return self._data.name.title() or self._data.slug.replace("-", " ").title()
+        if self._data.name:
+            return self._data.name.title()
+        if self._data.slug:
+            return self._data.slug.replace("-", " ").title()
+        return getattr(self._pycountry_obj, "name", "")
 
     @property
     def slug(self) -> str:
         """The slug of the country (used in URLs)."""
-        return self._data.slug
+        if self._data.slug:
+            return self._data.slug
+        return self.name.lower().replace(" ", "-")
 
     @property
     def alpha2(self) -> str | None:

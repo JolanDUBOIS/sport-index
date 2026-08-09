@@ -53,9 +53,19 @@ class SportClient:
     Caches entities in memory to minimize redundant API calls and improve performance. Cache can be cleared manually if needed.
 
     Methods:
-        get(entity_cls: type[IdentifiableEntity], entity_id: str) -> Optional[IdentifiableEntity]: Fetch an identifiable entity by its class and ID.
-        search(entity_cls: type[SearchableMixin], query: str, max_results: int = 20) -> EntityCollection[SearchableMixin]: Search for entities that implement SearchableMixin.
-        list(entity_cls: type[IdentifiableEntity], **kwargs) -> EntityCollection: List entities of a given class with optional filters (e.g., list competitions by category_id).
+        get(entity_id: str, entity_cls: type[E] | None = None, strict: bool = False) -> E | IdentifiableEntity | None:
+            The entity with this SDK ID. `entity_cls` is optional — when omitted, the class is
+            resolved from the ID's own prefix. Returns None if the entity does not exist,
+            unless `strict` is True.
+        search(entity_cls: type[S], query: str, max_results: int = 20) -> EntityCollection[S]:
+            The entities of `entity_cls` matching `query`, capped at `max_results`. Relevance
+            scores are discarded; call `entity_cls.search()` directly to keep them.
+        list(entity_cls: type[E], **kwargs) -> EntityCollection[E]: Every entity of a class,
+            narrowed by the filters that class supports — `Category` by `sport_id`,
+            `Competition` by `category_id`, `Season` by `competition_id`, `Event` by
+            `season_id`. `Sport` and `Country` take none.
+        clear_cache(namespace: str | None = None) -> None: Empty one cache namespace, or all
+            of them when `namespace` is omitted.
 
     Usage:
         >>> client = SportClient()
@@ -65,7 +75,12 @@ class SportClient:
         >>> referee = client.search(Referee, query="John Doe")
 
     Raises:
-        EntityNotFoundError: If a requested entity does not exist.
+        TypeError: If `entity_id` is not a str, or `entity_cls` is not a suitable entity class.
+        ValueError: If a class cannot be resolved from the ID's prefix.
+        EntityNotFoundError: If `get(strict=True)` finds nothing, or if `list` is called
+            without the filter its entity class requires.
+        NotImplementedError: If `list` is given a class it has no listing logic for.
+        KeyError: If `clear_cache` is given an unknown namespace.
     """
 
     def __init__(self):

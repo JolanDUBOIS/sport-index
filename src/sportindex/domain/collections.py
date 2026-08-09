@@ -329,21 +329,19 @@ class EventCollection(EntityCollection[E]):
         matches (EventCollection[MatchEvent]): Only the match events.
         stages (EventCollection[StageEvent]): Only the stage events.
 
-    Both date methods read `Event.start`, which a `StageEvent` may leave unset; neither
-    tolerates an undated event in the collection.
+    A `StageEvent` may have no `start`, so both date methods say what they do with one: a
+    date filter drops undated events, and a date sort puts them last.
 
     Methods:
         filter_by_date(*, before: date | datetime | None = None, after: date | datetime | None = None) -> EventCollection[E]:
             Only the events starting strictly before `before` and strictly after `after`. A
-            bare date counts as midnight at its start. An omitted bound is unbounded.
+            bare date counts as midnight at its start. An omitted bound is unbounded. Undated
+            events satisfy no bound and are dropped whenever one is given.
         sort_by_date(ascending: bool = True) -> EventCollection[E]: The same events ordered by
-            start time, oldest first by default.
+            start time, oldest first by default, with undated events last in either direction.
         filter_by_competitors(competitor_ids: list[str]) -> EventCollection[MatchEvent]: Only
             the match events with one of the given competitor SDK IDs on either side. Stage
             events are dropped, having no two named sides.
-
-    Raises:
-        TypeError: If `filter_by_date` or `sort_by_date` meets an event with no `start`.
     """
 
     @property
@@ -369,16 +367,18 @@ class EventCollection(EntityCollection[E]):
 
         if before is not None:
             before_dt = to_dt(before)
-            results = [e for e in results if e.start < before_dt]
+            results = [e for e in results if e.start is not None and e.start < before_dt]
         if after is not None:
             after_dt = to_dt(after)
-            results = [e for e in results if e.start > after_dt]
+            results = [e for e in results if e.start is not None and e.start > after_dt]
 
         return self.__class__(results)
 
     def sort_by_date(self, ascending: bool = True) -> EventCollection[E]:
-        """Return a new EventCollection sorted by date."""
-        return self.__class__(sorted(self.data, key=lambda e: e.start, reverse=not ascending))
+        """Return a new EventCollection sorted by date, undated events last."""
+        dated = sorted((e for e in self.data if e.start is not None), key=lambda e: e.start, reverse=not ascending)
+        undated = [e for e in self.data if e.start is None]
+        return self.__class__(dated + undated)
 
     def filter_by_competitors(self, competitor_ids: list[str]) -> EventCollection[MatchEvent]:
         """Return a new EventCollection containing only match events involving the specified competitor IDs."""

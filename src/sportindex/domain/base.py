@@ -211,7 +211,7 @@ class IdentifiableEntity(BaseEntity):
 
     @staticmethod
     @abstractmethod
-    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> BaseSchema: # TODO - It actually returns the specific BaseSchema of _data...
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> BaseSchema: # NOTE - Each subclass returns its own schema; typing that precisely would mean making this class generic over it. Deliberately not done.
         """Fetch the complete entity data from the provider by its raw ID."""
         raise NotImplementedError("Subclasses of IdentifiableEntity must implement the _fetch_entity static method")
 

@@ -81,9 +81,9 @@ class Venue(SearchableMixin, EventAwareMixin):
     def __new__(cls, data: _VenueData | _StageData, provider: SofascoreProvider, **kwargs):
         if cls is Venue:
             if isinstance(data, _VenueData):
-                return object().__new__(_StdVenue)
+                return super().__new__(_StdVenue)
             if isinstance(data, _StageData):
-                return object().__new__(_StageVenue)
+                return super().__new__(_StageVenue)
             raise TypeError(f"Venue data must be either _VenueData or _StageData, got {type(data)}")
         return super().__new__(cls)
 

@@ -6,7 +6,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Generic, overload
 
 import pycountry
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from typing_extensions import TypeVar
 
 from sportindex.api_client.models import StageTier, _EventData, _StageData
@@ -219,7 +219,8 @@ class MatchEvent(Event):
             provider states it.
         referee (Referee | None): The official in charge, if the provider names one.
         competitors (MatchCompetitors): The home and away sides.
-        score (Score | None): Home and away scores. None before the match produces one.
+        score (Score | None): Home and away scores. None before the match produces one, and
+            also when the provider renders the score non-numerically.
         periods (list[MatchPeriod]): Per-period breakdown — halves, sets, overtime, penalty
             shootout — each with its own score and timing. Empty when unavailable.
         lineups (MatchLineups | None): The starting eleven, or equivalent, for each side.
@@ -266,6 +267,11 @@ class MatchEvent(Event):
     def name(self) -> str:
         """The name of the match event."""
         return self._data.slug.replace("-", " ").title()
+
+    @property
+    def start(self) -> datetime:
+        """The kick-off time of the match. Always present, unlike a stage's."""
+        return self._data.start
 
     @property
     def round(self) -> Round | None:
@@ -319,14 +325,18 @@ class MatchEvent(Event):
 
     @property
     def score(self) -> Score | None:
-        """The score for this event, if available."""
+        """The score for this event, if available and numeric."""
         if self._data.home.score is None or self._data.away.score is None:
             return None
         from sportindex.api_client.models import Score
-        return Score(
-            home=self._data.home.score,
-            away=self._data.away.score
-        )
+        try:
+            return Score(
+                home=self._data.home.score,
+                away=self._data.away.score
+            )
+        except ValidationError:
+            logger.debug(f"Non-numeric score for event {self.id}: home={self._data.home.score!r}, away={self._data.away.score!r}")
+            return None
 
     @property
     def winner(self) -> Competitor | None:
@@ -429,15 +439,15 @@ class StageEvent(Event):
 
     Attributes:
         end (datetime | None): When the stage finishes, if the provider states it.
-        tier (StageTier): How deep in the nesting this stage sits — EVENT, PRACTICE,
-            QUALIFYING, RACE, LAP, STAGE, and so on. Always below SEASON.
+        tier (StageTier | None): How deep in the nesting this stage sits — EVENT, PRACTICE,
+            QUALIFYING, RACE, LAP, STAGE, and so on. Always below SEASON when present; None
+            when the provider does not classify the stage.
         parent (StageEvent | None): The stage containing this one, or None if this stage
             hangs directly off its season.
         substages (EventCollection[StageEvent]): The stages contained within this one. Empty
             for a leaf stage such as a single race.
         standings (list[Standings]): Exactly two ranking tables for this stage — competitors
-            and teams — each empty if the provider publishes nothing for it. Never None,
-            despite the wider `list[Standings] | None` annotation.
+            and teams — each empty if the provider publishes nothing for it.
         venue (Venue): The circuit or course, derived from the stage itself rather than
             looked up separately. Never None, though its fields may be empty.
         id (str): Globally unique SDK ID, of the form "stg:<id>". (inherited from Event)
@@ -479,8 +489,8 @@ class StageEvent(Event):
         return self._data.name or self._data.slug.replace("-", " ").title()
 
     @cached_property
-    def tier(self) -> StageTier:
-        """The category of the stage event."""
+    def tier(self) -> StageTier | None:
+        """The category of the stage event, if the provider states it."""
         self._full_load()
         return self._data.tier
 
@@ -556,8 +566,8 @@ class StageEvent(Event):
         return None
 
     @property
-    def standings(self) -> list[Standings] | None:
-        """The standings for this event, if race and available."""
+    def standings(self) -> list[Standings]:
+        """The competitors and teams standings for this event; either may be empty."""
         from sportindex.api_client.models import _RacingStandingsData
         try:
             competitors_standings = self._provider.get_stage_standings_competitors(self._data.id)
@@ -650,10 +660,8 @@ class EventAwareMixin(ABC, Generic[E]):
         get_results(silent: bool = False) -> EventCollection[E]: The entity's past events.
             Abstract; each entity implements it. Same warning behaviour.
         get_events() -> EventCollection[E]: Fixtures and results in one collection, sorted by
-            start time, oldest first. Suppresses the unsupported-endpoint warnings.
-
-    Raises:
-        TypeError: If `get_events` meets an event with no `start`, since it sorts by date.
+            start time, oldest first, with undated events last. Suppresses the
+            unsupported-endpoint warnings.
     """
 
     @abstractmethod

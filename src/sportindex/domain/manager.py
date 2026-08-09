@@ -56,8 +56,8 @@ class Manager(SearchableMixin, EventAwareMixin):
         id (str): Globally unique SDK ID, e.g. "mng:794075".
         name (str): Full name, e.g. "Zinédine Zidane".
         slug (str): URL-friendly identifier, e.g. "zinedine-zidane".
-        short_name (str): Abbreviated name, e.g. "Z. Zidane". The underlying payload field is
-            optional, so this may be None despite the annotation.
+        short_name (str): Abbreviated name, e.g. "Z. Zidane". Falls back to `name` when the
+            provider supplies none.
         sport (Sport | None): The sport this manager works in, if the provider states it.
         country (Country | None): The manager's nationality, if the provider states it.
         team (Competitor | None): The team currently managed, if any — None between jobs.
@@ -114,8 +114,8 @@ class Manager(SearchableMixin, EventAwareMixin):
 
     @property
     def short_name(self) -> str:
-        """The short name of the manager, e.g. "Z. Zidane"."""
-        return self._data.short_name
+        """The short name of the manager, e.g. "Z. Zidane", falling back to the full name."""
+        return self._data.short_name or self._data.name
 
     @cached_property
     def sport(self) -> Sport | None:

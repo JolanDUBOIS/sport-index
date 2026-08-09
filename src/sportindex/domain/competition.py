@@ -74,9 +74,9 @@ class Competition(SearchableMixin):
     def __new__(cls, data: _UniqueTournamentData | _UniqueStageData, provider: SofascoreProvider, **kwargs):
         if cls is Competition:
             if isinstance(data, _UniqueTournamentData):
-                return object().__new__(_TournamentCompetition)
+                return super().__new__(_TournamentCompetition)
             if isinstance(data, _UniqueStageData):
-                return object().__new__(_StageCompetition)
+                return super().__new__(_StageCompetition)
             raise TypeError(f"Competition data must be either _UniqueTournamentData or _UniqueStageData, got {type(data)}")
         return super().__new__(cls)
 
@@ -136,7 +136,7 @@ class _TournamentCompetition(Competition):
             raise TypeError(f"Tournament competition data must be of type _UniqueTournamentData, got {type(data)}")
 
     @cached_property
-    def seasons(self) -> EntityCollection[Season]: # TODO - _TournamentSeason
+    def seasons(self) -> EntityCollection[Season]: # NOTE - Deliberately Season, not _TournamentSeason: the variant stays private.
         """Fetch all seasons for this tournament competition."""
         from .season import Season
         return EntityCollection([
@@ -168,7 +168,7 @@ class _StageCompetition(Competition):
             raise TypeError(f"Stage competition data must be of type _UniqueStageData, got {type(data)}")
 
     @cached_property
-    def seasons(self) -> EntityCollection[Season]: # TODO - _StageSeason
+    def seasons(self) -> EntityCollection[Season]: # NOTE - Deliberately Season, not _StageSeason: the variant stays private.
         """Fetch all seasons for this stage competition."""
         from .season import Season
         return EntityCollection([

@@ -45,8 +45,7 @@ class Standings(BaseEntity):
     Attributes:
         name (str | None): What the table is called, e.g. "Ligue 1", "Teams Monaco Grand Prix".
         kind (str | None): Which cut of the season the table covers — "total", "home" or
-            "away" for league tables; "competitors", "individuals" or "teams" for racing
-            championships.
+            "away" for league tables; "competitors" or "teams" for racing championships.
         updated_at (datetime | None): When the provider last recomputed the table.
         sport (Sport | None): The sport being ranked, taken from the first entry. None for an
             empty table.

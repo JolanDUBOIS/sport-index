@@ -48,8 +48,8 @@ class Competitor(SearchableMixin, EventAwareMixin):
             "p-cpt:<id>" for player-shaped ones.
         name (str): Display name, e.g. "Paris Saint-Germain", "Carlos Alcaraz".
         slug (str): URL-friendly identifier, e.g. "paris-saint-germain".
-        short_name (str): Abbreviated name, e.g. "PSG", "C. Alcaraz". The underlying payload
-            field is optional, so this may be None despite the annotation.
+        short_name (str): Abbreviated name, e.g. "PSG", "C. Alcaraz". Falls back to `name`
+            when the provider supplies none.
         full_name (str): The unabbreviated name — the team's full legal name, or a player's
             first and last name joined. Falls back to `name`.
         gender (Gender | None): The competitor's gender, if the provider states it.
@@ -120,8 +120,8 @@ class Competitor(SearchableMixin, EventAwareMixin):
 
     @property
     def short_name(self) -> str:
-        """The short name of the competitor."""
-        return self._data.short_name
+        """The short name of the competitor, falling back to the full name if unavailable."""
+        return self._data.short_name or self._data.name
 
     @property
     @abstractmethod
