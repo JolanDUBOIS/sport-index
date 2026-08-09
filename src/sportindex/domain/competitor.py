@@ -35,30 +35,51 @@ logger = logging.getLogger(__name__)
 
 
 class Competitor(SearchableMixin, EventAwareMixin):
-    """A sports competitor, either an individual or a team.
+    """Whoever takes one side of an event — a club, a national team, a driver, a tennis player.
 
-    Provides access to identity, affiliations, and related entities such as players, managers, and venues.
-    Supports fetching fixtures and results, and distinguishing between player and team competitors.
+    `Competitor` is the side-of-an-event view: what you get from a match's competitors, a
+    standings row, or a search. Instantiating it returns one of two private variants
+    depending on the payload — a team-shaped competitor or a player-shaped one — and they
+    differ where noted below. Call `resolve()` to trade that view for the richer `Team` or
+    `Athlete` entity.
 
     Attributes:
-        id (str): Unique competitor ID.
-        name (str): Official competitor name.
-        slug (str): URL-friendly slug.
-        short_name (str): Abbreviated name.
-        gender (Gender | None): Competitor gender, if applicable.
-        country (Country | None): Competitor's country, if available.
-        full_name (str): Full name or concatenation of first and last names for players.
-        sport (Sport | None): Sport this competitor belongs to.
+        id (str): Globally unique SDK ID — "t-cpt:<id>" for team-shaped competitors,
+            "p-cpt:<id>" for player-shaped ones.
+        name (str): Display name, e.g. "Paris Saint-Germain", "Carlos Alcaraz".
+        slug (str): URL-friendly identifier, e.g. "paris-saint-germain".
+        short_name (str): Abbreviated name, e.g. "PSG", "C. Alcaraz". The underlying payload
+            field is optional, so this may be None despite the annotation.
+        full_name (str): The unabbreviated name — the team's full legal name, or a player's
+            first and last name joined. Falls back to `name`.
+        gender (Gender | None): The competitor's gender, if the provider states it.
+        country (Country | None): The country the competitor represents or is based in, if
+            the provider states it.
+        sport (Sport | None): The sport this competitor plays. None only for a player-shaped
+            competitor with no team on record.
+        source (_TeamData | _PlayerData): The parsed payload backing this entity.
+            (inherited from BaseEntity)
 
     Methods:
-        get_fixtures(silent=False) -> EventCollection: Fetch all scheduled events for the competitor.
-        get_results(silent=False) -> EventCollection: Fetch all results for the competitor.
-        search(query, provider, max_results) -> ScoredEntityCollection: Search for competitors matching a query string.
+        resolve() -> Team | Athlete: The full entity behind this competitor — a `Team`, or an
+            `Athlete` for individual competitors.
+        get_fixtures(silent: bool = False) -> EventCollection: The competitor's upcoming events.
+            Always empty for a player-shaped competitor: the provider has no fixtures endpoint
+            for players in team sports. Logs a warning in that case unless `silent` is True.
+        get_results(silent: bool = False) -> EventCollection: The competitor's past events.
+        get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
+            (inherited from EventAwareMixin)
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Competitor]:
+            Teams and athletes matching `query` in one collection, sorted by relevance and
+            capped at `max_results`. (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Competitor: The competitor with
+            this SDK ID. (classmethod, inherited from IdentifiableEntity)
 
     Raises:
-        TypeError: If initialized with invalid data type.
-        EntityNotFoundError: If the competitor does not exist in the provider.
-        DomainError: If a network or provider error occurs during fetch.
+        TypeError: If constructed with data that is neither `_TeamData` nor `_PlayerData`.
+        ValueError: If `search` is given an empty query.
+        EntityNotFoundError: If `from_id` names a competitor the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _TeamData | _PlayerData
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name")
@@ -116,8 +137,8 @@ class Competitor(SearchableMixin, EventAwareMixin):
 
     @property
     @abstractmethod
-    def sport(self) -> Sport:
-        """The sport this competitor belongs to."""
+    def sport(self) -> Sport | None:
+        """The sport this competitor belongs to, if available."""
         raise NotImplementedError("Subclasses must implement sport property")
 
     @cached_property
@@ -142,6 +163,7 @@ class Competitor(SearchableMixin, EventAwareMixin):
 
 
 class _TeamCompetitor(Competitor):
+    """Private `Competitor` variant backed by team-shaped payloads; see `Competitor`."""
     _data: _TeamData
     _PREFIX: str = "t-cpt"
 
@@ -194,6 +216,7 @@ class _TeamCompetitor(Competitor):
 
 
 class _PlayerCompetitor(Competitor):
+    """Private `Competitor` variant backed by player-shaped payloads; see `Competitor`."""
     _data: _PlayerData
     _PREFIX: str = "p-cpt"
 
@@ -209,9 +232,9 @@ class _PlayerCompetitor(Competitor):
         return f"{first} {last}".strip() or self._data.name
 
     @cached_property
-    def sport(self) -> Sport:
+    def sport(self) -> Sport | None:
         from .core import Sport
-        return Sport(self._data.team.sport, self._provider)
+        return Sport(self._data.team.sport, self._provider) if self._data.team else None
 
     def resolve(self) -> Athlete:
         """Resolve this competitor to its specific type (Team or Athlete). In this case, it will always be an Athlete."""
@@ -243,15 +266,41 @@ class _PlayerCompetitor(Competitor):
 
 
 class Team(_TeamCompetitor):
-    """
-    A sports team competitor, which may have associated players, a manager, and a home venue.
+    """A club or national team, with its squad, manager and home venue.
+
+    The full entity behind a team-shaped `Competitor`, reached via `resolve()`. Everything
+    `Competitor` offers is available here too; the members below are what `Team` adds.
 
     Attributes:
-        name_code (str | None): The name code of the team, if available.
-        national (bool | None): Whether this team is a national team, if available.
-        players (EntityCollection[Athlete]): The players of this team, if available and applicable.
-        manager (Manager | None): The manager of this team, if available.
-        venue (Venue | None): The venue this team plays at, if available.
+        name_code (str | None): Three-letter code, e.g. "PSG", "BAR".
+        national (bool | None): Whether this is a national team, if the provider states it.
+        players (EntityCollection[Athlete]): The squad — footballers, but equally the drivers
+            of a motorsport team or the riders of a cycling team. Empty when the provider
+            lists none.
+        manager (Manager | None): The team's manager or head coach, if the provider names one.
+        venue (Venue | None): The team's home ground, if the provider names one.
+        id (str): Globally unique SDK ID, of the form "team:<id>". (inherited from Competitor)
+        name, slug, short_name, full_name, gender, country, sport: See `Competitor`.
+        source (_TeamData): The parsed payload backing this entity. (inherited from BaseEntity)
+
+    Methods:
+        resolve() -> Team: Returns self — a `Team` is already fully resolved.
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Team]:
+            Teams matching `query`, each with its relevance score, capped at `max_results`.
+            (classmethod)
+        get_fixtures(silent: bool = False) -> EventCollection: The team's upcoming events.
+            (inherited from Competitor)
+        get_results(silent: bool = False) -> EventCollection: The team's past events.
+            (inherited from Competitor)
+        get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
+            (inherited from EventAwareMixin)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Team: The team with this SDK ID.
+            (classmethod, inherited from IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is not `_TeamData`.
+        EntityNotFoundError: If `from_id` names a team the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _TeamData
     _PREFIX: str = "team"
@@ -319,14 +368,49 @@ class Team(_TeamCompetitor):
 
 
 class Athlete(Competitor):
-    """
-    A player competitor, associated with a team and potentially having detailed information.
+    """An individual competitor — a footballer, a driver, a tennis player.
+
+    The full entity behind an individual `Competitor`, reached via `resolve()`. Everything
+    `Competitor` offers is available here too; the members below are what `Athlete` adds.
+
+    Instantiating `Athlete` returns one of two private variants depending on the payload:
+    individual-sport athletes reach the provider as team-shaped records, team-sport players
+    as player-shaped ones. Both expose the interface below.
 
     Attributes:
-        first_name (str | None): The first name of the player, if available.
-        last_name (str | None): The last name of the player, if available.
-        parent (Team | None): The team this player belongs to, if available and applicable.
-        info (AthleteInfo | None): Additional player info, if available.
+        first_name (str): Given name, parsed from the full name when not supplied separately.
+        last_name (str): Family name, parsed from the full name when not supplied separately.
+        parent (Team | None): The team, constructor or squad this athlete belongs to, if the
+            provider names one.
+        info (AthleteInfo | None): Physical, career and contractual details. Which fields are
+            populated depends on the sport.
+        id (str): Globally unique SDK ID — "t-ath:<id>" or "p-ath:<id>" by variant.
+            (inherited from Competitor)
+        name, slug, short_name, full_name, gender, country, sport: See `Competitor`.
+        source (_TeamData | _PlayerData): The parsed payload backing this entity.
+            (inherited from BaseEntity)
+
+    Methods:
+        resolve() -> Athlete: Returns self — an `Athlete` is already fully resolved.
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Athlete]:
+            Athletes matching `query`, each with its relevance score, capped at `max_results`.
+            (classmethod)
+        get_fixtures(silent: bool = False) -> EventCollection: The athlete's upcoming events.
+            Always empty for a player-shaped athlete — the provider has no fixtures endpoint
+            for players in team sports. (inherited from Competitor)
+        get_results(silent: bool = False) -> EventCollection: The athlete's past events.
+            (inherited from Competitor)
+        get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
+            (inherited from EventAwareMixin)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Athlete: The athlete with this
+            SDK ID. (classmethod, inherited from IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is neither `_PlayerData` nor `_TeamData`.
+        ValueError: If constructed from team-shaped data that carries no player info, and so
+            describes a team rather than an individual.
+        EntityNotFoundError: If `from_id` names an athlete the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _TeamData | _PlayerData
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name", "first_name", "last_name")
@@ -386,6 +470,7 @@ class Athlete(Competitor):
 
 
 class _TeamAthlete(Athlete, _TeamCompetitor):
+    """Private `Athlete` variant backed by team-shaped payloads; see `Athlete`."""
     _data: _TeamData
     _PREFIX: str = "t-ath"
 
@@ -421,6 +506,7 @@ class _TeamAthlete(Athlete, _TeamCompetitor):
 
 
 class _PlayerAthlete(Athlete, _PlayerCompetitor):
+    """Private `Athlete` variant backed by player-shaped payloads; see `Athlete`."""
     _data: _PlayerData
     _PREFIX: str = "p-ath"
 
@@ -451,25 +537,27 @@ class _PlayerAthlete(Athlete, _PlayerCompetitor):
 
 
 class AthleteInfo(BaseModel):
-    """Comprehensive details about an individual athlete.
+    """Physical, career and contractual details for an `Athlete`.
 
-    Covers identity, physical attributes, career status, technical profile, and financial/contractual data.
+    Every field is optional and most are sport-specific: a footballer carries a preferred
+    foot, positions and a market value, while a tennis player carries a birthplace and career
+    prize money. Expect the majority to be None for any given athlete.
 
     Attributes:
-        weight (float | None): Athlete weight in kilograms.
-        height (int | None): Athlete height in centimeters.
-        date_of_birth (date | None): Birth date.
-        place_of_birth (str | None): Birthplace.
-        retired (bool | None): Whether the player is retired.
-        deceased (bool | None): Whether the player is deceased.
-        number (int | None): Shirt or squad number.
-        preferred_foot (str | None): Dominant foot (if applicable).
-        preferred_hand (str | None): Dominant hand (if applicable).
-        positions (list[str] | None): Positions played.
-        total_prizes (Amount | None): Career prize earnings.
-        salary (Amount | None): Current salary.
-        market_value (Amount | None): Market valuation.
-        contract_expiry (date | None): Contract end date.
+        weight (float | None): Weight in kilograms.
+        height (int | None): Height in centimetres.
+        date_of_birth (date | None): Date of birth.
+        place_of_birth (str | None): Birthplace, as a free-text string.
+        retired (bool | None): Whether the athlete has retired.
+        deceased (bool | None): Whether the athlete is deceased.
+        number (int | None): Shirt, squad or car number.
+        preferred_foot (str | None): Dominant foot, e.g. "Left", "Right", "Both".
+        preferred_hand (str | None): Dominant hand, e.g. "right-handed".
+        positions (list[str] | None): Positions played, most specific available, e.g. ["RW", "ST"].
+        total_prizes (Amount | None): Career prize money, with its currency.
+        salary (Amount | None): Current salary, with its currency.
+        market_value (Amount | None): Estimated market value, with its currency.
+        contract_expiry (date | None): When the athlete's current contract ends.
     """
 
     # --- Identity & Physical Attributes ---

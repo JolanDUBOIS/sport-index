@@ -25,17 +25,29 @@ logger = logging.getLogger(__name__)
 class Channel(IdentifiableEntity, EventAwareMixin):
     """A TV channel broadcasting sports events.
 
-    Provides access to the channel's name, ID, and scheduled events.
+    A channel exposes only its identity and its forward-looking schedule; the provider keeps
+    no broadcast history, so past events are not available.
 
     Attributes:
-        id (str): Unique channel ID.
-        name (str): Channel name.
-        events (EventCollection): Scheduled events broadcast on this channel.
+        id (str): Globally unique SDK ID, e.g. "chl:58".
+        name (str): Channel name, e.g. "Canal+".
+        source (_ChannelData): The parsed payload backing this entity. (inherited from BaseEntity)
+
+    Methods:
+        get_fixtures(silent: bool = False) -> EventCollection: The channel's upcoming schedule,
+            mixing `MatchEvent` and `StageEvent`.
+        get_results(silent: bool = False) -> EventCollection: Always empty — the provider exposes
+            no broadcast history for a channel. Logs a warning unless `silent` is True.
+        get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
+            In practice equal to `get_fixtures()`, since results are always empty.
+            (inherited from EventAwareMixin)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Channel: The channel with this SDK
+            ID. (classmethod, inherited from IdentifiableEntity)
 
     Raises:
-        TypeError: If initialized with invalid data type.
-        EntityNotFoundError: If channel does not exist in the provider.
-        DomainError: If a network or provider error occurs during fetch.
+        TypeError: If constructed with data that is not `_ChannelData`.
+        EntityNotFoundError: If `from_id` names a channel the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _ChannelData
     _PREFIX = "chl"

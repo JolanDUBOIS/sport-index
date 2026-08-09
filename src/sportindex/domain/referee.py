@@ -28,37 +28,52 @@ logger = logging.getLogger(__name__)
 
 
 class Cards(BaseModel):
-    """Represents the count of different types of cards issued by a referee."""
+    """Career card totals for a `Referee`.
+
+    Attributes:
+        yellow (int): Yellow cards shown.
+        red (int): Straight red cards shown.
+        yellow_red (int): Reds resulting from a second yellow.
+    """
     yellow: int
     red: int
     yellow_red: int
 
 
 class Referee(SearchableMixin, EventAwareMixin):
-    """Represents a sports referee/officiator (e.g., football referee, Formula 1 race director).
-
-    Handles basic information, associated sport and country, games officiated,
-    and cards issued. Supports lazy full-loading for properties requiring
-    detailed API responses.
+    """Whoever officiates an event — a football referee, a race director.
 
     Attributes:
-        id (str): Unique identifier of the referee.
-        name (str): Full name of the referee.
-        slug (str): URL-friendly slug of the referee.
-        sport (Sport): Sport associated with the referee.
-        country (Country | None): Country associated with the referee, if available.
-        games (int | None): Number of games officiated by the referee.
-        cards (Cards | None): Counts of yellow, red, and yellow-red cards issued.
+        id (str): Globally unique SDK ID, e.g. "ref:123".
+        name (str): Full name, e.g. "Clément Turpin".
+        slug (str): URL-friendly identifier, e.g. "clement-turpin".
+        sport (Sport): The sport this referee officiates.
+        country (Country | None): The referee's nationality, if the provider states it.
+        games (int | None): How many games the referee has officiated, if the provider
+            states it.
+        cards (Cards | None): Career totals of yellow, red and second-yellow cards shown.
+            None unless the provider supplies all three counts.
+        source (_RefereeData): The parsed payload backing this entity. (inherited from BaseEntity)
 
     Methods:
-        get_fixtures(silent: bool = False) -> EventCollection:
-            Returns fixtures for this referee. Currently returns empty, logs a warning.
-        get_results(silent: bool = False) -> EventCollection:
-            Returns results for this referee.
-        from_id(referee_id: int, provider: SofascoreProvider) -> Referee:
-            Fetch a referee by its unique ID.
-        search(query: str, provider: SofascoreProvider) -> ScoredEntityCollection[Referee]:
-            Search for referees matching a query string (up to 20 results).
+        get_fixtures(silent: bool = False) -> EventCollection: Always empty — the provider
+            offers no fixtures endpoint for referees. Logs a warning unless `silent` is True.
+        get_results(silent: bool = False) -> EventCollection: The matches this referee has
+            officiated.
+        get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
+            In practice equal to `get_results()`, since fixtures are always empty.
+            (inherited from EventAwareMixin)
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Referee]:
+            Referees matching `query`, each with its relevance score, capped at `max_results`.
+            (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Referee: The referee with this
+            SDK ID. (classmethod, inherited from IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is not `_RefereeData`.
+        ValueError: If `search` is given an empty query.
+        EntityNotFoundError: If `from_id` names a referee the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _RefereeData
     _PREFIX = "ref"

@@ -21,23 +21,36 @@ OtherEntityT = TypeVar("OtherEntityT", bound="IdentifiableEntity", default="Iden
 # ===== Entity Collection =====
 
 class EntityCollection(UserList[EntityT]):
-    """
-    A collection of identifiable entities that supports basic list operations and provides
-    additional methods for retrieving entities by attributes and searching by query. The
-    collection ensures that all entities are unique based on their IDs.
+    """An ordered, duplicate-free list of entities.
 
-    Disabled Methods:
-        append, extend, insert, __setitem__: Intentionally blocked to maintain unique sequence integrity. Use add() and update() instead.
+    Behaves as a list — index it, slice it, iterate it, take its length — while guaranteeing
+    that no entity appears twice and that insertion order is preserved. Two entities count as
+    the same when they share a type and an SDK ID. This is how the domain hands back groups
+    of addressable entities; plain values such as standings rows come back as ordinary lists.
+    The in-place list mutators are disabled in favour of `add()` and `update()`, which enforce
+    uniqueness; the set operators build new collections rather than mutating.
 
     Methods:
-        add(item: I) -> None: Add an entity to the collection if it's not already present.
-        update(other: Iterable[I]) -> None: Update the collection with entities from another iterable, ensuring uniqueness.
-        get(strict: bool = False, **kwargs) -> I | None: Retrieve an entity matching the given attribute filters. If strict is True, raises EntityNotFoundError if no match is found.
-        search(query: str, *, by: str = "name") -> EntityCollection[I]: Search for entities where the query string is a substring of the specified attribute (default is "name").
+        add(item: EntityT) -> None: Append `item` unless an equal entity is already present.
+        update(other: Iterable[EntityT]) -> None: Merge `other` in, keeping first occurrences.
+        get(*, strict: bool = False, **kwargs) -> EntityT | None: The first entity whose
+            attributes all match the given keyword filters, e.g. `get(name="Ligue 1")`. None
+            when nothing matches, unless `strict` is True.
+        search(query: str, *, by: str = "name") -> EntityCollection[EntityT]: A new collection
+            of the entities whose `by` attribute contains `query`, case-insensitively.
+        __add__(other) / __or__(other) -> EntityCollection: A new collection holding this one's
+            entities followed by `other`'s, duplicates dropped.
+        __and__(other) -> EntityCollection: A new collection holding only the entities present
+            in both, in this collection's order.
+
+    Disabled Methods:
+        append, extend, insert, __setitem__: Raise NotImplementedError, since they would let
+            duplicates in. Use `add()` and `update()` instead.
 
     Raises:
-        TypeError: If an item being added is not an instance of IdentifiableEntity, or if the other iterable contains invalid items.
-        EntityNotFoundError: If strict is True and no matching entity is found in the get() method.
+        TypeError: If an entity being added is not an `IdentifiableEntity`.
+        EntityNotFoundError: If `get(strict=True)` matches nothing.
+        NotImplementedError: If a disabled mutator is called.
     """
 
     def __init__(self, initlist: Iterable[EntityT] | None = None) -> None:
@@ -167,28 +180,36 @@ class EntityCollection(UserList[EntityT]):
 # ===== Scored Entity Collection =====
 
 class ScoredEntityCollection(EntityCollection[EntityT]):
-    """
-    A read-only collection of entities resulting from a scored operation (like a search).
-    Behaves exactly like a standard EntityCollection during iteration and indexing,
-    but internally tracks scores to allow for score-based filtering and sorting.
+    """A read-only `EntityCollection` whose entities each carry a relevance score.
 
-    If multiple score entries for the same entity are provided during initialization,
-    the highest score is retained.
+    What every `search()` returns. Iterating and indexing it yields plain entities, exactly
+    as with an `EntityCollection`; the scores sit alongside and drive `sort_by_score()` and
+    `filter_by_score()`. Where the same entity arrives more than once, its highest score
+    wins. The collection is immutable — build a new one instead of changing this one, or call
+    `to_collection()` to drop the scores.
+
+    Methods:
+        get_score(entity_id: str) -> float: The score recorded for that entity's SDK ID.
+        sort_by_score(descending: bool = True) -> ScoredEntityCollection[EntityT]: A new
+            collection ordered by score, best first by default.
+        filter_by_score(min_score: float | None = None, max_score: float | None = None) -> ScoredEntityCollection[EntityT]:
+            A new collection holding only the entities whose score falls within the bounds
+            given; an omitted bound is unbounded.
+        to_collection() -> EntityCollection[EntityT]: The same entities in the same order as a
+            plain, mutable `EntityCollection`, scores discarded.
+        merge(*collections: ScoredEntityCollection[IdentifiableEntity]) -> ScoredEntityCollection[IdentifiableEntity]:
+            One collection holding every entity across the inputs, each keeping its highest
+            score. (classmethod)
 
     Disabled Methods:
         add, update, append, extend, insert, __setitem__, __add__, __or__, __and__, search:
-        Blocked to maintain the read-only integrity of the search results.
-
-    Methods:
-        get_score(entity_id: int) -> float: Retrieve the score for a specific entity ID in the collection.
-        sort_by_score(descending: bool = True) -> ScoredEntityCollection[I]: Return a new collection sorted by the internal scores.
-        filter_by_score(min_score: float | None = None, max_score: float | None = None) -> ScoredEntityCollection[I]: Return a new collection filtered by a score range.
-        merge(*collections: ScoredEntityCollection[IdentifiableEntity]) -> ScoredEntityCollection[IdentifiableEntity]: Internal helper to merge multiple ScoredEntityCollections,
-            retaining the highest scores for duplicate entities.
+            Raise NotImplementedError — the collection is read-only, and `search` would drop
+            the scores.
 
     Raises:
-        ValueError: If get_score is called with an entity ID that is not in the collection.
-        NotImplementedError: If any of the disabled modification methods are called.
+        TypeError: If an entity is not an `IdentifiableEntity`.
+        ValueError: If `get_score` is given an ID the collection does not hold.
+        NotImplementedError: If a disabled method is called.
     """
 
     def __init__(self, items_with_scores: Iterable[tuple[EntityT, float]] | None = None) -> None:
@@ -289,9 +310,26 @@ class ScoredEntityCollection(EntityCollection[EntityT]):
 E = TypeVar("E", bound="Event", default="Event")
 
 class EventCollection(EntityCollection[E]):
-    """
-    A specialized collection for handling lists of events with common filtering and sorting needs.
-    Inherits uniqueness enforcement and attribute querying from EntityCollection.
+    """An `EntityCollection` of events, with the filters a calendar needs.
+
+    Everything `EntityCollection` offers applies here too; the members below are what an
+    event collection adds. All of them return new collections rather than filtering in place.
+    A collection may mix `MatchEvent` and `StageEvent` — a channel's schedule does — which is
+    what `matches` and `stages` are for.
+
+    Attributes:
+        matches (EventCollection[MatchEvent]): Only the match events.
+        stages (EventCollection[StageEvent]): Only the stage events.
+
+    Methods:
+        filter_by_date(*, before: date | datetime | None = None, after: date | datetime | None = None) -> EventCollection[E]:
+            Only the events starting strictly before `before` and strictly after `after`. A
+            bare date counts as midnight at its start. An omitted bound is unbounded.
+        sort_by_date(ascending: bool = True) -> EventCollection[E]: The same events ordered by
+            start time, oldest first by default.
+        filter_by_competitors(competitor_ids: list[str]) -> EventCollection[MatchEvent]: Only
+            the match events with one of the given competitor SDK IDs on either side. Stage
+            events are dropped, having no two named sides.
     """
 
     @property
@@ -328,10 +366,12 @@ class EventCollection(EntityCollection[E]):
         """Return a new EventCollection sorted by date."""
         return self.__class__(sorted(self.data, key=lambda e: e.start, reverse=not ascending))
 
-    def filter_by_competitors(self, competitor_ids: list[int]) -> EventCollection[MatchEvent]:
+    def filter_by_competitors(self, competitor_ids: list[str]) -> EventCollection[MatchEvent]:
         """Return a new EventCollection containing only match events involving the specified competitor IDs."""
-        results = []
-        for event in self.matches:
-            if event.competitors and ((event.competitors.home.id in competitor_ids) or (event.competitors.away.id in competitor_ids)):
-                results.append(event)
+        wanted = set(competitor_ids)
+        results = [
+            event for event in self.matches
+            if event.competitors
+            and (event.competitors.home.id in wanted or event.competitors.away.id in wanted)
+        ]
         return EventCollection(results)

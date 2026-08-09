@@ -26,26 +26,41 @@ logger = logging.getLogger(__name__)
 
 
 class Competition(SearchableMixin):
-    """A competition, e.g., 'Ligue 1', 'Rolland Garros'.
+    """A recurring competition, e.g. 'Ligue 1', 'Roland-Garros', 'Formula 1'.
 
-    Can represent either a unique tournament or a unique stage.
-    Provides access to its category, sport, and associated seasons.
+    A competition is the timeless container above its seasons: 'Ligue 1' rather than
+    'Ligue 1 2024/25'. Instantiating `Competition` returns one of two private variants
+    depending on the payload — a match-based tournament or a stage-based competition
+    (motorsport, cycling). Both expose the interface below; only `seasons` differs, and
+    only in which kind of `Season` it yields.
 
     Attributes:
-        id (str): Unique ID, encoded from source ID and type.
-        name (str): Competition name.
-        slug (str): URL-friendly slug.
-        sport (Sport): Parent sport.
-        event_format (EventFormat): The event format for this competition, either "match" or "stage".
-        category (Category): Parent category (lazy-loaded).
-        seasons (EntityCollection[Season[E]]): Seasons of this competition (lazy-loaded).
+        id (str): Globally unique SDK ID — "trnc:<id>" for tournaments, "stgc:<id>" for
+            stage-based competitions.
+        name (str): Display name, e.g. "Ligue 1".
+        slug (str): URL-friendly identifier, e.g. "ligue-1".
+        sport (Sport): The sport this competition belongs to, taken from its category.
+        category (Category): The category this competition sits in, e.g. "France".
+        seasons (EntityCollection[Season]): Every season of this competition the provider
+            knows, in provider order.
+        source (_UniqueTournamentData | _UniqueStageData): The parsed payload backing this
+            entity. (inherited from BaseEntity)
 
     Methods:
-        from_id(competition_id, provider) -> Competition: Fetch a competition by its ID.
-        search(query, provider) -> ScoredEntityCollection: Search for competitions matching a query string
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Competition]:
+            Competitions matching `query`, each with its relevance score, capped at
+            `max_results`. Both tournaments and stage-based competitions are returned.
+            (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Competition: The competition with
+            this SDK ID; the prefix decides which variant is built. (classmethod, inherited from
+            IdentifiableEntity)
 
     Raises:
-        TypeError: If data is not UniqueTournament or UniqueStage.
+        TypeError: If constructed with data that is neither `_UniqueTournamentData` nor
+            `_UniqueStageData`.
+        ValueError: If `search` is given an empty query.
+        EntityNotFoundError: If `from_id` names a competition the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _UniqueTournamentData | _UniqueStageData
     _REPR_FIELDS = ("id", "name", "slug", "sport", "category")
@@ -111,6 +126,7 @@ class Competition(SearchableMixin):
 
 
 class _TournamentCompetition(Competition):
+    """Private `Competition` variant for match-based tournaments; see `Competition`."""
     _data: _UniqueTournamentData
     _PREFIX: str = "trnc"
 
@@ -142,6 +158,7 @@ class _TournamentCompetition(Competition):
 
 
 class _StageCompetition(Competition):
+    """Private `Competition` variant for stage-based competitions; see `Competition`."""
     _data: _UniqueStageData
     _PREFIX: str = "stgc"
 

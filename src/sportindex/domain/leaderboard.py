@@ -36,17 +36,29 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 
 class Standings(BaseEntity):
-    """Represents the standings (ranked table) of a competition or sport.
+    """A ranked table within one season or stage — a league table, a drivers' championship.
 
-    Can handle both team/match standings (e.g., football league tables) and racing/cycling standings
-    (e.g., Formula 1 driver standings).
+    Standings come from a `Season` or a `StageEvent` rather than being addressable on their
+    own, so they carry no ID. The same class covers league tables and racing championships;
+    which fields their entries populate differs, and `kind` tells you which sort you hold.
 
     Attributes:
-        name (str | None): Name of the standings, e.g., "Ligue 1 table".
-        kind (str | None): Type of standings, e.g., "home", "away", "competitors", "teams".
-        updated_at (datetime | None): Last update timestamp.
-        sport (Sport | None): Sport associated with these standings.
-        entries (list[StandingsEntry]): Ordered list of entries in the standings.
+        name (str | None): What the table is called, e.g. "Ligue 1", "Teams Monaco Grand Prix".
+        kind (str | None): Which cut of the season the table covers — "total", "home" or
+            "away" for league tables; "competitors", "individuals" or "teams" for racing
+            championships.
+        updated_at (datetime | None): When the provider last recomputed the table.
+        sport (Sport | None): The sport being ranked, taken from the first entry. None for an
+            empty table.
+        entries (list[StandingsEntry]): The rows, in the provider's order. Rows that cannot be
+            represented — a retired driver with no classified position, say — are dropped
+            rather than failing the whole table.
+        source (_TeamStandingsData | _RacingStandingsData): The parsed payload backing this
+            entity. (inherited from BaseEntity)
+
+    Raises:
+        TypeError: If constructed with data that is neither `_TeamStandingsData` nor
+            `_RacingStandingsData`.
     """
     _data: _TeamStandingsData | _RacingStandingsData
     _REPR_FIELDS = ("name", "kind", "updated_at")
@@ -104,18 +116,37 @@ class Standings(BaseEntity):
 
 
 class StandingsEntry(BaseModel):
-    """A single entry in a Standings table.
+    """One row of a `Standings` table.
+
+    Only `competitor` and `position` are always present. The rest divide by table kind:
+    league tables populate the match fields, racing championships the motorsport or cycling
+    ones. Expect the others to be None.
 
     Attributes:
-        competitor (Competitor): Competitor (team, driver, or rider).
-        position (int): Rank/position in the standings.
-        points (float): Points accumulated.
-        matches, wins, draws, losses, scores_for, scores_against, score_formatted, games_behind, promotion:
-            Match-specific fields.
-        victories, podiums, races_with_points, races_started:
-            Racing-specific fields.
-        time, gap_to_leader:
-            Cycling-specific fields.
+        competitor (Competitor): Who the row is about — a team, a driver, a rider.
+        position (int): Rank in the table. Starts at 1, except in MMA rankings where the
+            champion sits at 0.
+        points (float | None): Points accumulated.
+
+        matches (int | None): Games played. League tables.
+        wins (int | None): Games won. League tables.
+        draws (int | None): Games drawn. League tables.
+        losses (int | None): Games lost. League tables.
+        scores_for (int | None): Goals or points scored. League tables.
+        scores_against (int | None): Goals or points conceded. League tables.
+        score_formatted (str | None): Score difference as the provider renders it, e.g. "+15".
+            League tables.
+        games_behind (float | None): Games behind the leader, halves included. League tables.
+        promotion (Promotion | None): What this position qualifies for, e.g. "Champions
+            League". League tables.
+
+        victories (int | None): Races won. Motorsport.
+        podiums (int | None): Top-three finishes. Motorsport.
+        races_with_points (int | None): Races that scored. Motorsport.
+        races_started (int | None): Races entered. Motorsport.
+
+        time (str | None): Total elapsed time, as the provider renders it. Cycling.
+        gap_to_leader (str | None): Time behind the leader, as the provider renders it. Cycling.
     """
     competitor: Competitor
     position: int
@@ -192,18 +223,29 @@ class StandingsEntry(BaseModel):
 # =====================================================================
 
 class Rankings(BaseEntity):
-    """Represents the rankings of a sport, e.g., FIFA, ATP, or Olympic rankings.
+    """A sport-wide ranking table that outlives any one season — FIFA, ATP, UFC divisions.
+
+    Unlike `Standings`, which belongs to a season, a ranking is a standing order maintained
+    by a governing body. Reached through `Sport.get_rankings()`. Rankings are not addressable
+    as entities, so `id` here is the provider's raw ranking-type ID, not an SDK ID.
 
     Attributes:
-        id (int | None): Unique ID of the ranking type.
-        name (str | None): Name of the rankings.
-        slug (str | None): URL-friendly slug of the ranking.
-        updated_at (datetime | None): Last updated timestamp.
-        gender (Gender | None): Gender category of the ranking (M/F/X).
-        sport (Sport | None): Sport associated with the ranking.
-        category (Category | None): Category, if applicable.
-        competition (Competition | None): Competition associated, if applicable.
-        entries (list[RankingsEntry]): Ordered list of ranking entries.
+        id (int | None): The provider's raw ranking-type ID, e.g. 2 for the FIFA rankings.
+            Not an SDK ID.
+        name (str | None): What the ranking is called, e.g. "FIFA Rankings".
+        slug (str | None): URL-friendly identifier, e.g. "fifa".
+        updated_at (datetime | None): When the ranking was last published.
+        gender (Gender | None): Which gender's ranking this is — MALE, FEMALE or UNSPECIFIED.
+        sport (Sport | None): The sport being ranked, if the provider states it.
+        category (Category | None): The category the ranking is scoped to, if any.
+        competition (Competition | None): The competition the ranking is scoped to, if any.
+        entries (list[RankingsEntry]): The rows, in the provider's order.
+        source (_RankingsResponse): The parsed payload backing this entity.
+            (inherited from BaseEntity)
+
+    Raises:
+        TypeError: If constructed with data that is not `_RankingsResponse`.
+        ValueError: If a row names neither a team nor a competition to rank.
     """
     _data: _RankingsResponse
     _REPR_FIELDS = ("id", "name", "slug", "sport", "category", "gender", "updated_at")
@@ -271,15 +313,17 @@ class Rankings(BaseEntity):
 
 
 class RankingsEntry(BaseModel):
-    """A single entry in a Rankings table.
+    """One row of a `Rankings` table.
 
     Attributes:
-        position (int): Current position.
-        entity (Competitor | Competition): Entity being ranked.
-        points (float): Points in the ranking.
-        previous_position (int | None): Previous ranking position.
-        previous_points (float | None): Previous points.
-        best_position (int | None): Best historical position.
+        position (int): Current rank. Starts at 1, except in MMA rankings where the champion
+            sits at 0.
+        entity (Competitor | Competition): What is ranked — usually a team or athlete, but a
+            competition in rankings that order tournaments.
+        points (float | None): Ranking points held.
+        previous_position (int | None): Rank at the previous publication.
+        previous_points (float | None): Points at the previous publication.
+        best_position (int | None): Best rank ever reached.
     """
     position: int
     entity: Competitor | Competition

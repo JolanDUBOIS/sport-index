@@ -27,28 +27,47 @@ logger = logging.getLogger(__name__)
 
 
 class Venue(SearchableMixin, EventAwareMixin):
-    """Represents a sports venue or race stage, e.g., a stadium, tennis court, or race track.
+    """Where an event takes place — a stadium, an arena, a circuit.
 
-    Handles basic information, location, capacity, associated teams, and provides
-    lazy full-loading for detailed API properties.
+    Instantiating `Venue` returns one of two private variants depending on the payload: a
+    standard venue, or a circuit derived from a stage. The circuit variant is far thinner —
+    the provider exposes no capacity, no resident teams and no calendar for it — and those
+    differences are noted per member below.
 
     Attributes:
-        id (str): Unique identifier of the venue.
-        name (str): Name of the venue.
-        city (str | None): City where the venue is located.
-        capacity (int | None): Seating or attendance capacity of the venue.
-        country (Country | None): Country where the venue is located.
-        teams (EntityCollection[Competitor]): Main teams associated with the venue.
+        id (str): Globally unique SDK ID — "vnu:<id>" for standard venues, "stgv:<id>" for
+            circuits.
+        name (str): Venue name, e.g. "Parc des Princes", "Circuit de Monaco". Empty string
+            when the provider names none.
+        city (str | None): The city the venue is in, if the provider states it.
+        capacity (int | None): How many spectators the venue holds, if the provider states
+            it. Always None for circuits.
+        country (Country | None): The country the venue is in, if the provider states it.
+        teams (EntityCollection[Competitor]): The teams that call this venue home. Always
+            empty for circuits.
+        source (_VenueData | _StageData): The parsed payload backing this entity.
+            (inherited from BaseEntity)
 
     Methods:
-        get_fixtures() -> EventCollection:
-            Fetch all fixtures scheduled at this venue.
-        get_results() -> EventCollection:
-            Fetch all results played at this venue.
-        from_id(venue_id: int, provider: SofascoreProvider) -> Venue:
-            Fetch a venue by its unique ID.
-        search(query: str, provider: SofascoreProvider) -> ScoredEntityCollection[Venue]:
-            Search for venues by query string (up to 20 results).
+        get_fixtures(silent: bool = False) -> EventCollection: Events scheduled at this venue.
+            Always empty for circuits — the provider offers no such endpoint. Logs a warning
+            in that case unless `silent` is True.
+        get_results(silent: bool = False) -> EventCollection: Events already played at this
+            venue. Always empty for circuits, with the same warning behaviour.
+        get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
+            (inherited from EventAwareMixin)
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Venue]:
+            Venues matching `query`, each with its relevance score, capped at `max_results`.
+            Circuits are never returned: the provider does not index them. (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Venue: The venue with this SDK
+            ID; the prefix decides which variant is built. (classmethod, inherited from
+            IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is neither `_VenueData` nor `_StageData`.
+        ValueError: If `search` is given an empty query.
+        EntityNotFoundError: If `from_id` names a venue the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _VenueData | _StageData
     _REPR_FIELDS = ("id", "name")
@@ -119,6 +138,7 @@ class Venue(SearchableMixin, EventAwareMixin):
 
 
 class _StdVenue(Venue):
+    """Private `Venue` variant for standard venues such as stadiums and arenas; see `Venue`."""
     _PREFIX: str = "vnu"
 
     @property
@@ -176,6 +196,7 @@ class _StdVenue(Venue):
 
 
 class _StageVenue(Venue):
+    """Private `Venue` variant for circuits and courses derived from a stage; see `Venue`."""
     _PREFIX: str = "stgv"
 
     @property

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Generic, Self, overload
+from typing import TYPE_CHECKING, Generic, overload
 
 import pycountry
 from pydantic import BaseModel
@@ -52,27 +52,45 @@ logger = logging.getLogger(__name__)
 # ===== Event entity =====
 
 class Event(IdentifiableEntity):
-    """An event in a sport, such as a football match, tennis match, or motorsport race.
+    """Something that happens at a point in time — a football match, a tennis match, a race.
 
-    Provides access to event metadata, competitors, scores, lineups, incidents, statistics, and associated entities
-    like venue, referee, season, and competition. Supports both match- and race-specific properties.
+    The common base of the two event kinds. Instantiating `Event` returns whichever the
+    payload describes: a `MatchEvent` (two competitors facing each other) or a `StageEvent`
+    (a stage, session or race within a competition). Both are public and documented in their
+    own right; this class holds what they share.
 
     Attributes:
-        id (str): Unique event ID, encoded from source ID and type.
-        name (str): Event name.
-        slug (str): URL-friendly identifier.
-        start (datetime): Start time of the event.
-        status (EventStatus | None): Current status of the event, if available.
-        sport (Sport): Sport associated with this event.
-
-    Abstract properties:
-        competition (Competition | None): Competition this event belongs to.
-        season (Season): Season this event belongs to.
-        venue (Venue | None): Venue where the event takes place.
-        winner (Competitor | None): Winner of the event.
+        id (str): Globally unique SDK ID — "mch:<id>" for matches, "stg:<id>" for stages.
+        name (str): Display name, e.g. "Paris Saint Germain Marseille".
+        slug (str): URL-friendly identifier, e.g. "paris-saint-germain-marseille".
+        start (datetime): When the event starts.
+        status (EventStatus | None): Whether the event is scheduled, live or finished, if the
+            provider states it.
+        sport (Sport | None): The sport this event belongs to, taken from its season. None
+            when the season is unknown.
+        competition (Competition | None): The competition this event is part of, if the
+            provider states it. Defined by each subclass.
+        season (Season | None): The season this event is part of, if the provider states it.
+            Defined by each subclass.
+        venue (Venue | None): Where the event takes place. Defined by each subclass; a
+            `StageEvent` always has one, since its circuit is part of the stage itself.
+        winner (Competitor | None): Who won, once decided. Defined by each subclass.
+        source (_EventData | _StageData): The parsed payload backing this entity.
+            (inherited from BaseEntity)
 
     Methods:
-        from_id(event_id: str, provider) -> Event: Fetch an event by its unique ID.
+        get_channels(country: str) -> EntityCollection[Channel]: The TV channels broadcasting
+            this event in `country`, given as a name, alpha-2 or alpha-3 code. Empty when the
+            event is not broadcast there or no broadcast data exists.
+        from_id(entity_id: str, provider: SofascoreProvider) -> Event: The event with this SDK
+            ID; the prefix decides whether a `MatchEvent` or `StageEvent` is built.
+            (classmethod, inherited from IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is neither `_EventData` nor `_StageData`.
+        ValueError: If `get_channels` is given a country string that matches no ISO 3166-1 record.
+        EntityNotFoundError: If `from_id` names an event the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _EventData | _StageData
     _REPR_FIELDS = ("id", "name", "slug", "start")
@@ -127,9 +145,9 @@ class Event(IdentifiableEntity):
         return self._data.status
 
     @property
-    def sport(self) -> Sport[Self]:
+    def sport(self) -> Sport | None:
         """The sport this event belongs to."""
-        return self.season.sport
+        return self.season.sport if self.season else None
 
     @property
     @abstractmethod
@@ -187,22 +205,48 @@ class Event(IdentifiableEntity):
 
 
 class MatchEvent(Event):
-    """An event representing a match between two competitors, such as a football or tennis match.
+    """A match between two competitors — a football fixture, a tennis match, an MMA bout.
 
-    Provides access to match-specific properties like score, winner, periods, lineups, incidents, statistics,
-    and momentum graphs, extending the base event properties.
+    Everything `Event` offers is available here too. The members below are what a match adds:
+    two named sides, a score, and the in-game detail that comes with them. Most of that
+    detail only exists once the match has started, and much of it — lineups, statistics,
+    momentum — is only published for major competitions; expect empty collections and None
+    elsewhere.
 
     Attributes:
-        round (Round | None): The round of the match event.
-        referee (Referee | None): The referee officiating the match.
-        competitors (MatchCompetitors): The home and away competitors.
-        score (Score | None): The current or final score.
-        periods (list[MatchPeriod]): The periods of the match.
-        lineups (MatchLineups | None): The starting lineups for both teams.
-        incidents (list[Incident]): In-game incidents like cards or goals.
-        statistics (list[PeriodStats]): Statistical data for the match periods.
-        momentum_graph (list[MomentumPoint]): Data points representing match momentum.
-        h2h (EventCollection): Head-to-head history between the two competitors.
+        round (Round | None): Which round of the competition this match belongs to, if the
+            provider states it.
+        referee (Referee | None): The official in charge, if the provider names one.
+        competitors (MatchCompetitors): The home and away sides.
+        score (Score | None): Home and away scores. None before the match produces one.
+        periods (list[MatchPeriod]): Per-period breakdown — halves, sets, overtime, penalty
+            shootout — each with its own score and timing. Empty when unavailable.
+        lineups (MatchLineups | None): The starting eleven, or equivalent, for each side.
+            None when the provider publishes no lineups for this match.
+        incidents (list[Incident]): What happened during the match — goals, cards,
+            substitutions, VAR decisions, period boundaries. Empty when unavailable. Reflects
+            the live state on each access rather than being cached.
+        statistics (list[PeriodStats]): Team statistics grouped by period, e.g. possession and
+            shots. Empty when unavailable.
+        momentum_graph (list[MomentumPoint]): Minute-by-minute pressure values, positive
+            towards the home side. Empty when unavailable. Reflects the live state on each
+            access rather than being cached.
+        h2h (EventCollection[MatchEvent]): Previous meetings between these two competitors.
+            Empty when the provider has no head-to-head record.
+        id (str): Globally unique SDK ID, of the form "mch:<id>". (inherited from Event)
+        name, slug, start, status, sport, competition, season, venue, winner: See `Event`.
+        source (_EventData): The parsed payload backing this entity. (inherited from BaseEntity)
+
+    Methods:
+        get_channels(country: str) -> EntityCollection[Channel]: The TV channels broadcasting
+            this match in `country`. (inherited from Event)
+        from_id(entity_id: str, provider: SofascoreProvider) -> MatchEvent: The match with this
+            SDK ID. (classmethod, inherited from IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is not `_EventData`.
+        EntityNotFoundError: If `from_id` names a match the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _EventData
     _PREFIX: str = "mch"
@@ -234,11 +278,15 @@ class MatchEvent(Event):
         return Competition(self._data.tournament.unique_tournament, self._provider) if self._data.tournament and self._data.tournament.unique_tournament else None
 
     @cached_property
-    def season(self) -> Season:
+    def season(self) -> Season | None:
         """The season this event belongs to."""
         self._full_load()
         from .season import Season
-        return Season(self._data.season, self._provider, uniqueTournament=self._data.tournament.unique_tournament)
+        return Season(
+            self._data.season,
+            self._provider,
+            uniqueTournament=self._data.tournament.unique_tournament
+        ) if self._data.season and self._data.tournament and self._data.tournament.unique_tournament else None
 
     @cached_property
     def referee(self) -> Referee | None:
@@ -324,8 +372,7 @@ class MatchEvent(Event):
         """The statistics for this event, if available."""
         try:
             parsed_stats_response = self._provider.get_event_statistics(self._data.id)
-            if parsed_stats_response:
-                return parsed_stats_response.statistics
+            return parsed_stats_response.statistics
         except ProviderNotFoundError:
             logger.debug(f"Statistics not found for event {self.id}.")
             return []
@@ -338,8 +385,7 @@ class MatchEvent(Event):
         """
         try:
             graph = self._provider.get_event_graph(self._data.id)
-            if graph:
-                return graph.points
+            return graph.points
         except ProviderNotFoundError:
             logger.debug(f"Momentum graph not found for event {self.id}.")
             return []
@@ -371,17 +417,43 @@ class MatchEvent(Event):
 
 
 class StageEvent(Event):
-    """An event representing a specific stage, phase, or race within a competition.
+    """A stage, session or race within a competition — a Grand Prix, a qualifying session, a Tour stage.
 
-    Provides access to stage-specific properties like tiers, parent-child relationships,
-    and team/competitor standings.
+    Everything `Event` offers is available here too. The members below are what a stage adds.
+    Stages nest: a Grand Prix weekend contains practice, qualifying and the race itself, each
+    a `StageEvent` in its own right, distinguished by `tier`. The season at the top of that
+    chain is a `Season`, not a `StageEvent`, so `parent` is None for a top-level stage even
+    though `season` is not.
 
     Attributes:
-        end (datetime | None): The scheduled end time of the stage.
-        tier (StageTier): The categorization tier of the stage.
-        parent (StageEvent | None): The overarching parent stage, if applicable.
-        substages (EventCollection): Any child stages contained within this stage.
-        standings (list[Standings] | None): The rankings for competitors and teams.
+        end (datetime | None): When the stage finishes, if the provider states it.
+        tier (StageTier): How deep in the nesting this stage sits — EVENT, PRACTICE,
+            QUALIFYING, RACE, LAP, STAGE, and so on. Always below SEASON.
+        parent (StageEvent | None): The stage containing this one, or None if this stage
+            hangs directly off its season.
+        substages (EventCollection[StageEvent]): The stages contained within this one. Empty
+            for a leaf stage such as a single race.
+        standings (list[Standings]): Exactly two ranking tables for this stage — competitors
+            and teams — each empty if the provider publishes nothing for it. Never None,
+            despite the wider `list[Standings] | None` annotation.
+        venue (Venue): The circuit or course, derived from the stage itself rather than
+            looked up separately. Never None, though its fields may be empty.
+        id (str): Globally unique SDK ID, of the form "stg:<id>". (inherited from Event)
+        name, slug, start, status, sport, competition, season, winner: See `Event`.
+        source (_StageData): The parsed payload backing this entity. (inherited from BaseEntity)
+
+    Methods:
+        get_channels(country: str) -> EntityCollection[Channel]: The TV channels broadcasting
+            this stage in `country`. (inherited from Event)
+        from_id(entity_id: str, provider: SofascoreProvider) -> StageEvent: The stage with this
+            SDK ID. (classmethod, inherited from IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is not `_StageData`.
+        ValueError: If constructed with a tier of SEASON or above — such data describes a
+            `Season`, not an event — or if a parent stage resolves to an invalid tier.
+        EntityNotFoundError: If `from_id` names a stage the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _StageData
     _PREFIX: str = "stg"
@@ -418,7 +490,7 @@ class StageEvent(Event):
         """The competition this event belongs to, if available."""
         self._full_load()
         from .competition import Competition
-        return Competition(self._data.unique_stage, self._provider)
+        return Competition(self._data.unique_stage, self._provider) if self._data.unique_stage else None
 
     @cached_property
     def _parent(self) -> StageEvent | Season | None:
@@ -463,8 +535,8 @@ class StageEvent(Event):
             return EventCollection()
 
     @cached_property
-    def venue(self) -> Venue | None:
-        """The venue where this event takes place, if available."""
+    def venue(self) -> Venue:
+        """The venue where this event takes place."""
         from .venue import Venue
         return Venue(self._data, self._provider)
 
@@ -519,13 +591,23 @@ class StageEvent(Event):
 # ===== Components =====
 
 class MatchCompetitors(BaseModel):
-    """Represents the two competitors in a match."""
+    """The two sides of a `MatchEvent`.
+
+    Attributes:
+        home (Competitor): The home side, or the first-named competitor at a neutral venue.
+        away (Competitor): The away side, or the second-named competitor at a neutral venue.
+    """
     home: Competitor
     away: Competitor
 
 
 class MatchLineups(BaseModel):
-    """Represents the lineups of both teams for a match."""
+    """The lineups of both sides of a `MatchEvent`.
+
+    Attributes:
+        home (list[Athlete]): The players listed for the home side.
+        away (list[Athlete]): The players listed for the away side.
+    """
     home: list[Athlete]
     away: list[Athlete]
 
@@ -547,13 +629,21 @@ class MatchLineups(BaseModel):
 E = TypeVar("E", bound="Event", default="Event")
 
 class EventAwareMixin(ABC, Generic[E]):
-    """
-    Toolkit for entities that fetch fixtures and results. Provides shared pagination and unified date filtering.
+    """Mixin giving an entity a calendar of upcoming and past events.
+
+    Mixed into `Channel`, `Competitor` (and `Team` / `Athlete`), `Manager`, `Referee`,
+    `Season` and `Venue`. Each supplies its own `get_fixtures` and `get_results`; some have
+    no endpoint for one or the other and return an empty collection, which is why both take
+    a `silent` flag to suppress the warning that goes with it.
 
     Methods:
-        get_fixtures(silent=False) -> EventCollection[E]: Fetch upcoming fixtures.
-        get_results(silent=False) -> EventCollection[E]: Fetch past results.
-        get_events() -> EventCollection[E]: Fetch all events (fixtures + results), sorted by date.
+        get_fixtures(silent: bool = False) -> EventCollection[E]: The entity's upcoming events.
+            Abstract; each entity implements it. Logs a warning when it cannot be supported,
+            unless `silent` is True.
+        get_results(silent: bool = False) -> EventCollection[E]: The entity's past events.
+            Abstract; each entity implements it. Same warning behaviour.
+        get_events() -> EventCollection[E]: Fixtures and results in one collection, sorted by
+            start time, oldest first. Suppresses the unsupported-endpoint warnings.
     """
 
     @abstractmethod

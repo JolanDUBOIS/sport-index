@@ -27,7 +27,15 @@ logger = logging.getLogger(__name__)
 # ===== Base Entity =====
 
 class BaseEntity(ABC):
-    """Base class for all domain entities."""
+    """Base class for every domain entity.
+
+    Wraps a parsed provider payload and exposes it through typed properties. Entities
+    without their own identity compare and hash by object identity.
+
+    Attributes:
+        source (BaseSchema): The parsed payload backing this entity. An escape hatch for
+            fields the domain layer does not surface as properties.
+    """
     _data: BaseSchema
     _REPR_FIELDS = ()
 
@@ -82,7 +90,32 @@ class BaseEntity(ABC):
 # ===== Identifiable Entity =====
 
 class IdentifiableEntity(BaseEntity):
-    """Base class for entities that have a unique identifier."""
+    """Base class for entities addressable by a stable, globally unique SDK ID.
+
+    An SDK ID is a string such as ``"team:44"`` or ``"trnc:17:trns:61627"``: a short type
+    prefix, the provider's raw numeric ID, and — for entities that only mean something
+    inside a parent, such as a Season inside a Competition — the parent's own ID prepended.
+    Two entities are equal when they are of the same type and carry the same ID.
+
+    Attributes:
+        id (str): The entity's globally unique SDK ID.
+        source (BaseSchema): The parsed payload backing this entity. (inherited from BaseEntity)
+
+    Methods:
+        encode_id(raw_id: int, parent_id: str | None = None) -> str: The SDK ID for a raw
+            provider ID, optionally nested under a parent ID. (classmethod)
+        decode_id(sdk_id: str) -> tuple[str | None, str, int]: The (parent_id, prefix, raw_id)
+            an SDK ID is built from; parent_id is None when the ID has no parent. (classmethod)
+        resolve_class(entity_id: str) -> type[Self]: The concrete subclass whose prefix matches
+            the ID. (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Self: The entity with this SDK
+            ID, as an instance of the concrete subclass its prefix names. (classmethod)
+
+    Raises:
+        ValueError: If an SDK ID is malformed, or if no subclass of this class claims its prefix.
+        EntityNotFoundError: If `from_id` names an entity the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
+    """
     _PREFIX: str
 
     def __init__(self, data: BaseSchema, provider: SofascoreProvider, **kwargs) -> None:
@@ -193,11 +226,18 @@ class IdentifiableEntity(BaseEntity):
 # ===== Searchable Mixin =====
 
 class SearchableMixin(IdentifiableEntity):
-    """
-    Mixin for entities that can be searched via pagination.
+    """Mixin for entities that can be looked up by free-text query.
+
+    Mixed into `Competition`, `Competitor` (and `Team` / `Athlete`), `Manager`, `Referee`
+    and `Venue`.
 
     Methods:
-        search() -> ScoredEntityCollection[Self]: Search for entities matching a query, with pagination support.
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Self]:
+            The entities matching `query`, each carrying the provider's relevance score,
+            capped at `max_results`. Empty when nothing matches. (classmethod)
+
+    Raises:
+        ValueError: If `query` is not a non-empty string.
     """
 
     @classmethod

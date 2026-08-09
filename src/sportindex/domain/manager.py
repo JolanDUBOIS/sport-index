@@ -28,6 +28,16 @@ logger = logging.getLogger(__name__)
 
 
 class ManagerTenure(_ManagerTenure):
+    """One spell of a `Manager` at one team.
+
+    Attributes:
+        team (Competitor): The team managed during this spell.
+        performance (Performance): The record over the spell — matches, wins, draws, losses,
+            goals for and against, points.
+        start (datetime | None): When the spell began, if the provider states it.
+        end (datetime | None): When the spell ended, if the provider states it. None for an
+            ongoing spell.
+    """
     team: Competitor
 
     @classmethod
@@ -40,31 +50,40 @@ class ManagerTenure(_ManagerTenure):
 
 
 class Manager(SearchableMixin, EventAwareMixin):
-    """Represents a sports manager/coach (e.g., football manager, Formula 1 team principal).
-
-    This entity handles basic information, associated sport and country, team affiliations,
-    career history, and provides access to fixtures and results. Supports lazy full-loading
-    for properties that require more detailed API responses.
+    """Whoever runs a team from the sideline — a football manager, a Formula 1 team principal.
 
     Attributes:
-        id (str): Unique identifier of the manager.
-        name (str): Full name of the manager.
-        slug (str): URL-friendly slug of the manager.
-        short_name (str): Shortened name or abbreviation (e.g., "Z. Zidane").
-        sport (Sport): Sport associated with the manager.
-        country (Country | None): Country associated with the manager, if available.
-        team (Competitor | None): Current primary team, if assigned.
-        performances (list[ManagerTenure]): Career history and performance records of the manager.
+        id (str): Globally unique SDK ID, e.g. "mng:794075".
+        name (str): Full name, e.g. "Zinédine Zidane".
+        slug (str): URL-friendly identifier, e.g. "zinedine-zidane".
+        short_name (str): Abbreviated name, e.g. "Z. Zidane". The underlying payload field is
+            optional, so this may be None despite the annotation.
+        sport (Sport): The sport this manager works in.
+        country (Country | None): The manager's nationality, if the provider states it.
+        team (Competitor | None): The team currently managed, if any — None between jobs.
+        performances (list[ManagerTenure]): Every spell in the manager's career, each with its
+            team, dates and win-loss record.
+        source (_ManagerData): The parsed payload backing this entity. (inherited from BaseEntity)
 
     Methods:
-        get_fixtures(silent: bool = False) -> EventCollection:
-            Returns fixtures for this manager. Currently returns empty, logs a warning.
-        get_results(silent: bool = False) -> EventCollection:
-            Returns results for this manager.
-        from_id(manager_id: int, provider: SofascoreProvider) -> Manager:
-            Fetch a manager by its unique ID.
-        search(query: str, provider: SofascoreProvider) -> ScoredEntityCollection[Manager]:
-            Search for managers matching a query string (up to 20 results).
+        get_fixtures(silent: bool = False) -> EventCollection: Always empty — the provider
+            offers no fixtures endpoint for managers. Logs a warning unless `silent` is True.
+        get_results(silent: bool = False) -> EventCollection: The matches this manager has
+            taken charge of.
+        get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
+            In practice equal to `get_results()`, since fixtures are always empty.
+            (inherited from EventAwareMixin)
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Manager]:
+            Managers matching `query`, each with its relevance score, capped at `max_results`.
+            (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Manager: The manager with this
+            SDK ID. (classmethod, inherited from IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is not `_ManagerData`.
+        ValueError: If `search` is given an empty query.
+        EntityNotFoundError: If `from_id` names a manager the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _ManagerData
     _PREFIX = "mng"

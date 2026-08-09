@@ -1,9 +1,5 @@
 """
 Static data — predefined sports and ranking-to-sport mappings.
-
-These are known constants that don't change across API calls.
-Sport objects are built lazily (on first access) so that this module
-can be imported before ``BaseEntity.configure()`` has been called.
 """
 
 from __future__ import annotations
@@ -14,6 +10,13 @@ from .enums import Gender
 
 
 class SportEntry(NamedTuple):
+    """One sport in the built-in registry `Sport.all()` is built from.
+
+    Attributes:
+        id (int): The provider's raw sport ID.
+        slug (str): URL-friendly identifier, e.g. "football".
+        name (str): Display name, e.g. "Football".
+    """
     id: int
     slug: str
     name: str

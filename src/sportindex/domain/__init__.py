@@ -1,17 +1,24 @@
-"""Domain model package for sportindex — defines entities and collections
-representing sports data and their relationships (events, competitions, competitors, etc.).
+"""Domain model package for sportindex — the entities and collections that make up the
+SDK's public surface, and the relationships between them.
 
-Main elements provided in this package:
+Exported from this package:
+
+- Base types: `BaseEntity`, `IdentifiableEntity`, `SearchableMixin`, `EventAwareMixin`.
+- Collections: `EntityCollection`, `ScoredEntityCollection`, `EventCollection`.
 - Core entities: `Sport`, `Country`, `Category`.
-- Base types: `BaseEntity`, `IdentifiableEntity`, `EntityCollection`.
-- Competition models: `Competition`, `Season`.
-- Event models: `Event`, `EventCollection`, `Period`, `Lineups`, `Incident`,
-  `EventStatistics`, `MomentumGraph`, `MatchCompetitors`, `MatchScore`, `Round`.
-- Competitors: `Competitor`, `AthleteInfo`, `Amount`.
-- Leaderboards: `Standings`, `Rankings`, `StandingsEntry`, `RankingsEntry`,
-  `Promotion`, `Gender`.
-- Supporting models: `Manager`, `ManagerCareerHistory`, `Referee`, `Cards`,
-  `Venue`, `Channel`, `Incident`, etc.
+- Competitions and their editions: `Competition`, `Season`.
+- Events: `Event` and its two public kinds `MatchEvent` and `StageEvent`, plus the
+  `MatchCompetitors` and `MatchLineups` components and the `Incident` union.
+- Competitors: `Competitor`, and the richer `Team` and `Athlete` it resolves to, with
+  `AthleteInfo`.
+- Leaderboards: `Standings` and `StandingsEntry` for a season's tables, `Rankings` and
+  `RankingsEntry` for a sport's standing order.
+- Supporting entities: `Manager` with `ManagerTenure`, `Referee` with `Cards`, `Venue`,
+  `Channel`.
+- Enums: `Gender`.
+
+Entities are addressed by SDK ID — see `IdentifiableEntity` — and are normally reached
+through `sportindex.SportClient` rather than constructed directly.
 """
 
 from .base import BaseEntity, IdentifiableEntity, SearchableMixin

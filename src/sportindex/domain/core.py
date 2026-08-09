@@ -28,22 +28,30 @@ logger = logging.getLogger(__name__)
 
 
 class Sport(IdentifiableEntity):
-    """A sport (e.g., football, tennis, motorsport).
+    """A sport, such as football, tennis or motorsport.
 
-    Provides access to its categories and official rankings, and can be instantiated from minimal raw data without fetching full details.
+    Sports come from a fixed built-in registry rather than from the provider, so a Sport
+    is always complete: there is nothing further to load.
 
     Attributes:
-        id (int): Unique sport ID.
-        name (str): Official sport name.
-        slug (str): URL-friendly identifier.
-        categories (EntityCollection[Category]): All categories associated with this sport.
+        id (str): Globally unique SDK ID, e.g. "spt:1".
+        name (str): Display name, e.g. "Football".
+        slug (str): URL-friendly identifier, e.g. "football".
+        categories (EntityCollection[Category]): Every category grouping this sport's
+            competitions — countries, international bodies, and the like.
+        source (_SportData): The parsed payload backing this entity. (inherited from BaseEntity)
 
     Methods:
-        get_rankings(gender: Optional[str] = None) -> list[Rankings]: Fetch official rankings for the sport.
+        get_rankings(gender: str | None = None) -> list[Rankings]: The sport's official
+            ranking tables — FIFA, ATP, WTA, UFC divisions. Pass "M" or "F" to keep only
+            that gender's tables. Empty for sports with no known rankings.
+        all(provider: SofascoreProvider) -> EntityCollection[Sport]: Every supported sport. (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Sport: The sport with this SDK ID. (classmethod)
 
-    Class Methods:
-        all(provider) -> EntityCollection[Sport]: Returns a collection of all supported sports.
-        from_id(sport_id, provider) -> Sport: Create a Sport instance from its unique ID.
+    Raises:
+        TypeError: If constructed with data that is not `_SportData`.
+        EntityNotFoundError: If `from_id` is given an ID no supported sport carries.
+        DomainError: If the provider fails while resolving the sport.
     """
     _data: _SportData
     _PREFIX = "spt"
@@ -125,25 +133,31 @@ class Sport(IdentifiableEntity):
 
 
 class Country(IdentifiableEntity):
-    """A country (e.g., France, England, Spain).
+    """A country, such as France, England or Spain.
 
-    Provides standard identifiers (name, slug, alpha-2, alpha-3) and can be instantiated from a name or alpha code.
+    Every Country is backed by an ISO 3166-1 record, so its codes are canonical even when
+    the provider supplied only a name or a partial payload. A Country is always complete:
+    there is nothing further to load.
 
     Attributes:
-        id (int): The unique ID of the country.
-        name (str): Official country name.
-        slug (str): URL-friendly identifier.
-        alpha2 (str | None): ISO alpha-2 code.
-        alpha3 (str | None): ISO alpha-3 code.
+        id (str): Globally unique SDK ID built from the ISO 3166-1 numeric code, e.g. "ctr:250".
+        name (str): Title-cased country name, e.g. "France".
+        slug (str): URL-friendly identifier, e.g. "france".
+        alpha2 (str | None): ISO 3166-1 alpha-2 code, e.g. "FR".
+        alpha3 (str | None): ISO 3166-1 alpha-3 code, e.g. "FRA".
+        source (_CountryData): The parsed payload backing this entity. (inherited from BaseEntity)
 
-    Class Methods:
-        all(provider) -> EntityCollection[Country]: Fetch all countries.
-        from_id(country_id: int, provider) -> Optional[Country]: Create from domain ID.
-        from_alpha(alpha: str, provider) -> Optional[Country]: Create from alpha code.
-        from_name(name: str, provider) -> Optional[Country]: Create from country name.
+    Methods:
+        all(provider: SofascoreProvider) -> EntityCollection[Country]: Every ISO 3166-1 country. (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Country: The country with this SDK ID. (classmethod)
+        from_alpha(alpha: str, provider: SofascoreProvider) -> Country: The country with this alpha-2
+            or alpha-3 code. (classmethod)
+        from_name(name: str, provider: SofascoreProvider) -> Country: The country with this name. (classmethod)
 
     Raises:
-        ValueError: If the country cannot be found in the pycountry database.
+        TypeError: If constructed with data that is not `_CountryData`.
+        ValueError: If the payload matches no ISO 3166-1 record.
+        EntityNotFoundError: If `from_id`, `from_alpha` or `from_name` matches no ISO 3166-1 record.
     """
     _data: _CountryData
     _PREFIX = "ctr"
@@ -254,21 +268,33 @@ class Country(IdentifiableEntity):
 
 
 class Category(IdentifiableEntity):
-    """A category within a sport (e.g., 'France Amateur', 'Formula 1', 'International').
+    """A grouping of competitions within a sport, e.g. 'France Amateur', 'Formula 1', 'International'.
 
-    Provides access to its sport, country (if applicable), and competitions.
+    Categories are the level between a sport and its competitions. Most are countries; the
+    rest are international or organiser-level groupings.
 
     Attributes:
-        id (int): Unique category ID.
-        name (str): Category name.
-        slug (str): URL-friendly identifier.
-        sport (Sport): The sport this category belongs to.
-        country (Country | None): The country this category belongs to, or None if international.
-        competitions (EntityCollection[Competition]): All competitions under this category.
+        id (str): Globally unique SDK ID, e.g. "cat:7".
+        name (str): Display name, e.g. "France".
+        slug (str): URL-friendly identifier, e.g. "france".
+        sport (Sport): The sport this category sits under.
+        country (Country | None): The country this category represents, or None for
+            international and organiser-level categories.
+        competitions (EntityCollection[Competition]): Every competition in this category,
+            covering both match-based tournaments and stage-based competitions. Empty when
+            the provider lists neither.
+        source (_CategoryData): The parsed payload backing this entity. (inherited from BaseEntity)
 
-    Class Methods:
-        all(provider) -> EntityCollection[Category]: Fetch all categories across all sports (expensive).
-        from_id(category_id, provider) -> Category: Create a Category instance from its ID (expensive).
+    Methods:
+        all(provider: SofascoreProvider) -> EntityCollection[Category]: Every category across every
+            sport. Cached per provider; the first call is slow. (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Category: The category with this SDK
+            ID. Shares the `all()` cache, so the first call is slow. (classmethod)
+
+    Raises:
+        TypeError: If constructed with data that is not `_CategoryData`.
+        EntityNotFoundError: If `from_id` is given an ID no category carries.
+        DomainError: If the provider fails while resolving the category.
     """
     _data: _CategoryData
     _PREFIX = "cat"
