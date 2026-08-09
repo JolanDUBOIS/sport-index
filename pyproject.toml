@@ -1,11 +1,13 @@
 [project]
 name = "sport-index"
-version = "0.8.0"
+version = "1.0.0"
 description = "Unified clients for sports data providers"
 authors = [
     {name = "JolanDUBOIS", email = "jolan.developer@gmail.com"}
 ]
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11,<4.0"
 
 dependencies = [

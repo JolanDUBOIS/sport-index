@@ -1,5 +1,6 @@
 ![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat-square)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg?style=flat-square)
+![License](https://img.shields.io/github/license/JolanDUBOIS/sport-index?style=flat-square)
 
 # sport-index
 
@@ -276,3 +277,10 @@ Issues and PRs welcome. Include:
 * Entity IDs or query used
 * Traceback/error message
 * Minimal reproducible example (if possible)
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+This covers the `sport-index` source code only. It grants no rights over the data
+returned by the providers it queries — see the disclaimer at the top.
