@@ -55,12 +55,21 @@ class BaseEntity(ABC):
                 if isinstance(attr_value, cached_property):
                     self.__dict__.pop(attr_name, None)
 
+    @classmethod
+    def _public_class(cls) -> type[BaseEntity]:
+        """The nearest ancestor users are meant to see.
+
+        Dispatch variants like `_StdVenue` are private, so anything user-facing — reprs,
+        cache namespaces — should name the public parent (`Venue`) instead.
+        """
+        for ancestor in cls.__mro__:
+            if not ancestor.__name__.startswith("_"):
+                return ancestor
+        return cls
+
     @property
     def _public_class_name(self) -> str:
-        for cls in self.__class__.__mro__:
-            if not cls.__name__.startswith("_"):
-                return cls.__name__
-        return self.__class__.__name__
+        return self._public_class().__name__
 
     def __str__(self) -> str:
         field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')}" for k in self._REPR_FIELDS)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import UserList
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 from typing_extensions import TypeVar
@@ -361,9 +361,10 @@ class EventCollection(EntityCollection[E]):
         results = self.data
 
         def to_dt(val: date | datetime) -> datetime:
-            if isinstance(val, datetime):
-                return val
-            return datetime.combine(val, datetime.min.time())
+            # Event.start is always UTC-aware, so a bare date — or a naive datetime — has to
+            # be anchored to UTC before it can be compared against one.
+            dt = val if isinstance(val, datetime) else datetime.combine(val, datetime.min.time())
+            return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
         if before is not None:
             before_dt = to_dt(before)

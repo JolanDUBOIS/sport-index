@@ -9,6 +9,22 @@ from sportindex.fetcher import RecordingFetcher
 from sportindex.sitemaps import SofascoreSitemapProvider
 
 
+#: Fixtures that reach the real provider — recorded or live. Any test requesting one of
+#: these is an integration test, and is marked as such automatically.
+PROVIDER_FIXTURES = frozenset({"client", "provider", "sitemap_provider"})
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Mark every test that touches the provider as `integration`.
+
+    Done by fixture usage rather than by file path so a new test is classified correctly
+    wherever it is written, without anyone having to remember the marker.
+    """
+    for item in items:
+        if PROVIDER_FIXTURES & set(getattr(item, "fixturenames", ())):
+            item.add_marker(pytest.mark.integration)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_environment()-> Generator[None, None, None]:
     """Automatically set environment variables for all tests."""

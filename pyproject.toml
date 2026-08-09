@@ -37,6 +37,10 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+addopts = "-m 'not integration'"
+markers = [
+    "integration: exercises the real provider. Needs recorded fixtures in tests/mock_cache (gitignored) or live network access. Deselected by default; run with `pytest -m integration`.",
+]
 log_level = "DEBUG"
 log_format = "%(asctime)s [%(levelname)8s] (%(filename)s:%(lineno)s) %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"

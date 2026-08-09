@@ -95,13 +95,18 @@ class SportClient:
     def _resolve_ns(self, entity_cls: type[IdentifiableEntity]) -> str:
         """
         Map a class to its canonical cache namespace.
+
         Ensures MatchEvent/StageEvent share 'event' and Team/Athlete share 'competitor'.
+        Private dispatch variants resolve to their public parent, so an entity lands in the
+        same namespace whether its class was passed explicitly or inferred from its ID —
+        otherwise `get("vnu:1")` and `get("vnu:1", Venue)` would cache separately, and no
+        public namespace name would clear both.
         """
         if issubclass(entity_cls, Event):
             return "event"
         if issubclass(entity_cls, Competitor):
             return "competitor"
-        return entity_cls.__name__.lower()
+        return entity_cls._public_class().__name__.lower()
 
     # --- Cache Helpers ---
 
@@ -147,25 +152,30 @@ class SportClient:
             self._cache[ns][entity.id] = entity
         return collection
 
+    CACHE_NAMESPACES = frozenset({
+        "sport", "country", "category", "competition", "season",
+        "event", "competitor", "channel", "manager", "referee", "venue",
+    })
+
     def clear_cache(self, namespace: str | None = None) -> None:
         """Clear cached entities to free memory.
 
-        Expected namespaces include: 'sport', 'country', 'category', 'competition', 'season', 'event', 'competitor', 'manager', 'referee', 'venue'.
-
         Args:
-            namespace (Optional[str]): Specific namespace to clear. If None, clears all caches.
+            namespace (Optional[str]): The namespace to clear — one of `CACHE_NAMESPACES`:
+                'sport', 'country', 'category', 'competition', 'season', 'event',
+                'competitor', 'channel', 'manager', 'referee', 'venue'. Clearing a namespace
+                that holds nothing yet is a no-op. If None, clears every namespace.
 
         Raises:
-            KeyError: If the provided namespace does not exist.
+            KeyError: If `namespace` is not a recognised namespace.
         """
         ns = namespace.lower() if namespace else None
-        if ns:
-            if ns in self._cache:
-                self._cache[ns].clear()
-            else:
-                raise KeyError(f"Unknown cache namespace: {ns}")
-        else:
+        if ns is None:
             self._cache.clear()
+            return
+        if ns not in self.CACHE_NAMESPACES:
+            raise KeyError(f"Unknown cache namespace: {ns}")
+        self._cache.pop(ns, None)
 
     # --- Unified GET ---
 

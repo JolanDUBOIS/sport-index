@@ -32,31 +32,40 @@ The full API Reference, domain model overview, and user guide can be found here:
 pip install "git+https://github.com/JolanDUBOIS/sport-index.git"
 ```
 
-### Local development (Poetry)
+### Local development
 
 ```bash
-poetry install
-poetry shell
+uv sync            # installs the project and its dev dependencies
+uv run pytest      # offline unit tests
 ```
+
+## Entity IDs
+
+Every entity is addressed by a string **SDK ID**: a short type prefix, then the provider's
+numeric ID — `"spt:1"` (Football), `"trnc:7"` (UEFA Champions League), `"vnu:843"` (Parc des
+Princes). Entities that only exist inside a parent nest their parent's ID, so a season reads
+`"trnc:7:trns:61644"`.
+
+You rarely write these by hand: you get them from `search()`, `list()`, or by navigating from
+another entity.
 
 ## Quick Start
 
 ```python
-from sportindex import SportClient, Sport, Competition
+from sportindex import SportClient, Competition, Sport
 
 client = SportClient()
 
-UCL = client.get(Competition, 14)
+# Look an entity up by its SDK ID. The class is optional — it is inferred from the prefix.
+ucl = client.get("trnc:7")
+print(ucl)
 
-print(UCL)
-
-UCl = client.search(Competition, "UEFA Champions League")[0]
-
-print(UCL)
+# Or find it by name
+ucl = client.search(Competition, "UEFA Champions League")[0]
+print(ucl)
 
 sports = client.list(Sport)
-football = sports.search("football").get(name="Football")
-
+football = sports.get(name="Football")
 print(football)
 print(f"Total sports available: {len(sports)}")
 ```
@@ -69,12 +78,15 @@ The **core experience starts once you navigate entity relationships**.
 client = SportClient()
 
 # Pick a sport
-sport = client.list(Sport).search("football")[0]
+sport = client.list(Sport).get(name="Football")
 
 # Navigate domain relationships
-category = sport.categories[0]
-competition = category.competitions[0]
-season = competition.seasons[0] # Generally current season
+category = sport.categories.get(name="England")
+competition = category.competitions.get(name="Premier League")
+
+# seasons[0] is the *newest* season, which the provider often creates months before it
+# starts — so it may have no standings or events yet. Pick deliberately.
+season = competition.seasons[0]
 
 # Access season data
 standings = season.standings
@@ -91,6 +103,8 @@ All network-backed fields are **lazy-loaded**: data is fetched when accessed.
 ## Search Examples
 
 ```python
+from sportindex import Competitor, Manager, Referee, Venue
+
 # Search competitors
 competitors = client.search(Competitor, "Paris Saint-Germain")
 if competitors:
@@ -108,7 +122,19 @@ print(client.search(Venue, "Parc des Princes")[:3])
 * `sport.categories` → `category.competitions` → `competition.seasons`
 * `season.standings`, `season.get_fixtures()`, `season.get_results()`
 * `event.competition`, `event.season`, `event.competitors`, `event.lineups`, `event.statistics`, `event.h2h`
-* `competitor.get_results()`, `competitor.get_fixtures()`, `competitor.players`, `competitor.manager`, `competitor.venue`
+* `competitor.get_results()`, `competitor.get_fixtures()`, `competitor.country`, `competitor.sport`
+
+A `Competitor` is the lightweight "side of an event" view. Call `resolve()` to trade it for
+the richer `Team` or `Athlete`, which is where squad and staff data lives:
+
+```python
+competitor = client.search(Competitor, "Paris Saint-Germain")[0]
+team = competitor.resolve()          # -> Team
+print(team.players, team.manager, team.venue)
+
+athlete = client.search(Competitor, "Ousmane Dembélé")[0].resolve()   # -> Athlete
+print(athlete.first_name, athlete.last_name, athlete.info)
+```
 
 This **graph-like navigation** is the core of `sport-index`.
 
@@ -116,8 +142,11 @@ This **graph-like navigation** is the core of `sport-index`.
 
 `SportClient` provides finder and bootstrap utilities:
 
-* `get(entity_cls, entity_id, strict=False)`
-* `list(entity_cls, **kwargs)`
+* `get(entity_id, entity_cls=None, strict=False)` — `entity_cls` is optional; when omitted the
+  class is resolved from the ID's prefix
+* `list(entity_cls, **kwargs)` — filters depend on the class: `Category` takes `sport_id`,
+  `Competition` takes `category_id`, `Season` takes `competition_id`, `Event` takes `season_id`;
+  `Sport` and `Country` take none
 * `search(entity_cls, query, max_results=20)`
 * `clear_cache(namespace=None)`
 
@@ -128,9 +157,12 @@ Most usage happens **via domain entities**, not direct client calls.
 In-memory entity cache by namespace:
 
 ```python
-client.clear_cache()            # clear everything
-client.clear_cache("events")    # clear a single namespace
+client.clear_cache()           # clear everything
+client.clear_cache("event")    # clear a single namespace
 ```
+
+Valid namespaces are singular: `sport`, `country`, `category`, `competition`, `season`,
+`event`, `competitor`, `manager`, `referee`, `venue`. An unknown namespace raises `KeyError`.
 
 ## Offline Testing & Mocking
 
@@ -141,10 +173,15 @@ client.clear_cache("events")    # clear a single namespace
 ### Configuration
 This is controlled entirely via environment variables during your test runs:
 
-* **`SPORTINDEX_RECORD_MODE`**:
-    * `replay` (Default): Loads from disk; crashes if a fixture is missing. Use this in CI/CD pipelines.
-    * `auto`: Loads from disk if available; if not, fetches from the API and records the result. **Recommended for local test development.**
-    * `record`: Always fetches from the API and overwrites existing fixtures. Use this to update your mocks.
+* **`SPORTINDEX_RECORD_MODE`**: unset by default, in which case the client runs **live** and
+  no fixtures are used. Set it to one of:
+    * `replay`: Loads from disk; raises if a fixture is missing. **Use this in CI/CD** — it is
+      the only mode that guarantees no network access.
+    * `auto`: Loads from disk if available; otherwise fetches from the API and records the
+      result. **Recommended for local test development.** Note that a missing fixture silently
+      becomes a live request.
+    * `record`: Always fetches from the API and overwrites existing fixtures. Use this to
+      update your mocks.
 * **`SPORTINDEX_FIXTURES_DIR`**: The path where JSON mock files are stored (defaults to `tests/fixtures`).
 
 ### Recommended Testing Workflow
@@ -201,24 +238,24 @@ from sportindex.exceptions import (
 
 ```python
 # Tolerant or strict lookup
-event = client.get(Event, 12345)
+event = client.get("mch:12345")
 if event is None:
     print("Event not found")
 
 try:
-    event = client.get(Event, 12345, strict=True)
+    event = client.get("mch:12345", strict=True)
 except EntityNotFoundError:
     print("Event not found")
 
-# Strict listing (raises on missing)
+# Strict listing (raises when the required filter is missing or matches nothing)
 try:
-    competitions = client.list(Competition, category_id=2, sport_id=1)
+    competitions = client.list(Competition, category_id="cat:1", sport_id="spt:1")
 except EntityNotFoundError:
     print("Invalid sport or category")
 
 # Handle provider/network issues
 try:
-    ev = client.get(Event, 12345)
+    ev = client.get("mch:12345")
 except (ProviderNotFoundError, FetchError, RateLimitError) as exc:
     # retry or propagate
     raise
