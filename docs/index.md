@@ -28,17 +28,17 @@ The true power of `sport-index` is how you navigate between entities. You don't 
 Here is what a typical flow looks like:
 
 ```python
-from sportindex import SportClient
+from sportindex import Sport, SportClient
 
 client = SportClient()
 
 # 1. Pick a sport
-sport = client.list_sports().search("football")
+sport = client.list(Sport).get(name="Football")
 
 # 2. Navigate the domain relationships naturally
-category = sport.categories
-competition = category.competitions
-season = competition.seasons
+category = sport.categories.get(name="England")
+competition = category.competitions.get(name="Premier League")
+season = competition.seasons[0]
 
 # 3. Access the data you actually care about
 standings = season.standings
@@ -46,25 +46,42 @@ fixtures = season.get_fixtures()
 results = season.get_results()
 
 # 4. Inspect specific events
-event = results
+event = (results or fixtures)[0]
 print(event.name)
-print(event.lineups)
+print(event.lineups)   # MatchEvent only
 ```
+
+!!! note "`seasons[0]` is the newest season, not necessarily the live one"
+    The provider often creates a season months before it starts, so the newest entry may have
+    no standings or events yet. Select deliberately — for example
+    `competition.seasons.get(year="24/25")` — when you need a season with data.
 
 ## Finding Specific Entities
 
-If you don't want to drill down from the top-level sport, the `SportClient` acts as a powerful search engine for specific domains:
+If you don't want to drill down from the top-level sport, `SportClient.search` works across
+every searchable entity type:
 
 ```python
+from sportindex import Competitor, Manager, Referee, Venue
+
 # Find a team directly
-competitors = client.search_competitors("Paris Saint-Germain")
-team = competitors
-print(team.name, len(team.get_results()))
+competitors = client.search(Competitor, "Paris Saint-Germain")
+team = competitors[0].resolve()          # Competitor -> Team
+print(team.name, len(team.get_results()), team.manager)
 
 # Search for staff or venues
-managers = client.search_managers("Luis Enrique")
-referees = client.search_referees("Turpin")
-venues = client.search_venues("Parc des Princes")
+managers = client.search(Manager, "Luis Enrique")
+referees = client.search(Referee, "Turpin")
+venues = client.search(Venue, "Parc des Princes")
+```
+
+## Looking Entities Up by ID
+
+Every entity has a string **SDK ID** — a type prefix plus the provider's numeric ID:
+
+```python
+competition = client.get("trnc:7")           # class inferred from the prefix
+competition = client.get("trnc:7", Competition)   # or state it explicitly
 ```
 
 ---

@@ -1,88 +1,113 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from functools import cached_property
-from datetime import datetime
-from typing import (
-    TYPE_CHECKING, Optional,
-    Generic, Callable,
-    Literal, Self, overload
-)
+from typing import TYPE_CHECKING, Generic, overload
 
 import pycountry
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from typing_extensions import TypeVar
 
-from . import logger
+from sportindex.api_client.models import StageTier, _EventData, _StageData
+from sportindex.exceptions import (
+    DomainError,
+    EntityNotFoundError,
+    FetchError,
+    ProviderNotFoundError,
+)
+
 from .base import IdentifiableEntity
-from .collections import EventCollection, EntityCollection
-from .core import Sport
-from .types import EventFormat
-from .utils import merge_pydantic_models
-from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
-from sportindex.provider.models import _EventData, _StageData, StageTier
+from .collections import EntityCollection, EventCollection
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from datetime import datetime
+
+    from sportindex.api_client import SofascoreProvider
+    from sportindex.api_client.models import (
+        EventStatus,
+        MatchPeriod,
+        MomentumPoint,
+        PeriodStats,
+        Round,
+        Score,
+        _EventsResponse,
+        _LineupsResponse,
+    )
+
     from .channel import Channel
     from .competition import Competition
-    from .competitor import Competitor, Player
+    from .competitor import Athlete, Competitor
+    from .core import Sport
     from .incident import Incident
     from .leaderboard import Standings
     from .referee import Referee
     from .season import Season
     from .venue import Venue
-    from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import (
-        Round, Score, MatchPeriod, PeriodStats,
-        _LineupsResponse, MomentumPoint, EventStatus,
-        _EventsResponse
-    )
+
+logger = logging.getLogger(__name__)
 
 
 # ===== Event entity =====
 
 class Event(IdentifiableEntity):
-    """An event in a sport, such as a football match, tennis match, or motorsport race.
+    """Something that happens at a point in time — a football match, a tennis match, a race.
 
-    Provides access to event metadata, competitors, scores, lineups, incidents, statistics, and associated entities
-    like venue, referee, season, and competition. Supports both match- and race-specific properties.
+    The common base of the two event kinds. Instantiating `Event` returns whichever the
+    payload describes: a `MatchEvent` (two competitors facing each other) or a `StageEvent`
+    (a stage, session or race within a competition). Both are public and documented in their
+    own right; this class holds what they share.
 
     Attributes:
-        id (int): Unique event ID, encoded from source ID and type.
-        name (str): Event name.
-        slug (str): URL-friendly identifier.
-        start (datetime): Start time of the event.
-        status (EventStatus | None): Current status of the event, if available.
-        sport (Sport): Sport associated with this event.
-
-    Abstract properties:
-        format (Literal["match", "stage"]): The format of the event, either 'match' or 'stage'.
-        competition (Competition | None): Competition this event belongs to.
-        season (Season): Season this event belongs to.
-        venue (Venue | None): Venue where the event takes place.
-        winner (Competitor | None): Winner of the event.
+        id (str): Globally unique SDK ID — "mch:<id>" for matches, "stg:<id>" for stages.
+        name (str): Display name, e.g. "Paris Saint Germain Marseille".
+        slug (str): URL-friendly identifier, e.g. "paris-saint-germain-marseille".
+        start (datetime | None): When the event starts. Always set for a `MatchEvent`; a
+            `StageEvent` may have none, since the provider leaves undated stages open.
+        status (EventStatus | None): Whether the event is scheduled, live or finished, if the
+            provider states it.
+        sport (Sport | None): The sport this event belongs to, taken from its season. None
+            when the season is unknown.
+        competition (Competition | None): The competition this event is part of, if the
+            provider states it. Defined by each subclass.
+        season (Season | None): The season this event is part of, if the provider states it.
+            Defined by each subclass.
+        venue (Venue | None): Where the event takes place. Defined by each subclass; a
+            `StageEvent` always has one, since its circuit is part of the stage itself.
+        winner (Competitor | None): Who won, once decided. Defined by each subclass.
+        source (_EventData | _StageData): The parsed payload backing this entity.
+            (inherited from BaseEntity)
 
     Methods:
-        from_id(event_id: int, provider) -> Event: Fetch an event by its unique ID.
+        get_channels(country: str) -> EntityCollection[Channel]: The TV channels broadcasting
+            this event in `country`, given as a name, alpha-2 or alpha-3 code. Empty when the
+            event is not broadcast there or no broadcast data exists.
+        from_id(entity_id: str, provider: SofascoreProvider) -> Event: The event with this SDK
+            ID; the prefix decides whether a `MatchEvent` or `StageEvent` is built.
+            (classmethod, inherited from IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is neither `_EventData` nor `_StageData`.
+        ValueError: If `get_channels` is given a country string that matches no ISO 3166-1 record.
+        EntityNotFoundError: If `from_id` names an event the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _EventData | _StageData
     _REPR_FIELDS = ("id", "name", "slug", "start")
-    _N_TYPES: int = 2
-    _REGISTRY: dict[int, type[Event]] = {}
-    _TYPE_IDX: int 
 
-    def __init_subclass__(cls, **kwargs):
-        """Automatically registers subclasses when the file is loaded."""
-        super().__init_subclass__(**kwargs)
-        if hasattr(cls, "_TYPE_IDX"):
-            Event._REGISTRY[cls._TYPE_IDX] = cls
+    @overload
+    def __new__(cls, data: _EventData, provider: SofascoreProvider, **kwargs) -> MatchEvent: ...
+
+    @overload
+    def __new__(cls, data: _StageData, provider: SofascoreProvider, **kwargs) -> StageEvent: ...
 
     def __new__(cls, data: _EventData | _StageData, provider: SofascoreProvider, **kwargs):
         """Create the correct subclass based on the data type."""
         if cls is Event:
             if isinstance(data, _EventData):
                 return super().__new__(MatchEvent)
-            elif isinstance(data, _StageData):
+            if isinstance(data, _StageData):
                 return super().__new__(StageEvent)
         return super().__new__(cls)
 
@@ -95,9 +120,9 @@ class Event(IdentifiableEntity):
         self._full_loaded = False
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the event."""
-        return self.encode_id(self._data.id, type(self)._TYPE_IDX)
+        return self.encode_id(self._data.id)
 
     @property
     @abstractmethod
@@ -111,47 +136,41 @@ class Event(IdentifiableEntity):
         return self._data.slug
 
     @property
-    def start(self) -> datetime:
-        """The start time of the event."""
+    def start(self) -> datetime | None:
+        """The start time of the event, if the provider has dated it."""
         return self._data.start
 
     @property
-    def status(self) -> Optional[EventStatus]:
+    def status(self) -> EventStatus | None:
         """The status of the event, if available."""
         return self._data.status
 
     @property
-    def sport(self) -> Sport[Self]:
+    def sport(self) -> Sport | None:
         """The sport this event belongs to."""
-        return self.season.sport
+        return self.season.sport if self.season else None
 
     @property
     @abstractmethod
-    def format(self) -> EventFormat:
-        """The format of the event, either 'match' or 'stage'."""
-        raise NotImplementedError("Property format must be implemented in subclasses")
-
-    @property
-    @abstractmethod
-    def competition(self) -> Optional[Competition]:
+    def competition(self) -> Competition | None:
         """The competition this event belongs to, if available."""
         raise NotImplementedError("Property competition must be implemented in subclasses")
 
     @property
     @abstractmethod
-    def season(self) -> Optional[Season]:
+    def season(self) -> Season | None:
         """The season this event belongs to, if available."""
         raise NotImplementedError("Property season must be implemented in subclasses")
 
     @property
     @abstractmethod
-    def venue(self) -> Optional[Venue]:
+    def venue(self) -> Venue | None:
         """The venue where this event takes place, if available."""
         raise NotImplementedError("Property venue must be implemented in subclasses")
 
     @property
     @abstractmethod
-    def winner(self) -> Optional[Competitor]:
+    def winner(self) -> Competitor | None:
         """The winner of this event, if available."""
         raise NotImplementedError("Property winner must be implemented in subclasses")
 
@@ -160,18 +179,23 @@ class Event(IdentifiableEntity):
         Fetch the channels broadcasting this event in a specific country.
         Country can be specified as a name, alpha-2, or alpha-3 code.
         """
-        all_channels = self._get_all_channels()
+        try:
+            all_channels = self._get_all_channels()
+        except ProviderNotFoundError:
+            logger.debug(f"No channel data available for event {self.id}.")
+            return EntityCollection()
 
         try:
             parsed = pycountry.countries.lookup(country)
-            alpha = parsed.alpha_2 
-        except LookupError:
-            raise ValueError(f"Could not resolve '{country}' to a valid country using pycountry.")
+            alpha = parsed.alpha_2
+        except LookupError as e:
+            raise ValueError(f"Could not resolve '{country}' to a valid country using pycountry.") from e
 
         if alpha not in all_channels:
             logger.debug(f"Country '{country}' (alpha-2: '{alpha}') not found in channels for event {self.id}. Available countries: {list(all_channels.keys())}")
             return EntityCollection()
 
+        from .channel import Channel
         channel_ids = all_channels[alpha]
         return EntityCollection([Channel.from_id(cid, self._provider) for cid in channel_ids])
 
@@ -180,72 +204,56 @@ class Event(IdentifiableEntity):
         """Fetch all channels broadcasting this event, organized by country."""
         raise NotImplementedError("Method _get_all_channels must be implemented in subclasses")
 
-    def _full_load(self) -> None:
-        """
-        Lazy-loads the complete event from the provider.
-        Called automatically when accessing properties that require full details
-        missing from the initial lightweight API response.
-        """
-        if self._full_loaded:
-            return
-
-        self._data = merge_pydantic_models(self._data, self._fetch_entity(self.id, self._provider, strict=False))
-
-        self._full_loaded = True
-        self._clear_cache()
-
-    @classmethod
-    def from_id(cls, event_id: int, provider: SofascoreProvider) -> Self:
-        """Fetch an event by its ID."""
-        entity_data = cls._fetch_entity(event_id, provider)
-
-        instance = cls(entity_data, provider)
-        if not issubclass(type(instance), cls):
-            raise TypeError(
-                f"ID {event_id} belongs to a {type(instance).__name__}, but was initialized as a {cls.__name__}. "
-                f"Use {type(instance).__name__}.from_id() instead."
-            )
-        return instance
-
-    @overload
-    @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[True] = True) -> _EventData | _StageData: ...
-
-    @overload
-    @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_EventData | _StageData]: ...
-
-    @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_EventData | _StageData]:
-        """Fetch the complete event data from the provider by its ID."""
-        _, type_idx = cls.decode_id(event_id)
-        target_subclass = cls._REGISTRY.get(type_idx)
-        if not target_subclass:
-            raise TypeError(f"Invalid event ID {event_id}: unknown type index {type_idx}")
-        return target_subclass._fetch_entity(event_id, provider, strict=strict)
-
 
 class MatchEvent(Event):
-    """An event representing a match between two competitors, such as a football or tennis match.
-    
-    Provides access to match-specific properties like score, winner, periods, lineups, incidents, statistics, 
-    and momentum graphs, extending the base event properties.
+    """A match between two competitors — a football fixture, a tennis match, an MMA bout.
+
+    Everything `Event` offers is available here too. The members below are what a match adds:
+    two named sides, a score, and the in-game detail that comes with them. Most of that
+    detail only exists once the match has started, and much of it — lineups, statistics,
+    momentum — is only published for major competitions; expect empty collections and None
+    elsewhere.
 
     Attributes:
-        round (Round | None): The round of the match event.
-        referee (Referee | None): The referee officiating the match.
-        competitors (MatchCompetitors): The home and away competitors.
-        score (Score | None): The current or final score.
-        periods (list[MatchPeriod]): The periods of the match.
-        lineups (MatchLineups | None): The starting lineups for both teams.
-        incidents (list[Incident]): In-game incidents like cards or goals.
-        statistics (list[PeriodStats]): Statistical data for the match periods.
-        momentum_graph (list[MomentumPoint]): Data points representing match momentum.
-        h2h (EventCollection): Head-to-head history between the two competitors.
+        round (Round | None): Which round of the competition this match belongs to, if the
+            provider states it.
+        referee (Referee | None): The official in charge, if the provider names one.
+        competitors (MatchCompetitors): The home and away sides.
+        score (Score | None): Home and away scores. None before the match produces one, and
+            also when the provider renders the score non-numerically.
+        periods (list[MatchPeriod]): Per-period breakdown — halves, sets, overtime, penalty
+            shootout — each with its own score and timing. Empty when unavailable.
+        lineups (MatchLineups | None): The starting eleven, or equivalent, for each side.
+            None when the provider publishes no lineups for this match.
+        incidents (list[Incident]): What happened during the match — goals, cards,
+            substitutions, VAR decisions, period boundaries. Empty when unavailable. Reflects
+            the live state on each access rather than being cached.
+        statistics (list[PeriodStats]): Team statistics grouped by period, e.g. possession and
+            shots. Empty when unavailable.
+        momentum_graph (list[MomentumPoint]): Minute-by-minute pressure values, positive
+            towards the home side. Empty when unavailable. Reflects the live state on each
+            access rather than being cached.
+        h2h (EventCollection[MatchEvent]): Previous meetings between these two competitors.
+            Empty when the provider has no head-to-head record.
+        id (str): Globally unique SDK ID, of the form "mch:<id>". (inherited from Event)
+        start (datetime): Kick-off time. Always set for a match. (inherited from Event)
+        name, slug, status, sport, competition, season, venue, winner: See `Event`.
+        source (_EventData): The parsed payload backing this entity. (inherited from BaseEntity)
+
+    Methods:
+        get_channels(country: str) -> EntityCollection[Channel]: The TV channels broadcasting
+            this match in `country`. (inherited from Event)
+        from_id(entity_id: str, provider: SofascoreProvider) -> MatchEvent: The match with this
+            SDK ID. (classmethod, inherited from IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is not `_EventData`.
+        EntityNotFoundError: If `from_id` names a match the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _EventData
-    _REPR_FIELDS = ("id", "name", "slug", "round", "format", "start")
-    _TYPE_IDX = 1
+    _PREFIX: str = "mch"
+    _REPR_FIELDS = ("id", "name", "slug", "round", "start")
 
     def __init__(self, data: _EventData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -261,31 +269,35 @@ class MatchEvent(Event):
         return self._data.slug.replace("-", " ").title()
 
     @property
-    def round(self) -> Optional[Round]:
+    def start(self) -> datetime:
+        """The kick-off time of the match. Always present, unlike a stage's."""
+        return self._data.start
+
+    @property
+    def round(self) -> Round | None:
         """The round of the match event, if available."""
         return self._data.round
 
-    @property
-    def format(self) -> EventFormat:
-        """The format of the event, either 'match' or 'stage'."""
-        return "match"
-
     @cached_property
-    def competition(self) -> Optional[Competition]:
+    def competition(self) -> Competition | None:
         """The competition this event belongs to, if available."""
         self._full_load()
         from .competition import Competition
         return Competition(self._data.tournament.unique_tournament, self._provider) if self._data.tournament and self._data.tournament.unique_tournament else None
 
     @cached_property
-    def season(self) -> Season[MatchEvent]:
+    def season(self) -> Season | None:
         """The season this event belongs to."""
         self._full_load()
         from .season import Season
-        return Season(self._data.season, self._provider, uniqueTournament=self._data.tournament.unique_tournament)
+        return Season(
+            self._data.season,
+            self._provider,
+            uniqueTournament=self._data.tournament.unique_tournament
+        ) if self._data.season and self._data.tournament and self._data.tournament.unique_tournament else None
 
     @cached_property
-    def referee(self) -> Optional[Referee]:
+    def referee(self) -> Referee | None:
         """The referee for this event, if available."""
         self._full_load()
         from .referee import Referee
@@ -301,31 +313,39 @@ class MatchEvent(Event):
         )
 
     @cached_property
-    def venue(self) -> Venue:
-        """The venue where this event takes place."""
+    def venue(self) -> Venue | None:
+        """The venue where this event takes place, if available."""
         self._full_load()
+        if self._data.venue is None:
+            return None
         from .venue import Venue
         return Venue(self._data.venue, self._provider)
 
     # Properties available after the match starts or ends
 
     @property
-    def score(self) -> Optional[Score]:
-        """The score for this event, if available."""
-        from sportindex.provider.models import Score
-        return Score(
-            home=self._data.home.score,
-            away=self._data.away.score
-        )
+    def score(self) -> Score | None:
+        """The score for this event, if available and numeric."""
+        if self._data.home.score is None or self._data.away.score is None:
+            return None
+        from sportindex.api_client.models import Score
+        try:
+            return Score(
+                home=self._data.home.score,
+                away=self._data.away.score
+            )
+        except ValidationError:
+            logger.debug(f"Non-numeric score for event {self.id}: home={self._data.home.score!r}, away={self._data.away.score!r}")
+            return None
 
     @property
-    def winner(self) -> Optional[Competitor]:
+    def winner(self) -> Competitor | None:
         """The winner of this event, if available."""
         self._full_load()
         winner_code = self._data.winner_code
         if winner_code == 1:
             return self.competitors.home
-        elif winner_code == 2:
+        if winner_code == 2:
             return self.competitors.away
         return None
 
@@ -336,7 +356,7 @@ class MatchEvent(Event):
         return self._data.periods.periods if self._data.periods else []
 
     @cached_property
-    def lineups(self) -> Optional[MatchLineups]:
+    def lineups(self) -> MatchLineups | None:
         """The lineups for this event, if available."""
         try:
             parsed_lineups = self._provider.get_event_lineups(self._data.id)
@@ -364,8 +384,7 @@ class MatchEvent(Event):
         """The statistics for this event, if available."""
         try:
             parsed_stats_response = self._provider.get_event_statistics(self._data.id)
-            if parsed_stats_response:
-                return parsed_stats_response.statistics
+            return parsed_stats_response.statistics
         except ProviderNotFoundError:
             logger.debug(f"Statistics not found for event {self.id}.")
             return []
@@ -378,8 +397,7 @@ class MatchEvent(Event):
         """
         try:
             graph = self._provider.get_event_graph(self._data.id)
-            if graph:
-                return graph.points
+            return graph.points
         except ProviderNotFoundError:
             logger.debug(f"Momentum graph not found for event {self.id}.")
             return []
@@ -397,58 +415,63 @@ class MatchEvent(Event):
         """Fetch all channels broadcasting this event, organized by country."""
         return self._provider.get_event_channels(self._data.id).channels
 
-    @overload
-    @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[True] = True) -> _EventData: ...
-
-    @overload
-    @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_EventData]: ...
-
-    @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_EventData]:
-        """Fetch the complete event data from the provider by its ID."""
-        raw_id, type_idx = cls.decode_id(event_id)
-        if type_idx != cls._TYPE_IDX:
-            raise TypeError(f"Invalid event ID {event_id}: expected type index {cls._TYPE_IDX}, got {type_idx}")
-
-        try:
-            return cls._fetch_raw_event(raw_id, provider)
-
-        except ProviderNotFoundError:
-            logger.debug(f"Event with ID {event_id} not found during fetch")
-            if strict:
-                raise EntityNotFoundError(f"Event with ID {event_id} not found during fetch") from None
-
-        except FetchError as e:
-            logger.debug(f"Network error while fetching event with ID {event_id}: {e}")
-            if strict:
-                raise DomainError(f"Network error while fetching event with ID {event_id}") from e
-
-        return None
-
     @staticmethod
-    def _fetch_raw_event(raw_event_id: int, provider: SofascoreProvider) -> Optional[_EventData]:
-        """Fetch the raw event data from the provider by its raw ID."""
-        return provider.get_event(raw_event_id)
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _EventData:
+        """Fetch the event data from the provider by its raw ID."""
+        try:
+            return provider.get_event(raw_id)
+        except ProviderNotFoundError as e:
+            logger.debug(f"Event with id {raw_id} not found: {e}")
+            raise EntityNotFoundError(f"Event with id {raw_id} not found") from e
+        except FetchError as e:
+            logger.error(f"Network error while fetching event with id {raw_id}: {e}")
+            raise DomainError(f"Network error while fetching event with id {raw_id}") from e
 
 
 class StageEvent(Event):
-    """An event representing a specific stage, phase, or race within a competition.
-    
-    Provides access to stage-specific properties like tiers, parent-child relationships, 
-    and team/competitor standings.
+    """A stage, session or race within a competition — a Grand Prix, a qualifying session, a Tour stage.
+
+    Everything `Event` offers is available here too. The members below are what a stage adds.
+    Stages nest: a Grand Prix weekend contains practice, qualifying and the race itself, each
+    a `StageEvent` in its own right, distinguished by `tier`. The season at the top of that
+    chain is a `Season`, not a `StageEvent`, so `parent` is None for a top-level stage even
+    though `season` is not.
 
     Attributes:
-        end (datetime | None): The scheduled end time of the stage.
-        tier (StageTier): The categorization tier of the stage.
-        parent (StageEvent | None): The overarching parent stage, if applicable.
-        substages (EventCollection): Any child stages contained within this stage.
-        standings (list[Standings] | None): The rankings for competitors and teams.
+        end (datetime | None): When the stage finishes, if the provider states it.
+        tier (StageTier | None): How deep in the nesting this stage sits — EVENT, PRACTICE,
+            QUALIFYING, RACE, LAP, STAGE, and so on. Always below SEASON when present; None
+            when the provider does not classify the stage.
+        parent (StageEvent | None): The stage containing this one, or None if this stage
+            hangs directly off its season.
+        substages (EventCollection[StageEvent]): The stages contained within this one. Empty
+            for a leaf stage such as a single race.
+        standings (list[Standings]): Exactly two ranking tables for this stage — competitors
+            and teams — each empty if the provider publishes nothing for it.
+        venue (Venue): The circuit or course, derived from the stage itself rather than
+            looked up separately. Never None, though its fields may be empty.
+        id (str): Globally unique SDK ID, of the form "stg:<id>". (inherited from Event)
+        start (datetime | None): When the stage begins. None for a stage the provider has not
+            yet dated — a common case for future rounds. (inherited from Event)
+        name, slug, status, sport, competition, season, winner: See `Event`.
+        source (_StageData): The parsed payload backing this entity. (inherited from BaseEntity)
+
+    Methods:
+        get_channels(country: str) -> EntityCollection[Channel]: The TV channels broadcasting
+            this stage in `country`. (inherited from Event)
+        from_id(entity_id: str, provider: SofascoreProvider) -> StageEvent: The stage with this
+            SDK ID. (classmethod, inherited from IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is not `_StageData`.
+        ValueError: If constructed with a tier of SEASON or above — such data describes a
+            `Season`, not an event — or if a parent stage resolves to an invalid tier.
+        EntityNotFoundError: If `from_id` names a stage the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _StageData
-    _REPR_FIELDS = ("id", "name", "slug", "tier", "format", "start", "end")
-    _TYPE_IDX = 2
+    _PREFIX: str = "stg"
+    _REPR_FIELDS = ("id", "name", "slug", "tier", "start", "end")
 
     def __init__(self, data: _StageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -465,64 +488,55 @@ class StageEvent(Event):
         """The name of the stage event."""
         return self._data.name or self._data.slug.replace("-", " ").title()
 
-    @property
-    def format(self) -> EventFormat:
-        """The format of the event, either 'match' or 'stage'."""
-        return "stage"
-
     @cached_property
-    def tier(self) -> StageTier:
-        """The category of the stage event."""
+    def tier(self) -> StageTier | None:
+        """The category of the stage event, if the provider states it."""
         self._full_load()
         return self._data.tier
 
     @property
-    def end(self) -> Optional[datetime]:
+    def end(self) -> datetime | None:
         """The end time of the stage event."""
         return self._data.end
 
     @cached_property
-    def competition(self) -> Optional[Competition]:
+    def competition(self) -> Competition | None:
         """The competition this event belongs to, if available."""
         self._full_load()
         from .competition import Competition
-        return Competition(self._data.unique_stage, self._provider)
+        return Competition(self._data.unique_stage, self._provider) if self._data.unique_stage else None
 
     @cached_property
-    def _parent(self) -> Optional[StageEvent | Season]:
+    def _parent(self) -> StageEvent | Season | None:
         """The parent stage or season of this stage, if available."""
         self._full_load()
-        if self._data.parent:
-            try:
-                parent_id = self.encode_id(self._data.parent.id, self._TYPE_IDX)
-                return self.__class__.from_id(parent_id, self._provider)
-            except ValueError:
-                try:
-                    from .competition import Competition
-                    from .season import Season
-                    parent_id = Season.encode_id(
-                        self._data.parent.id,
-                        Season._TYPE_MAP[_StageData],
-                        Competition.encode_id(self._data.unique_stage.id, 2)
-                    )
-                    return Season.from_id(parent_id, self._provider)
-                except ValueError:
-                    logger.debug(f"Parent stage with ID {self._data.parent.id} not found as stage or season while fetching parent for stage event {self.id}.")
-        return None
+        if not self._data.parent:
+            return None
+
+        parent_entity = self._fetch_entity(self._data.parent.id, self._provider)
+        if parent_entity.tier == StageTier.SEASON:
+            from .season import Season
+            return Season(parent_entity, self._provider)
+        if parent_entity.tier > StageTier.SEASON:
+            return StageEvent(parent_entity, self._provider)
+        raise ValueError(f"Invalid tier {parent_entity.tier} for parent of stage event {self.id}.",
+                         f"Expected a tier SEASON or below, got {parent_entity.tier}")
 
     @cached_property
-    def parent(self) -> Optional[StageEvent]:
+    def parent(self) -> StageEvent | None:
         """The parent stage of this stage, if available."""
         if self._parent and isinstance(self._parent, StageEvent):
             return self._parent
         return None
 
     @cached_property
-    def season(self) -> Optional[Season[StageEvent]]:
+    def season(self) -> Season | None:
         """The season this event belongs to, if available."""
         from .season import Season
         if self._parent and isinstance(self._parent, Season):
             return self._parent
+        if self.parent:
+            return self.parent.season
         return None
 
     @cached_property
@@ -535,34 +549,37 @@ class StageEvent(Event):
             return EventCollection()
 
     @cached_property
-    def venue(self) -> Optional[Venue]:
-        """The venue where this event takes place, if available."""
+    def venue(self) -> Venue:
+        """The venue where this event takes place."""
         from .venue import Venue
         return Venue(self._data, self._provider)
 
     # Properties available after the stage starts or ends
 
     @cached_property
-    def winner(self) -> Optional[Competitor]:
+    def winner(self) -> Competitor | None:
         """The winner of this event, if available."""
         self._full_load()
         from .competitor import Competitor
         if self._data.winner:
             return Competitor(self._data.winner, self._provider)
+        return None
 
     @property
-    def standings(self) -> Optional[list[Standings]]:
-        """The standings for this event, if race and available."""
+    def standings(self) -> list[Standings]:
+        """The competitors and teams standings for this event; either may be empty."""
+        from sportindex.api_client.models import _RacingStandingsData
         try:
             competitors_standings = self._provider.get_stage_standings_competitors(self._data.id)
         except ProviderNotFoundError as e:
             logger.debug(f"Failed to fetch competitors standings for event {self.id}: {e}")
-            competitors_standings = []
+            competitors_standings = _RacingStandingsData()
         try:
             teams_standings = self._provider.get_stage_standings_teams(self._data.id)
         except ProviderNotFoundError as e:
             logger.debug(f"Failed to fetch teams standings for event {self.id}: {e}")
-            teams_standings = []
+            teams_standings = _RacingStandingsData()
+        from .leaderboard import Standings
         return [
             Standings(competitors_standings, self._provider, name=f"Competitors {self.name}", kind="competitors"),
             Standings(teams_standings, self._provider, name=f"Teams {self.name}", kind="teams")
@@ -572,65 +589,52 @@ class StageEvent(Event):
         """Fetch all channels broadcasting this event, organized by country."""
         return self._provider.get_stage_channels(self._data.id).channels
 
-    @overload
-    @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[True] = True) -> _StageData: ...
-
-    @overload
-    @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: Literal[False]) -> Optional[_StageData]: ...
-
-    @classmethod
-    def _fetch_entity(cls, event_id: int, provider: SofascoreProvider, strict: bool = True) -> Optional[_StageData]:
-        """Fetch the complete event data from the provider by its ID."""
-        raw_id, type_idx = cls.decode_id(event_id)
-        if type_idx != cls._TYPE_IDX:
-            raise TypeError(f"Invalid event ID {event_id}: expected type index {cls._TYPE_IDX}, got {type_idx}")
-
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _StageData:
+        """Fetch the stage event data from the provider by its raw ID."""
         try:
             return provider.get_stage(raw_id)
-
-        except ProviderNotFoundError:
-            logger.debug(f"Stage with ID {event_id} not found during fetch")
-            if strict:
-                raise EntityNotFoundError(f"Stage with ID {event_id} not found during fetch") from None
-
+        except ProviderNotFoundError as e:
+            logger.debug(f"Stage event with id {raw_id} not found: {e}")
+            raise EntityNotFoundError(f"Stage event with id {raw_id} not found") from e
         except FetchError as e:
-            logger.debug(f"Network error while fetching stage with ID {event_id}: {e}")
-            if strict:
-                raise DomainError(f"Network error while fetching stage with ID {event_id}") from e
-
-        return None
-
-    @staticmethod
-    def _fetch_raw_stage(stage_id: int, provider: SofascoreProvider) -> Optional[_StageData]:
-        """Fetch the raw stage data from the provider by its raw ID."""
-        return provider.get_stage(stage_id)
+            logger.error(f"Network error while fetching stage event with id {raw_id}: {e}")
+            raise DomainError(f"Network error while fetching stage event with id {raw_id}") from e
 
 
 # ===== Components =====
 
 class MatchCompetitors(BaseModel):
-    """Represents the two competitors in a match."""
+    """The two sides of a `MatchEvent`.
+
+    Attributes:
+        home (Competitor): The home side, or the first-named competitor at a neutral venue.
+        away (Competitor): The away side, or the second-named competitor at a neutral venue.
+    """
     home: Competitor
     away: Competitor
 
 
 class MatchLineups(BaseModel):
-    """Represents the lineups of both teams for a match."""
-    home: list[Player]
-    away: list[Player]
+    """The lineups of both sides of a `MatchEvent`.
+
+    Attributes:
+        home (list[Athlete]): The players listed for the home side.
+        away (list[Athlete]): The players listed for the away side.
+    """
+    home: list[Athlete]
+    away: list[Athlete]
 
     @classmethod
     def _from_base_schema(cls, lineup_response: _LineupsResponse, provider: SofascoreProvider) -> MatchLineups:
         """Create MatchLineups from a _LineupsResponse."""
-        from .competitor import Player
+        from .competitor import Athlete
         if not lineup_response or not lineup_response.home or not lineup_response.away:
             logger.debug(f"Lineups response is incomplete for event. Response: {lineup_response}")
             raise ProviderNotFoundError("Lineups data is incomplete or missing")
         return cls(
-            home=[Player(p, provider) for p in lineup_response.home.players],
-            away=[Player(p, provider) for p in lineup_response.away.players]
+            home=[Athlete(p, provider) for p in lineup_response.home.players],
+            away=[Athlete(p, provider) for p in lineup_response.away.players]
         )
 
 
@@ -639,13 +643,25 @@ class MatchLineups(BaseModel):
 E = TypeVar("E", bound="Event", default="Event")
 
 class EventAwareMixin(ABC, Generic[E]):
-    """
-    Toolkit for entities that fetch fixtures and results. Provides shared pagination and unified date filtering.
+    """Mixin giving an entity a calendar of upcoming and past events.
+
+    Mixed into `Channel`, `Competitor` (and `Team` / `Athlete`), `Manager`, `Referee`,
+    `Season` and `Venue`. Each supplies its own `get_fixtures` and `get_results`; some have
+    no endpoint for one or the other and return an empty collection, which is why both take
+    a `silent` flag to suppress the warning that goes with it.
+
+    Where the provider paginates, pages are followed until it reports no more, up to a cap of
+    ten — so a very long history comes back truncated rather than complete.
 
     Methods:
-        get_fixtures(silent=False) -> EventCollection[E]: Fetch upcoming fixtures.
-        get_results(silent=False) -> EventCollection[E]: Fetch past results.
-        get_events() -> EventCollection[E]: Fetch all events (fixtures + results), sorted by date.
+        get_fixtures(silent: bool = False) -> EventCollection[E]: The entity's upcoming events.
+            Abstract; each entity implements it. Logs a warning when it cannot be supported,
+            unless `silent` is True.
+        get_results(silent: bool = False) -> EventCollection[E]: The entity's past events.
+            Abstract; each entity implements it. Same warning behaviour.
+        get_events() -> EventCollection[E]: Fixtures and results in one collection, sorted by
+            start time, oldest first, with undated events last. Suppresses the
+            unsupported-endpoint warnings.
     """
 
     @abstractmethod
@@ -677,7 +693,7 @@ class EventAwareMixin(ABC, Generic[E]):
                 logger.warning(f"Network error while fetching events for page {page}: {e}. Ending pagination.")
                 break
 
-            if not getattr(events_response, "hasNextPage", False):
+            if not events_response.has_next_page:
                 break
 
-        return EventCollection([Event(e, getattr(self, "_provider")) for e in parsed_events])
+        return EventCollection([Event(e, self._provider) for e in parsed_events])

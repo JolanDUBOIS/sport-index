@@ -1,57 +1,82 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+import logging
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Self
+from typing import TYPE_CHECKING
 
-from . import logger
+from pydantic import BaseModel
+
+from sportindex.api_client.models import _RefereeData
+from sportindex.exceptions import (
+    DomainError,
+    EntityNotFoundError,
+    FetchError,
+    ProviderNotFoundError,
+)
+
 from .base import SearchableMixin
-from .collections import ScoredEntityCollection
 from .event import EventAwareMixin
-from .utils import merge_pydantic_models
-from sportindex.exceptions import ProviderNotFoundError, FetchError, EntityNotFoundError, DomainError
-from sportindex.provider.models import _RefereeData
 
 if TYPE_CHECKING:
+    from sportindex.api_client import SofascoreProvider
+
+    from .collections import ScoredEntityCollection
     from .core import Country, Sport
     from .event import EventCollection
-    from sportindex.provider import SofascoreProvider
+
+logger = logging.getLogger(__name__)
 
 
 class Cards(BaseModel):
-    """Represents the count of different types of cards issued by a referee."""
+    """Career card totals for a `Referee`.
+
+    Attributes:
+        yellow (int): Yellow cards shown.
+        red (int): Straight red cards shown.
+        yellow_red (int): Reds resulting from a second yellow.
+    """
     yellow: int
     red: int
     yellow_red: int
 
 
 class Referee(SearchableMixin, EventAwareMixin):
-    """Represents a sports referee/officiator (e.g., football referee, Formula 1 race director).
-
-    Handles basic information, associated sport and country, games officiated,
-    and cards issued. Supports lazy full-loading for properties requiring
-    detailed API responses.
+    """Whoever officiates an event — a football referee, a race director.
 
     Attributes:
-        id (int): Unique identifier of the referee.
-        name (str): Full name of the referee.
-        slug (str): URL-friendly slug of the referee.
-        sport (Sport): Sport associated with the referee.
-        country (Country | None): Country associated with the referee, if available.
-        games (int | None): Number of games officiated by the referee.
-        cards (Cards | None): Counts of yellow, red, and yellow-red cards issued.
+        id (str): Globally unique SDK ID, e.g. "ref:123".
+        name (str): Full name, e.g. "Clément Turpin".
+        slug (str): URL-friendly identifier, e.g. "clement-turpin".
+        sport (Sport): The sport this referee officiates.
+        country (Country | None): The referee's nationality, if the provider states it.
+        games (int | None): How many games the referee has officiated, if the provider
+            states it.
+        cards (Cards | None): Career totals of yellow, red and second-yellow cards shown.
+            None unless the provider supplies all three counts.
+        source (_RefereeData): The parsed payload backing this entity. (inherited from BaseEntity)
 
     Methods:
-        get_fixtures(silent: bool = False) -> EventCollection:
-            Returns fixtures for this referee. Currently returns empty, logs a warning.
-        get_results(silent: bool = False) -> EventCollection:
-            Returns results for this referee.
-        from_id(referee_id: int, provider: SofascoreProvider) -> Referee:
-            Fetch a referee by its unique ID.
-        search(query: str, provider: SofascoreProvider) -> ScoredEntityCollection[Referee]:
-            Search for referees matching a query string (up to 20 results).
+        get_fixtures(silent: bool = False) -> EventCollection: Always empty — the provider
+            offers no fixtures endpoint for referees. Logs a warning unless `silent` is True.
+        get_results(silent: bool = False) -> EventCollection: The matches this referee has
+            officiated.
+        get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
+            In practice equal to `get_results()`, since fixtures are always empty.
+            (inherited from EventAwareMixin)
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Referee]:
+            Referees matching `query`, each with its relevance score, capped at `max_results`.
+            (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Referee: The referee with this
+            SDK ID. (classmethod, inherited from IdentifiableEntity)
+
+    Raises:
+        TypeError: If constructed with data that is not `_RefereeData`.
+        ValueError: If `search` is given an empty query.
+        EntityNotFoundError: If `from_id` names a referee the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
     """
     _data: _RefereeData
+    _PREFIX = "ref"
     _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
 
     def __init__(self, data: _RefereeData, provider: SofascoreProvider, **kwargs) -> None:
@@ -63,9 +88,9 @@ class Referee(SearchableMixin, EventAwareMixin):
         self._full_loaded = False
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the referee."""
-        return self._data.id
+        return self.encode_id(self._data.id)
 
     @property
     def name(self) -> str:
@@ -84,21 +109,23 @@ class Referee(SearchableMixin, EventAwareMixin):
         return Sport(self._data.sport, self._provider)
 
     @cached_property
-    def country(self) -> Optional[Country]:
+    def country(self) -> Country | None:
         """The country this referee is associated with, if any."""
         from .core import Country
         return Country(self._data.country, self._provider) if self._data.country else None
 
     @cached_property
-    def games(self) -> Optional[int]:
+    def games(self) -> int | None:
         """Get the number of games this referee has officiated."""
         self._full_load()
-        return int(self._data.games)
+        return int(self._data.games) if self._data.games is not None else None
 
     @cached_property
-    def cards(self) -> Optional[Cards]:
+    def cards(self) -> Cards | None:
         """Get the number of cards this referee has given."""
         self._full_load()
+        if self._data.yellow_cards is None or self._data.red_cards is None or self._data.yellow_red_cards is None:
+            return None
         return Cards(
             yellow=int(self._data.yellow_cards),
             red=int(self._data.red_cards),
@@ -116,37 +143,22 @@ class Referee(SearchableMixin, EventAwareMixin):
         """Fetch all results for this referee."""
         return self._fetch_paginated_events(self._provider.get_referee_results, self._data.id)
 
-    def _full_load(self) -> None:
-        """
-        Lazy-loads the complete referee from the provider.
-        Called automatically when accessing properties that require full details 
-        missing from the initial lightweight API response.
-        """
-        if self._full_loaded:
-            return
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _RefereeData:
+        """Fetch the referee data from the provider by its raw ID."""
         try:
-            self._data = merge_pydantic_models(self._data, self._provider.get_referee(self._data.id))
-        except ProviderNotFoundError:
-            logger.debug(f"Referee with id {self._data.id} not found during full load")
-        except FetchError as e:
-            logger.debug(f"Network error while fully loading referee with id {self._data.id}: {e}")
-        self._full_loaded = True
-        self._clear_cache()
-
-    @classmethod
-    def from_id(cls, referee_id: int, provider: SofascoreProvider) -> Self:
-        """Fetch a referee by its ID."""
-        try:
-            parsed_data = provider.get_referee(referee_id)
+            return provider.get_referee(raw_id)
         except ProviderNotFoundError as e:
-            raise EntityNotFoundError(f"Referee with id {referee_id} not found") from e
+            logger.debug(f"Referee with id {raw_id} not found: {e}")
+            raise EntityNotFoundError(f"Referee with id {raw_id} not found") from e
         except FetchError as e:
-            raise DomainError(f"Network error while fetching referee {referee_id}") from e
-        return cls(parsed_data, provider)
+            logger.error(f"Network error while fetching referee with id {raw_id}: {e}")
+            raise DomainError(f"Network error while fetching referee with id {raw_id}") from e
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Referee]:
         """Search for referees matching the given query, returning up to max_results results."""
+        cls._validate_query(query)
         return cls._paginate_search(
             query=query,
             provider=provider,

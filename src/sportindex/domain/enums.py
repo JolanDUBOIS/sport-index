@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from enum import Enum
+import logging
+from enum import StrEnum
 
-from . import logger
+logger = logging.getLogger(__name__)
 
 
-class Gender(str, Enum):
+class Gender(StrEnum):
     """Standardized representation of gender for competitors.
 
     Values:

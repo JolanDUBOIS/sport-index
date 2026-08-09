@@ -1,0 +1,130 @@
+from dataclasses import dataclass, field
+
+
+@dataclass
+class Endpoint:
+    base: str
+    optionals: list[str] = field(default_factory=list)
+
+    def format(self, **kwargs) -> str:
+        clean_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        url = self.base.format(**clean_kwargs)
+
+        for opt in self.optionals:
+            try:
+                url += opt.format(**clean_kwargs)
+            except KeyError:
+                break
+
+        return url
+
+
+BASE_URL = "https://www.sofascore.com"
+BASE_API_URL = f"{BASE_URL}/api/v1"
+
+ENDPOINTS: dict[str, str | Endpoint] = {
+    # ------------------------------------------------------------------
+    # Categories
+    # ------------------------------------------------------------------
+    "all-categories": f"{BASE_API_URL}/sport/{{sport}}/categories",
+    "category-unique-tournaments": f"{BASE_API_URL}/category/{{category_id}}/unique-tournaments",
+    "category-unique-stages": f"{BASE_API_URL}/category/{{category_id}}/unique-stages",
+
+    # ------------------------------------------------------------------
+    # Unique Tournaments
+    # ------------------------------------------------------------------
+    "unique-tournament": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}",
+    "unique-tournament-seasons": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/seasons",
+    "unique-tournament-rounds": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/rounds",
+    "unique-tournament-standings": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/standings/{{view}}",
+    "unique-tournament-fixtures": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/events/next/{{page}}",
+    "unique-tournament-results": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/events/last/{{page}}",
+    "unique-tournament-season-info": f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/info", # NOTE - Not implemented to provider yet
+    "unique-tournament-events-round": Endpoint(
+        base=f"{BASE_API_URL}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/events/round/{{round}}",
+        optionals=["/slug/{round_slug}", "/prefix/{round_prefix}"]
+    ),
+
+    # ------------------------------------------------------------------
+    # Teams / Players / Managers / Referees
+    # ------------------------------------------------------------------
+    "team": f"{BASE_API_URL}/team/{{team_id}}",
+    "team-fixtures": f"{BASE_API_URL}/team/{{team_id}}/events/next/{{page}}",
+    "team-results": f"{BASE_API_URL}/team/{{team_id}}/events/last/{{page}}",
+    "team-players": f"{BASE_API_URL}/team/{{team_id}}/players",
+    "team-seasons": f"{BASE_API_URL}/team/{{team_id}}/team-statistics/seasons",
+    "team-year-statistics": f"{BASE_API_URL}/team/{{team_id}}/year-statistics/{{year}}",
+    "team-season-stats": f"{BASE_API_URL}/team/{{team_id}}/unique-tournament/{{unique_tournament_id}}/season/{{season_id}}/statistics/overall",
+    "team-stage-seasons": f"{BASE_API_URL}/team/{{team_id}}/stage-seasons",
+    "team-stage-season-races": f"{BASE_API_URL}/team/{{team_id}}/stage-season/{{stage_season_id}}/races",
+    "team-driver-career-history": f"{BASE_API_URL}/team/{{team_id}}/driver-career-history",
+
+    "player": f"{BASE_API_URL}/player/{{player_id}}",
+    "player-results": f"{BASE_API_URL}/player/{{player_id}}/events/last/{{page}}",
+    "player-statistics": f"{BASE_API_URL}/player/{{player_id}}/statistics",
+    "player-seasons": f"{BASE_API_URL}/player/{{player_id}}/statistics/seasons",
+
+    "manager": f"{BASE_API_URL}/manager/{{manager_id}}",
+    "manager-results": f"{BASE_API_URL}/manager/{{manager_id}}/events/last/{{page}}",
+    "manager-career-history": f"{BASE_API_URL}/manager/{{manager_id}}/career-history",
+
+    "referee": f"{BASE_API_URL}/referee/{{referee_id}}",
+    "referee-results": f"{BASE_API_URL}/referee/{{referee_id}}/events/last/{{page}}",
+
+    # ------------------------------------------------------------------
+    # Venues
+    # ------------------------------------------------------------------
+    "venue": f"{BASE_API_URL}/venue/{{venue_id}}",
+    "venue-fixtures": f"{BASE_API_URL}/venue/{{venue_id}}/events/all/next/{{page}}",
+    "venue-results": f"{BASE_API_URL}/venue/{{venue_id}}/events/all/last/{{page}}",
+
+    # ------------------------------------------------------------------
+    # Events / Matches
+    # ------------------------------------------------------------------
+    "event": f"{BASE_API_URL}/event/{{event_id}}",
+    "event-lineups": f"{BASE_API_URL}/event/{{event_id}}/lineups",
+    "event-incidents": f"{BASE_API_URL}/event/{{event_id}}/incidents",
+    "event-statistics": f"{BASE_API_URL}/event/{{event_id}}/statistics",
+    "event-graph": f"{BASE_API_URL}/event/{{event_id}}/graph",
+    "event-channels": f"{BASE_API_URL}/tv/event/{{event_id}}/country-channels",
+    "event-h2h-history": f"{BASE_API_URL}/event/{{event_custom_id}}/h2h/events",
+    "scheduled-events": f"{BASE_API_URL}/sport/{{sport}}/scheduled-events/{{date}}",
+
+    # ------------------------------------------------------------------
+    # Rankings
+    # ------------------------------------------------------------------
+    "ranking": f"{BASE_API_URL}/rankings/{{ranking_id}}",
+
+    # ------------------------------------------------------------------
+    # Motorsport
+    # ------------------------------------------------------------------
+    "unique-stage-seasons": f"{BASE_API_URL}/unique-stage/{{unique_stage_id}}/seasons",
+    "stage": f"{BASE_API_URL}/stage/{{stage_id}}",
+    "substages": f"{BASE_API_URL}/stage/{{stage_id}}/substages",
+    "stage-details": f"{BASE_API_URL}/stage/{{stage_id}}/extended",
+    "stage-drivers-performance": f"{BASE_API_URL}/stage/{{stage_id}}/driver-performance",
+    "standings-competitors": f"{BASE_API_URL}/stage/{{stage_id}}/standings/competitor",
+    "standings-teams": f"{BASE_API_URL}/stage/{{stage_id}}/standings/team",
+    "stage-channels": f"{BASE_API_URL}/tv/stage/{{stage_id}}/country-channels",
+
+    # ------------------------------------------------------------------
+    # TV Channels
+    # ------------------------------------------------------------------
+    "country-channels": f"{BASE_API_URL}/tv/country/{{country_code}}/channels",
+    "channel-schedule": f"{BASE_API_URL}/tv/channel/{{channel_id}}/schedule",
+    "country-popular-channels": f"{BASE_API_URL}/tv/country/{{country_code}}/popular-channels", # Not added to provider, doesn't seem useful
+    "channel-event-votes": f"{BASE_API_URL}/tv/channel/{{channel_id}}/event/{{event_id}}/votes",
+
+    # ------------------------------------------------------------------
+    # Search (cross-sport)
+    # ------------------------------------------------------------------
+    "search-all": f"{BASE_API_URL}/search/all",
+    "search-unique-tournaments": f"{BASE_API_URL}/search/unique-tournaments",
+    "search-teams": f"{BASE_API_URL}/search/teams",
+    "search-events": f"{BASE_API_URL}/search/events",
+    "search-players": f"{BASE_API_URL}/search/players",
+    "search-managers": f"{BASE_API_URL}/search/managers",
+    "search-referees": f"{BASE_API_URL}/search/referees",
+    "search-venues": f"{BASE_API_URL}/search/venues",
+    "search-player-team-persons": f"{BASE_API_URL}/search/player-team-persons",
+}

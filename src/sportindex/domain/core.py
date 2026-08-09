@@ -1,51 +1,60 @@
 from __future__ import annotations
 
+import logging
 from contextlib import suppress
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Self, Any, Generic
+from typing import TYPE_CHECKING, Any, Self
 
 import pycountry
-from typing_extensions import TypeVar
+
+from sportindex.api_client.models import _CategoryData, _CountryData, _SportData
+from sportindex.exceptions import (
+    DomainError,
+    EntityNotFoundError,
+    FetchError,
+    ProviderNotFoundError,
+)
 
 from .base import IdentifiableEntity
 from .collections import EntityCollection
-from .types import EventFormat
-from sportindex.exceptions import ProviderNotFoundError, EntityNotFoundError
-from sportindex.provider.models import (
-    _SportData,
-    _CountryData,
-    _CategoryData
-)
 
 if TYPE_CHECKING:
+    from sportindex.api_client import SofascoreProvider
+
     from .competition import Competition
-    from .event import Event
     from .leaderboard import Rankings
-    from sportindex.provider import SofascoreProvider
+
+logger = logging.getLogger(__name__)
 
 
-E = TypeVar("E", bound="Event", default="Event")
+class Sport(IdentifiableEntity):
+    """A sport, such as football, tennis or motorsport.
 
-class Sport(IdentifiableEntity, Generic[E]):
-    """A sport (e.g., football, tennis, motorsport).
-
-    Provides access to its categories and official rankings, and can be instantiated from minimal raw data without fetching full details.
+    Sports come from a fixed built-in registry rather than from the provider, so a Sport
+    is always complete: there is nothing further to load.
 
     Attributes:
-        id (int): Unique sport ID.
-        name (str): Official sport name.
-        slug (str): URL-friendly identifier.
-        event_format (EventFormat): The event format for this sport (match-based or stage-based).
-        categories (EntityCollection[Category[E]]): All categories associated with this sport.
+        id (str): Globally unique SDK ID, e.g. "spt:1".
+        name (str): Display name, e.g. "Football".
+        slug (str): URL-friendly identifier, e.g. "football".
+        categories (EntityCollection[Category]): Every category grouping this sport's
+            competitions — countries, international bodies, and the like.
+        source (_SportData): The parsed payload backing this entity. (inherited from BaseEntity)
 
     Methods:
-        get_rankings(gender: Optional[str] = None) -> list[Rankings]: Fetch official rankings for the sport.
-    
-    Class Methods:
-        all(provider) -> EntityCollection[Sport]: Returns a collection of all supported sports.
-        from_id(sport_id, provider) -> Sport: Create a Sport instance from its unique ID.
+        get_rankings(gender: str | None = None) -> list[Rankings]: The sport's official
+            ranking tables — FIFA, ATP, WTA, UFC divisions. Pass "M" or "F" to keep only
+            that gender's tables. Empty for sports with no known rankings.
+        all(provider: SofascoreProvider) -> EntityCollection[Sport]: Every supported sport. (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Sport: The sport with this SDK ID. (classmethod)
+
+    Raises:
+        TypeError: If constructed with data that is not `_SportData`.
+        EntityNotFoundError: If `from_id` is given an ID no supported sport carries.
+        DomainError: If the provider fails while resolving the sport.
     """
     _data: _SportData
+    _PREFIX = "spt"
     _REPR_FIELDS = ("id", "name", "slug")
 
     def __init__(self, data: _SportData, provider: SofascoreProvider, **kwargs) -> None:
@@ -55,9 +64,9 @@ class Sport(IdentifiableEntity, Generic[E]):
             raise TypeError(f"Sport data must be of type _SportData, got {type(data)}")
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the sport."""
-        return self._data.id
+        return self.encode_id(self._data.id)
 
     @property
     def name(self) -> str:
@@ -70,23 +79,14 @@ class Sport(IdentifiableEntity, Generic[E]):
         return self._data.slug or self._data.name.lower().replace(" ", "-")
 
     @cached_property
-    def event_format(self) -> EventFormat:
-        """Determine the event format for this sport (match-based or stage-based)."""
-        from .static import SPORTS_REGISTRY
-        for entry in SPORTS_REGISTRY:
-            if entry.id == self.id:
-                return entry.event_format
-        raise RuntimeError(f"Unexpected sport slug '{self.slug}' not found in SPORT_FORMATS mapping")
-
-    @cached_property
-    def categories(self) -> EntityCollection[Category[E]]:
+    def categories(self) -> EntityCollection[Category]:
         """Fetch all categories for this sport."""
         return EntityCollection([
             Category(c, self._provider)
             for c in self._provider.get_categories(self.slug)
         ])
 
-    def get_rankings(self, gender: Optional[str] = None) -> list[Rankings]:
+    def get_rankings(self, gender: str | None = None) -> list[Rankings]:
         """Fetch all rankings for this sport."""
         from .leaderboard import Rankings
         from .static import SPORT_RANKINGS
@@ -102,46 +102,62 @@ class Sport(IdentifiableEntity, Generic[E]):
     @classmethod
     def all(cls, provider: SofascoreProvider) -> EntityCollection[Sport]:
         """Returns a collection of all supported sports."""
+        from sportindex.api_client.models import _SportData
+
         from .static import SPORTS_REGISTRY
-        from sportindex.provider.models import _SportData
         return EntityCollection([
             cls(_SportData(id=s.id, slug=s.slug, name=s.name), provider)
             for s in SPORTS_REGISTRY
         ])
 
     @classmethod
-    def from_id(cls, sport_id: int, provider: SofascoreProvider) -> Self:
+    def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Self:
         """Create a Sport instance from its unique ID."""
-        sport = cls.all(provider).get(id=sport_id)
+        sport = cls.all(provider).get(id=entity_id)
         if not sport:
-            raise EntityNotFoundError(f"Sport with ID {sport_id} not found")
+            raise EntityNotFoundError(f"Sport with ID {entity_id} not found")
         return sport
 
-    # NOTE - Look for a way to get fixtures for a sport if possible (without any category or competition context)...
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _SportData:
+        raise NotImplementedError("Sport entities are not fetched by ID and are instead instantiated from static data.")
+
+    def _full_load(self) -> None:
+        """Sport entities are always fully loaded at construction time; nothing more to fetch."""
+        self._full_loaded = True
 
 
 class Country(IdentifiableEntity):
-    """A country (e.g., France, England, Spain).
+    """A country, such as France, England or Spain.
 
-    Provides standard identifiers (name, slug, alpha-2, alpha-3) and can be instantiated from a name or alpha code.
+    Every Country is backed by an ISO 3166-1 record, so its codes are canonical even when
+    the provider supplied only a name or a partial payload. A Country is always complete:
+    there is nothing further to load.
 
     Attributes:
-        id (int): The unique ID of the country.
-        name (str): Official country name.
-        slug (str): URL-friendly identifier.
-        alpha2 (str | None): ISO alpha-2 code.
-        alpha3 (str | None): ISO alpha-3 code.
+        id (str): Globally unique SDK ID built from the ISO 3166-1 numeric code, e.g. "ctr:250".
+        name (str): Title-cased country name, e.g. "France". Falls back to the slug, then to
+            the ISO record, when the payload carries no name.
+        slug (str): URL-friendly identifier, e.g. "france". Derived from the name when the
+            payload carries no slug.
+        alpha2 (str | None): ISO 3166-1 alpha-2 code, e.g. "FR".
+        alpha3 (str | None): ISO 3166-1 alpha-3 code, e.g. "FRA".
+        source (_CountryData): The parsed payload backing this entity. (inherited from BaseEntity)
 
-    Class Methods:
-        all(provider) -> EntityCollection[Country]: Fetch all countries.
-        from_id(country_id: int, provider) -> Optional[Country]: Create from domain ID.
-        from_alpha(alpha: str, provider) -> Optional[Country]: Create from alpha code.
-        from_name(name: str, provider) -> Optional[Country]: Create from country name.
+    Methods:
+        all(provider: SofascoreProvider) -> EntityCollection[Country]: Every ISO 3166-1 country. (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Country: The country with this SDK ID. (classmethod)
+        from_alpha(alpha: str, provider: SofascoreProvider) -> Country: The country with this alpha-2
+            or alpha-3 code. (classmethod)
+        from_name(name: str, provider: SofascoreProvider) -> Country: The country with this name. (classmethod)
 
     Raises:
-        ValueError: If the country cannot be found in the pycountry database.
+        TypeError: If constructed with data that is not `_CountryData`.
+        ValueError: If the payload matches no ISO 3166-1 record.
+        EntityNotFoundError: If `from_id`, `from_alpha` or `from_name` matches no ISO 3166-1 record.
     """
     _data: _CountryData
+    _PREFIX = "ctr"
     _REPR_FIELDS = ("id", "name", "slug", "alpha2", "alpha3")
 
     def __init__(self, data: _CountryData, provider: SofascoreProvider, **kwargs) -> None:
@@ -155,46 +171,48 @@ class Country(IdentifiableEntity):
             self._initialize_pycountry()
 
     def _initialize_pycountry(self) -> None:
-        """Helper method to create _pycountry_obj from available data."""
         if self._data.alpha2:
             self._pycountry_obj = pycountry.countries.get(alpha_2=self._data.alpha2.upper())
         elif self._data.alpha3:
             self._pycountry_obj = pycountry.countries.get(alpha_3=self._data.alpha3.upper())
-    
+
         if not self._pycountry_obj:
-            search_name = self.name.lower()
-            self._pycountry_obj = next(
-                (c for c in pycountry.countries if c.name.lower() == search_name), 
-                None
-            )
+            with suppress(LookupError):
+                self._pycountry_obj = pycountry.countries.lookup(self.name)
 
         if not self._pycountry_obj:
             raise ValueError(f"Country '{self.name}' (slug: {self.slug}) not found in pycountry database")
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The ISO 3166-1 numeric code of the country."""
-        return int(self._pycountry_obj.numeric)
+        return self.encode_id(self._pycountry_obj.numeric)
 
     @property
     def name(self) -> str:
         """The name of the country."""
-        return self._data.name.title() or self._data.slug.replace("-", " ").title()
+        if self._data.name:
+            return self._data.name.title()
+        if self._data.slug:
+            return self._data.slug.replace("-", " ").title()
+        return getattr(self._pycountry_obj, "name", "")
 
     @property
     def slug(self) -> str:
         """The slug of the country (used in URLs)."""
-        return self._data.slug
+        if self._data.slug:
+            return self._data.slug
+        return self.name.lower().replace(" ", "-")
 
     @property
-    def alpha2(self) -> Optional[str]:
-        """The alpha-2 code of the country (e.g. 'FR' for France)."""
-        return self._data.alpha2 or (self._pycountry_obj.alpha_2 if self._pycountry_obj else None)
+    def alpha2(self) -> str | None:
+        """The ISO 3166-1 alpha-2 code of the country, e.g. "FR"."""
+        return self._data.alpha2 or (getattr(self._pycountry_obj, "alpha_2", None) if self._pycountry_obj else None)
 
     @property
-    def alpha3(self) -> Optional[str]:
-        """The alpha-3 code of the country (e.g. 'FRA' for France)."""
-        return self._data.alpha3 or (self._pycountry_obj.alpha_3 if self._pycountry_obj else None)
+    def alpha3(self) -> str | None:
+        """The ISO 3166-1 alpha-3 code of the country, e.g. "FRA"."""
+        return self._data.alpha3 or (getattr(self._pycountry_obj, "alpha_3", None) if self._pycountry_obj else None)
 
     @classmethod
     def all(cls, provider: SofascoreProvider) -> EntityCollection[Country]:
@@ -205,66 +223,88 @@ class Country(IdentifiableEntity):
         ])
 
     @classmethod
-    def from_id(cls, country_id: int, provider: SofascoreProvider) -> Country:
+    def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Country:
         """Fetch a Country by its domain ID."""
-        pycountry_obj = pycountry.countries.get(numeric=str(country_id).zfill(3))
-        if not pycountry_obj:
-            raise EntityNotFoundError(f"Country with ID '{country_id}' not found in pycountry database")
-        return cls._from_pycountry(pycountry_obj, provider)
+        try:
+            _, _, raw_id = cls.decode_id(entity_id)
+            pycountry_obj = pycountry.countries.get(numeric=str(raw_id).zfill(3))
+            if not pycountry_obj:
+                raise EntityNotFoundError(f"Country with ID '{entity_id}' not found in pycountry database")
+            return cls._from_pycountry(pycountry_obj, provider)
+        except LookupError as e:
+            raise EntityNotFoundError(f"Country with ID '{entity_id}' not found in pycountry database") from e
 
     @classmethod
     def from_alpha(cls, alpha: str, provider: SofascoreProvider) -> Country:
-        """Create a Country instance from an alpha-2 or alpha-3 code."""
-        pycountry_obj = pycountry.countries.get(alpha_2=alpha.upper()) or pycountry.countries.get(alpha_3=alpha.upper())
-        if not pycountry_obj:
-            raise EntityNotFoundError(f"Country with alpha code '{alpha}' not found in pycountry database")
-        return cls._from_pycountry(pycountry_obj, provider)
+        """Fetch a Country by its ISO 3166-1 alpha-2 or alpha-3 code."""
+        try:
+            pycountry_obj = pycountry.countries.lookup(alpha.upper())
+            return cls._from_pycountry(pycountry_obj, provider)
+        except LookupError as e:
+            raise EntityNotFoundError(f"Country with alpha code '{alpha}' not found in pycountry database") from e
 
     @classmethod
     def from_name(cls, name: str, provider: SofascoreProvider) -> Country:
-        """Create a Country instance from a country name."""
+        """Fetch a Country by its name."""
         try:
-            pycountry_obj = next(
-                (c for c in pycountry.countries if c.name.lower() == name.lower())
-            )
+            pycountry_obj = pycountry.countries.lookup(name)
             return cls._from_pycountry(pycountry_obj, provider)
-        except StopIteration:
-            raise EntityNotFoundError(f"Country with name '{name}' not found in pycountry database")
+        except LookupError as e:
+            raise EntityNotFoundError(f"Country '{name}' not found in pycountry database") from e
 
     @classmethod
     def _from_pycountry(cls, pycountry_obj: Any, provider: SofascoreProvider) -> Country:
-        """Helper method to populate country data from a pycountry object."""
         return cls(
             data=_CountryData(
                 name=pycountry_obj.name,
                 slug=pycountry_obj.name.lower().replace(" ", "-"),
-                alpha2=pycountry_obj.alpha_2,
-                alpha3=pycountry_obj.alpha_3
+                alpha2=getattr(pycountry_obj, "alpha_2", None),
+                alpha3=getattr(pycountry_obj, "alpha_3", None)
             ),
             provider=provider,
             pycountry_obj=pycountry_obj
         )
 
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _SportData:
+        raise NotImplementedError("Country entities are not fetched by ID and are instead instantiated from pycountry data.")
 
-class Category(IdentifiableEntity, Generic[E]):
-    """A category within a sport (e.g., 'France Amateur', 'Formula 1', 'International').
+    def _full_load(self) -> None:
+        """Country entities are always fully loaded at construction time; nothing more to fetch."""
+        self._full_loaded = True
 
-    Provides access to its sport, country (if applicable), and competitions.
+
+class Category(IdentifiableEntity):
+    """A grouping of competitions within a sport, e.g. 'France Amateur', 'Formula 1', 'International'.
+
+    Categories are the level between a sport and its competitions. Most are countries; the
+    rest are international or organiser-level groupings.
 
     Attributes:
-        id (int): Unique category ID.
-        name (str): Category name.
-        slug (str): URL-friendly identifier.
-        sport (Sport): The sport this category belongs to.
-        event_format (EventFormat): The event format for this category, derived from its sport.
-        country (Country | None): The country this category belongs to, or None if international.
-        competitions (EntityCollection[Competition[E]]]): All competitions under this category.
-    
-    Class Methods:
-        all(provider) -> EntityCollection[Category]: Fetch all categories across all sports (expensive).
-        from_id(category_id, provider) -> Category: Create a Category instance from its ID (expensive).
+        id (str): Globally unique SDK ID, e.g. "cat:7".
+        name (str): Display name, e.g. "France".
+        slug (str): URL-friendly identifier, e.g. "france".
+        sport (Sport): The sport this category sits under.
+        country (Country | None): The country this category represents, or None for
+            international and organiser-level categories.
+        competitions (EntityCollection[Competition]): Every competition in this category,
+            covering both match-based tournaments and stage-based competitions. Empty when
+            the provider lists neither.
+        source (_CategoryData): The parsed payload backing this entity. (inherited from BaseEntity)
+
+    Methods:
+        all(provider: SofascoreProvider) -> EntityCollection[Category]: Every category across every
+            sport. Cached per provider; the first call is slow. (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Category: The category with this SDK
+            ID. Shares the `all()` cache, so the first call is slow. (classmethod)
+
+    Raises:
+        TypeError: If constructed with data that is not `_CategoryData`.
+        EntityNotFoundError: If `from_id` is given an ID no category carries.
+        DomainError: If the provider fails while resolving the category.
     """
     _data: _CategoryData
+    _PREFIX = "cat"
     _REPR_FIELDS = ("id", "name", "slug", "sport", "country")
     _all_cache: dict[int, EntityCollection[Category]] = {}
 
@@ -275,9 +315,9 @@ class Category(IdentifiableEntity, Generic[E]):
             raise TypeError(f"Category data must be of type _CategoryData, got {type(data)}")
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the category."""
-        return self._data.id
+        return self.encode_id(self._data.id)
 
     @property
     def name(self) -> str:
@@ -290,17 +330,12 @@ class Category(IdentifiableEntity, Generic[E]):
         return self._data.slug or self._data.name.lower().replace(" ", "-")
 
     @cached_property
-    def sport(self) -> Sport[E]:
+    def sport(self) -> Sport:
         """The sport this category belongs to."""
         return Sport(self._data.sport, self._provider)
 
-    @property
-    def event_format(self) -> EventFormat:
-        """Determine the event format for this category based on its sport."""
-        return self.sport.event_format
-
     @cached_property
-    def country(self) -> Optional[Country]:
+    def country(self) -> Country | None:
         """The country this category belongs to, or None if it's an international category."""
         if self._data.country:
             return Country(self._data.country, self._provider)
@@ -312,15 +347,15 @@ class Category(IdentifiableEntity, Generic[E]):
         return None
 
     @cached_property
-    def competitions(self) -> EntityCollection[Competition[E]]:
+    def competitions(self) -> EntityCollection[Competition]:
         """Fetch all competitions (unique tournaments / unique stages) for this category."""
         unique_tournaments = []
         with suppress(ProviderNotFoundError):
-            unique_tournaments = self._provider.get_category_unique_tournaments(self.id)
+            unique_tournaments = self._provider.get_category_unique_tournaments(self._data.id)
 
         unique_stages = []
         with suppress(ProviderNotFoundError):
-            unique_stages = self._provider.get_category_unique_stages(self.id)
+            unique_stages = self._provider.get_category_unique_stages(self._data.id)
 
         from .competition import Competition
         return EntityCollection(
@@ -339,18 +374,32 @@ class Category(IdentifiableEntity, Generic[E]):
         if provider_key not in cls._all_cache:
             all_categories = []
             for sport in Sport.all(provider):
+                logger.debug(f"Fetching categories for sport '{sport.name}' (ID: {sport.id})...")
                 all_categories.extend(sport.categories)
             cls._all_cache[provider_key] = EntityCollection(all_categories)
 
         return cls._all_cache[provider_key]
 
     @classmethod
-    def from_id(cls, category_id: int, provider: SofascoreProvider) -> Self:
+    def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Self:
         """
         Create a Category instance from its ID.
         Warning: This requires N API calls (one per sport) on the first call to build the cache.
         """
-        category = cls.all(provider).get(id=category_id)
-        if not category:
-            raise EntityNotFoundError(f"Category with ID {category_id} not found")
-        return category
+        try:
+            category = cls.all(provider).get(id=entity_id)
+            if not category:
+                raise EntityNotFoundError(f"Category with ID {entity_id} not found")
+            return category
+        except ProviderNotFoundError as e:
+            raise EntityNotFoundError(f"Category with ID {entity_id} not found") from e
+        except FetchError as e:
+            raise DomainError(f"Error fetching category with ID {entity_id}") from e
+
+    @staticmethod
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> _CategoryData:
+        raise NotImplementedError("Category entities are not fetched by ID and are instead instantiated from related sport data.")
+
+    def _full_load(self) -> None:
+        """Category entities are always fully loaded at construction time; nothing more to fetch."""
+        self._full_loaded = True

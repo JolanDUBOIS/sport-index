@@ -1,36 +1,51 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Callable, Self, Any, Sequence
+from typing import TYPE_CHECKING, Any, Self
 
-from pydantic import GetCoreSchemaHandler
 from pydantic_core import core_schema
 
-from . import logger
 from sportindex.exceptions import ProviderNotFoundError
-from sportindex.provider.models import BaseSchema
+
+from .utils import merge_pydantic_models
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pydantic import GetCoreSchemaHandler
+
+    from sportindex.api_client import SofascoreProvider
+    from sportindex.api_client.models import BaseSchema, _SearchResultData
+
     from .collections import ScoredEntityCollection
-    from sportindex.provider import SofascoreProvider
-    from sportindex.provider.models import _SearchResultData
+
+logger = logging.getLogger(__name__)
 
 
 # ===== Base Entity =====
 
 class BaseEntity(ABC):
-    """Base class for all domain entities."""
-    _data: BaseSchema | Sequence[BaseSchema]
+    """Base class for every domain entity.
+
+    Wraps a parsed provider payload and exposes it through typed properties. Entities
+    without their own identity compare and hash by object identity.
+
+    Attributes:
+        source (BaseSchema): The parsed payload backing this entity. An escape hatch for
+            fields the domain layer does not surface as properties.
+    """
+    _data: BaseSchema
     _REPR_FIELDS = ()
 
-    def __init__(self, data: BaseSchema | Sequence[BaseSchema], provider: SofascoreProvider, **kwargs) -> None:
+    def __init__(self, data: BaseSchema, provider: SofascoreProvider, **kwargs) -> None:
         self._data = data
         self._provider = provider
         self._kwargs = kwargs
 
     @property
-    def source(self) -> BaseSchema | Sequence[BaseSchema]:
+    def source(self) -> BaseSchema:
         """Return the parsed data source for this entity."""
         return self._data
 
@@ -39,6 +54,26 @@ class BaseEntity(ABC):
             for attr_name, attr_value in vars(cls).items():
                 if isinstance(attr_value, cached_property):
                     self.__dict__.pop(attr_name, None)
+
+    @classmethod
+    def _public_class(cls) -> type[BaseEntity]:
+        """The nearest ancestor users are meant to see.
+
+        Dispatch variants like `_StdVenue` are private, so anything user-facing — reprs,
+        cache namespaces — should name the public parent (`Venue`) instead.
+        """
+        for ancestor in cls.__mro__:
+            if not ancestor.__name__.startswith("_"):
+                return ancestor
+        return cls
+
+    @property
+    def _public_class_name(self) -> str:
+        return self._public_class().__name__
+
+    def __str__(self) -> str:
+        field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')}" for k in self._REPR_FIELDS)
+        return f"<{self._public_class_name} {field_str}>"
 
     def __repr__(self):
         field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')!r}" for k in self._REPR_FIELDS)
@@ -64,34 +99,130 @@ class BaseEntity(ABC):
 # ===== Identifiable Entity =====
 
 class IdentifiableEntity(BaseEntity):
-    """Base class for entities that have a unique identifier."""
-    _N_TYPES: int = 1
+    """Base class for entities addressable by a stable, globally unique SDK ID.
+
+    An SDK ID is a string such as ``"team:44"`` or ``"trnc:17:trns:61627"``: a short type
+    prefix, the provider's raw numeric ID, and — for entities that only mean something
+    inside a parent, such as a Season inside a Competition — the parent's own ID prepended.
+    Two entities are equal when they are of the same type and carry the same ID.
+
+    Attributes:
+        id (str): The entity's globally unique SDK ID.
+        source (BaseSchema): The parsed payload backing this entity. (inherited from BaseEntity)
+
+    Methods:
+        encode_id(raw_id: int, parent_id: str | None = None) -> str: The SDK ID for a raw
+            provider ID, optionally nested under a parent ID. (classmethod)
+        decode_id(sdk_id: str) -> tuple[str | None, str, int]: The (parent_id, prefix, raw_id)
+            an SDK ID is built from; parent_id is None when the ID has no parent. (classmethod)
+        resolve_class(entity_id: str) -> type[Self]: The concrete subclass whose prefix matches
+            the ID. (classmethod)
+        from_id(entity_id: str, provider: SofascoreProvider) -> Self: The entity with this SDK
+            ID, as an instance of the concrete subclass its prefix names. (classmethod)
+
+    Raises:
+        ValueError: If an SDK ID is malformed, or if no subclass of this class claims its prefix.
+        EntityNotFoundError: If `from_id` names an entity the provider does not have.
+        DomainError: If the provider fails with a network or transport error.
+    """
+    _PREFIX: str
+
+    def __init__(self, data: BaseSchema, provider: SofascoreProvider, **kwargs) -> None:
+        super().__init__(data, provider, **kwargs)
+        self._full_loaded = False
 
     @property
     @abstractmethod
-    def id(self) -> int:
+    def id(self) -> str:
         """The unique ID of the entity, encoded as a globally unique SDK ID."""
         raise NotImplementedError("Subclasses of IdentifiableEntity must implement the id property")
 
     @classmethod
-    def encode_id(cls, raw_id: int, type_idx: int) -> int:
-        """Encodes the raw provider ID and type index into a single unique SDK ID."""
-        if type_idx > cls._N_TYPES or type_idx < 1:
-            raise ValueError(f"type_idx {type_idx} exceeds maximum _N_TYPES ({cls._N_TYPES}) for {cls.__name__}")
-        return (raw_id * cls._N_TYPES) + (type_idx - 1)
+    def encode_id(cls, raw_id: int, parent_id: str | None = None) -> str:
+        """Encodes the raw provider ID into a single unique SDK ID."""
+        base_id = f"{cls._PREFIX}:{raw_id}"
+        return f"{parent_id}:{base_id}" if parent_id else base_id
 
     @classmethod
-    def decode_id(cls, sdk_id: int) -> tuple[int, int]:
-        """Decodes the combined SDK ID into (raw_id, type_idx)."""
-        raw_id = sdk_id // cls._N_TYPES
-        type_idx = (sdk_id % cls._N_TYPES) + 1
-        return raw_id, type_idx
+    def decode_id(cls, sdk_id: str) -> tuple[str | None, str, int]:
+        """Decodes the combined SDK ID into (parent_id, prefix, raw_id).
+
+        Splits from the right so a `parent_id` that is itself a compound ID
+        (e.g. a Competition ID nested inside a Season ID) is kept intact
+        instead of being shredded by a naive left-to-right split.
+        """
+        parts = sdk_id.rsplit(":", 2)
+        if len(parts) == 2:
+            prefix, raw_id = parts
+            return None, prefix, int(raw_id)
+        if len(parts) == 3:
+            parent_id, prefix, raw_id = parts
+            return parent_id, prefix, int(raw_id)
+        raise ValueError(f"Invalid SDK ID format: {sdk_id}")
 
     @classmethod
+    def _get_all_subclasses(cls, base_cls: type[Any]) -> set[type[Any]]:
+        subclasses = set()
+        for sub in base_cls.__subclasses__():
+            subclasses.add(sub)
+            subclasses.update(cls._get_all_subclasses(sub))
+        return subclasses
+
+    @classmethod
+    def _process_parent_id(cls, parent_id: str | None, provider: SofascoreProvider) -> dict[str, Any]:
+        return {}
+
+    @classmethod
+    def resolve_class(cls, entity_id: str) -> type[Self]:
+        """Resolve the concrete IdentifiableEntity subclass whose prefix matches `entity_id`.
+
+        Looks first among `cls`'s own subclasses, then falls back to a global search
+        (across every IdentifiableEntity) purely to raise a more helpful error.
+        """
+        _, prefix, _ = cls.decode_id(entity_id)
+
+        if getattr(cls, "_PREFIX", None) == prefix:
+            return cls
+        for sub in cls._get_all_subclasses(cls):
+            if getattr(sub, "_PREFIX", None) == prefix:
+                return sub
+
+        for sub in cls._get_all_subclasses(IdentifiableEntity):
+            if getattr(sub, "_PREFIX", None) == prefix:
+                raise ValueError(
+                    f"Prefix '{prefix}' matches {sub.__name__}, "
+                    f"which is not a subclass of {cls.__name__}."
+                )
+        raise ValueError(f"No subclass found globally with prefix '{prefix}'.")
+
+    @classmethod
+    def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Self:
+        """Build the entity with this SDK ID, as the concrete subclass its prefix names."""
+        parent_id, _, raw_id = cls.decode_id(entity_id)
+        target_class = cls.resolve_class(entity_id)
+        logger.debug(f"Decoded ID '{entity_id}' into parent_id='{parent_id}', target_class='{target_class.__name__}', raw_id={raw_id}")
+
+        extra_kwargs = target_class._process_parent_id(parent_id, provider)
+        data = target_class._fetch_entity(raw_id, provider, **extra_kwargs)
+        return target_class(data, provider, **extra_kwargs)
+
+    def _full_load(self) -> None:
+        """
+        Lazy-loads the complete entity from the provider.
+        Called automatically when accessing properties that require full details
+        missing from the initial lightweight API response.
+        """
+        if self._full_loaded:
+            return
+        self._data = merge_pydantic_models(self._data, self._fetch_entity(self.decode_id(self.id)[2], self._provider, **self._kwargs))
+        self._full_loaded = True
+        self._clear_cache()
+
+    @staticmethod
     @abstractmethod
-    def from_id(cls, entity_id: int, provider: SofascoreProvider) -> Self:
-        """Create an instance of the entity from its unique ID."""
-        raise NotImplementedError("Subclasses of IdentifiableEntity must implement the from_id class method")
+    def _fetch_entity(raw_id: int, provider: SofascoreProvider, **kwargs) -> BaseSchema: # NOTE - Each subclass returns its own schema; typing that precisely would mean making this class generic over it. Deliberately not done.
+        """Fetch the complete entity data from the provider by its raw ID."""
+        raise NotImplementedError("Subclasses of IdentifiableEntity must implement the _fetch_entity static method")
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, type(self)):
@@ -105,11 +236,18 @@ class IdentifiableEntity(BaseEntity):
 # ===== Searchable Mixin =====
 
 class SearchableMixin(IdentifiableEntity):
-    """
-    Mixin for entities that can be searched via pagination.
+    """Mixin for entities that can be looked up by free-text query.
+
+    Mixed into `Competition`, `Competitor` (and `Team` / `Athlete`), `Manager`, `Referee`
+    and `Venue`.
 
     Methods:
-        search() -> ScoredEntityCollection[Self]: Search for entities matching a query, with pagination support.
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Self]:
+            The entities matching `query`, each carrying the provider's relevance score,
+            capped at `max_results`. Empty when nothing matches. (classmethod)
+
+    Raises:
+        ValueError: If `query` is not a non-empty string.
     """
 
     @classmethod
@@ -133,10 +271,13 @@ class SearchableMixin(IdentifiableEntity):
 
             if not matches:
                 break
-            
+
             for item in matches:
                 if valid_types is None or isinstance(item.entity, valid_types):
-                    scored_items.append((cls(item.entity, provider), item.score))
+                    try:
+                        scored_items.append((cls(item.entity, provider), item.score))
+                    except (ValueError, TypeError) as e:
+                        logger.debug(f"Skipping search result incompatible with {cls.__name__}: {e}")
 
                 if len(scored_items) >= max_results:
                     break
@@ -146,6 +287,11 @@ class SearchableMixin(IdentifiableEntity):
 
         from .collections import ScoredEntityCollection
         return ScoredEntityCollection(scored_items[:max_results])
+
+    @staticmethod
+    def _validate_query(query: str) -> None:
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("Search query must be a non-empty string")
 
     @classmethod
     @abstractmethod
