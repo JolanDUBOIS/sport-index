@@ -11,7 +11,10 @@ def test_standings(client: SportClient, provider: SofascoreProvider):
     """Test that the Standings entity behaves correctly."""
     ucl = client.get("trnc:7", sportindex.Competition)
 
-    ucl_season = ucl.seasons[0] # Get the current season for testing
+    # Pinned to a completed season on purpose. seasons[0] is the *newest* season, which the
+    # provider creates months before it kicks off — it has no standings until then, so using
+    # it makes this test fail every off-season.
+    ucl_season = ucl.seasons.get(id="trnc:7:trns:61644", strict=True)  # 2024/25
     standings = ucl_season.standings
     assert all(isinstance(s, Standings) for s in standings)
     assert len(standings) == 3
