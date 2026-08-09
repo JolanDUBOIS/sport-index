@@ -188,6 +188,7 @@ class IdentifiableEntity(BaseEntity):
 
     @classmethod
     def from_id(cls, entity_id: str, provider: SofascoreProvider) -> Self:
+        """Build the entity with this SDK ID, as the concrete subclass its prefix names."""
         parent_id, _, raw_id = cls.decode_id(entity_id)
         target_class = cls.resolve_class(entity_id)
         logger.debug(f"Decoded ID '{entity_id}' into parent_id='{parent_id}', target_class='{target_class.__name__}', raw_id={raw_id}")

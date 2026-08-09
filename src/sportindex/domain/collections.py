@@ -70,22 +70,27 @@ class EntityCollection(UserList[EntityT]):
             self._validate_item(item)
 
     def add(self, item: EntityT) -> None:
+        """Append an entity to the collection unless an equal one is already present."""
         self._validate_item(item)
         if item not in self.data:
             self.data.append(item)
 
     def update(self, other: Iterable[EntityT]) -> None:
+        """Merge entities from another iterable in, keeping the first occurrence of each."""
         other_items = other.data if isinstance(other, UserList) else list(other)
         self._validate_iterable(other_items)
         self.data = list(dict.fromkeys(self.data + other_items))
 
     def append(self, item: EntityT) -> None:
+        """Disabled — use add(), which enforces uniqueness."""
         raise NotImplementedError("Use .add() to add entities to a unique collection.")
 
     def extend(self, other: Iterable[EntityT]) -> None:
+        """Disabled — use update(), which enforces uniqueness."""
         raise NotImplementedError("Use .update() to merge iterable entities into a unique collection.")
 
     def insert(self, i: int, item: EntityT) -> None:
+        """Disabled — positional insertion cannot preserve uniqueness."""
         raise NotImplementedError("Direct insertion is disabled to maintain unique sequence integrity.")
 
     def __setitem__(self, i: int | slice, item: Any) -> None:
@@ -275,9 +280,11 @@ class ScoredEntityCollection(EntityCollection[EntityT]):
         return self.data[i]
 
     def add(self, item: Any) -> None:
+        """Disabled — a scored collection is read-only."""
         raise NotImplementedError("ScoredEntityCollection is read-only.")
 
     def update(self, other: Any) -> None:
+        """Disabled — a scored collection is read-only."""
         raise NotImplementedError("ScoredEntityCollection is read-only.")
 
     def __add__(self, other: Any) -> Any:
@@ -290,6 +297,7 @@ class ScoredEntityCollection(EntityCollection[EntityT]):
         raise NotImplementedError("ScoredEntityCollection is read-only.")
 
     def search(self, query, *, by = "name") -> Any:
+        """Disabled — filtering a scored collection this way would discard its scores."""
         raise NotImplementedError("ScoredEntityCollection does not support search operations.")
 
     @classmethod
@@ -321,6 +329,9 @@ class EventCollection(EntityCollection[E]):
         matches (EventCollection[MatchEvent]): Only the match events.
         stages (EventCollection[StageEvent]): Only the stage events.
 
+    Both date methods read `Event.start`, which a `StageEvent` may leave unset; neither
+    tolerates an undated event in the collection.
+
     Methods:
         filter_by_date(*, before: date | datetime | None = None, after: date | datetime | None = None) -> EventCollection[E]:
             Only the events starting strictly before `before` and strictly after `after`. A
@@ -330,6 +341,9 @@ class EventCollection(EntityCollection[E]):
         filter_by_competitors(competitor_ids: list[str]) -> EventCollection[MatchEvent]: Only
             the match events with one of the given competitor SDK IDs on either side. Stage
             events are dropped, having no two named sides.
+
+    Raises:
+        TypeError: If `filter_by_date` or `sort_by_date` meets an event with no `start`.
     """
 
     @property

@@ -141,8 +141,10 @@ class Country(IdentifiableEntity):
 
     Attributes:
         id (str): Globally unique SDK ID built from the ISO 3166-1 numeric code, e.g. "ctr:250".
-        name (str): Title-cased country name, e.g. "France".
-        slug (str): URL-friendly identifier, e.g. "france".
+        name (str): Title-cased country name, e.g. "France". Read from the provider payload
+            rather than the ISO record, so see Raises for the no-name case.
+        slug (str): URL-friendly identifier, e.g. "france". Read from the provider payload,
+            whose field is optional, so this may be None despite the annotation.
         alpha2 (str | None): ISO 3166-1 alpha-2 code, e.g. "FR".
         alpha3 (str | None): ISO 3166-1 alpha-3 code, e.g. "FRA".
         source (_CountryData): The parsed payload backing this entity. (inherited from BaseEntity)
@@ -158,6 +160,8 @@ class Country(IdentifiableEntity):
         TypeError: If constructed with data that is not `_CountryData`.
         ValueError: If the payload matches no ISO 3166-1 record.
         EntityNotFoundError: If `from_id`, `from_alpha` or `from_name` matches no ISO 3166-1 record.
+        AttributeError: If `name` is read on a payload carrying no name — the intended slug
+            fallback is evaluated too late to apply.
     """
     _data: _CountryData
     _PREFIX = "ctr"
@@ -203,10 +207,12 @@ class Country(IdentifiableEntity):
 
     @property
     def alpha2(self) -> str | None:
+        """The ISO 3166-1 alpha-2 code of the country, e.g. "FR"."""
         return self._data.alpha2 or (getattr(self._pycountry_obj, "alpha_2", None) if self._pycountry_obj else None)
 
     @property
     def alpha3(self) -> str | None:
+        """The ISO 3166-1 alpha-3 code of the country, e.g. "FRA"."""
         return self._data.alpha3 or (getattr(self._pycountry_obj, "alpha_3", None) if self._pycountry_obj else None)
 
     @classmethod
@@ -231,6 +237,7 @@ class Country(IdentifiableEntity):
 
     @classmethod
     def from_alpha(cls, alpha: str, provider: SofascoreProvider) -> Country:
+        """Fetch a Country by its ISO 3166-1 alpha-2 or alpha-3 code."""
         try:
             pycountry_obj = pycountry.countries.lookup(alpha.upper())
             return cls._from_pycountry(pycountry_obj, provider)
@@ -239,6 +246,7 @@ class Country(IdentifiableEntity):
 
     @classmethod
     def from_name(cls, name: str, provider: SofascoreProvider) -> Country:
+        """Fetch a Country by its name."""
         try:
             pycountry_obj = pycountry.countries.lookup(name)
             return cls._from_pycountry(pycountry_obj, provider)

@@ -299,6 +299,7 @@ class Team(_TeamCompetitor):
 
     Raises:
         TypeError: If constructed with data that is not `_TeamData`.
+        ValueError: If `search` is given an empty query.
         EntityNotFoundError: If `from_id` names a team the provider does not have.
         DomainError: If the provider fails with a network or transport error.
     """
@@ -359,6 +360,7 @@ class Team(_TeamCompetitor):
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Team]:
         """Search for teams matching the given query, returning up to max_results results."""
+        cls._validate_query(query)
         return cls._paginate_search(
             query=query,
             provider=provider,
@@ -407,8 +409,8 @@ class Athlete(Competitor):
 
     Raises:
         TypeError: If constructed with data that is neither `_PlayerData` nor `_TeamData`.
-        ValueError: If constructed from team-shaped data that carries no player info, and so
-            describes a team rather than an individual.
+        ValueError: If `search` is given an empty query, or if constructed from team-shaped
+            data that carries no player info, and so describes a team rather than an individual.
         EntityNotFoundError: If `from_id` names an athlete the provider does not have.
         DomainError: If the provider fails with a network or transport error.
     """
@@ -461,6 +463,7 @@ class Athlete(Competitor):
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Athlete]:
         """Search for players matching the given query, returning up to max_results results."""
+        cls._validate_query(query)
         return cls._paginate_search(
             query=query,
             provider=provider,

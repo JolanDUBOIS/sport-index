@@ -58,7 +58,7 @@ class Manager(SearchableMixin, EventAwareMixin):
         slug (str): URL-friendly identifier, e.g. "zinedine-zidane".
         short_name (str): Abbreviated name, e.g. "Z. Zidane". The underlying payload field is
             optional, so this may be None despite the annotation.
-        sport (Sport): The sport this manager works in.
+        sport (Sport | None): The sport this manager works in, if the provider states it.
         country (Country | None): The manager's nationality, if the provider states it.
         team (Competitor | None): The team currently managed, if any — None between jobs.
         performances (list[ManagerTenure]): Every spell in the manager's career, each with its
@@ -118,11 +118,11 @@ class Manager(SearchableMixin, EventAwareMixin):
         return self._data.short_name
 
     @cached_property
-    def sport(self) -> Sport:
-        """The sport this manager is associated with."""
+    def sport(self) -> Sport | None:
+        """The sport this manager is associated with, if any."""
         self._full_load()
         from .core import Sport
-        return Sport(self._data.sport, self._provider)
+        return Sport(self._data.sport, self._provider) if self._data.sport else None
 
     @cached_property
     def country(self) -> Country | None:
@@ -132,12 +132,14 @@ class Manager(SearchableMixin, EventAwareMixin):
 
     @cached_property
     def team(self) -> Competitor | None:
+        """The team this manager currently manages, if any."""
         self._full_load()
         from .competitor import Competitor
         return Competitor(self._data.team, self._provider) if self._data.team else None
 
     @cached_property
     def performances(self) -> list[ManagerTenure]:
+        """Every spell in this manager's career, each with its team, dates and record."""
         parsed_career_history = self._provider.get_manager_career_history(self._data.id)
         return [ManagerTenure._from_base_schema(parsed, provider=self._provider) for parsed in parsed_career_history]
 

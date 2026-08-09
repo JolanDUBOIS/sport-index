@@ -64,9 +64,11 @@ class Season(IdentifiableEntity, EventAwareMixin):
 
     Methods:
         get_fixtures(silent: bool = False) -> EventCollection: The season's upcoming events —
-            `MatchEvent`s for a match-based season, `StageEvent`s for a stage-based one.
+            `MatchEvent`s for a match-based season, `StageEvent`s for a stage-based one. A
+            stage-based season splits its stages on their start time, so an undated stage
+            makes this fail; see Raises.
         get_results(silent: bool = False) -> EventCollection: The season's past events, same
-            types as `get_fixtures`.
+            types as `get_fixtures`, split the same way and with the same caveat.
         get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
             (inherited from EventAwareMixin)
         from_id(entity_id: str, provider: SofascoreProvider) -> Season: The season with this
@@ -80,6 +82,8 @@ class Season(IdentifiableEntity, EventAwareMixin):
             unique stage to derive its competition from.
         EntityNotFoundError: If `from_id` names a season the provider does not have.
         DomainError: If the provider fails with a network or transport error.
+        TypeError: If a stage-based season's `get_fixtures`, `get_results` or `get_events`
+            meets a stage the provider has not dated, since all three order by start time.
     """
     _data: _SeasonData | _StageData
     _REPR_FIELDS = ("id", "name", "year", "start", "sport")

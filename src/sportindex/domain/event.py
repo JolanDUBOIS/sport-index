@@ -63,7 +63,8 @@ class Event(IdentifiableEntity):
         id (str): Globally unique SDK ID — "mch:<id>" for matches, "stg:<id>" for stages.
         name (str): Display name, e.g. "Paris Saint Germain Marseille".
         slug (str): URL-friendly identifier, e.g. "paris-saint-germain-marseille".
-        start (datetime): When the event starts.
+        start (datetime | None): When the event starts. Always set for a `MatchEvent`; a
+            `StageEvent` may have none, since the provider leaves undated stages open.
         status (EventStatus | None): Whether the event is scheduled, live or finished, if the
             provider states it.
         sport (Sport | None): The sport this event belongs to, taken from its season. None
@@ -135,8 +136,8 @@ class Event(IdentifiableEntity):
         return self._data.slug
 
     @property
-    def start(self) -> datetime:
-        """The start time of the event."""
+    def start(self) -> datetime | None:
+        """The start time of the event, if the provider has dated it."""
         return self._data.start
 
     @property
@@ -234,7 +235,8 @@ class MatchEvent(Event):
         h2h (EventCollection[MatchEvent]): Previous meetings between these two competitors.
             Empty when the provider has no head-to-head record.
         id (str): Globally unique SDK ID, of the form "mch:<id>". (inherited from Event)
-        name, slug, start, status, sport, competition, season, venue, winner: See `Event`.
+        start (datetime): Kick-off time. Always set for a match. (inherited from Event)
+        name, slug, status, sport, competition, season, venue, winner: See `Event`.
         source (_EventData): The parsed payload backing this entity. (inherited from BaseEntity)
 
     Methods:
@@ -439,7 +441,9 @@ class StageEvent(Event):
         venue (Venue): The circuit or course, derived from the stage itself rather than
             looked up separately. Never None, though its fields may be empty.
         id (str): Globally unique SDK ID, of the form "stg:<id>". (inherited from Event)
-        name, slug, start, status, sport, competition, season, winner: See `Event`.
+        start (datetime | None): When the stage begins. None for a stage the provider has not
+            yet dated — a common case for future rounds. (inherited from Event)
+        name, slug, status, sport, competition, season, winner: See `Event`.
         source (_StageData): The parsed payload backing this entity. (inherited from BaseEntity)
 
     Methods:
@@ -636,6 +640,9 @@ class EventAwareMixin(ABC, Generic[E]):
     no endpoint for one or the other and return an empty collection, which is why both take
     a `silent` flag to suppress the warning that goes with it.
 
+    Where the provider paginates, pages are followed until it reports no more, up to a cap of
+    ten — so a very long history comes back truncated rather than complete.
+
     Methods:
         get_fixtures(silent: bool = False) -> EventCollection[E]: The entity's upcoming events.
             Abstract; each entity implements it. Logs a warning when it cannot be supported,
@@ -644,6 +651,9 @@ class EventAwareMixin(ABC, Generic[E]):
             Abstract; each entity implements it. Same warning behaviour.
         get_events() -> EventCollection[E]: Fixtures and results in one collection, sorted by
             start time, oldest first. Suppresses the unsupported-endpoint warnings.
+
+    Raises:
+        TypeError: If `get_events` meets an event with no `start`, since it sorts by date.
     """
 
     @abstractmethod
@@ -675,7 +685,7 @@ class EventAwareMixin(ABC, Generic[E]):
                 logger.warning(f"Network error while fetching events for page {page}: {e}. Ending pagination.")
                 break
 
-            if not getattr(events_response, "hasNextPage", False):
+            if not events_response.has_next_page:
                 break
 
         return EventCollection([Event(e, self._provider) for e in parsed_events])
