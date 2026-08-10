@@ -16,25 +16,22 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
+
       - name: Configure Git Credentials
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
-      - name: Install Poetry
-        run: pipx install poetry
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv and set up Python
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: '3.11'
-          cache: 'poetry'
+          enable-cache: true
 
       - name: Install dependencies
-        run: poetry install
+        run: uv sync
 
       - name: Deploy versioned docs to GitHub Pages
         run: |
-          poetry run mike deploy $(poetry version -s) latest --update-aliases --push
-          poetry run mike set-default latest --push
+          uv run mike deploy $(uv version --short) latest --update-aliases --push
+          uv run mike set-default latest --push
