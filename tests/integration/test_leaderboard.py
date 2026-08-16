@@ -38,3 +38,27 @@ def test_rankings(client: SportClient, provider: SofascoreProvider):
         assert ranking.gender in ("M", "F")
         assert all(isinstance(e, sportindex.RankingsEntry) for e in ranking.entries)
         assert ranking.sport.id == "spt:76"
+
+def test_rankings_with_unlinked_entrants(client: SportClient, provider: SofascoreProvider):
+    """Rankings list entrants the provider has no team page for, without dropping rows.
+
+    The rugby league table backs only its top 20 with teams; the rest carry a name alone.
+    Those must still come through, or positions stop matching the published ranking.
+    """
+    rugby = client.get("spt:12", sportindex.Sport)
+    rugby_league = next(r for r in rugby.get_rankings() if r.id == 4)
+
+    entries = rugby_league.entries
+    assert len(entries) == 35
+    assert [e.position for e in entries] == list(range(1, 36))
+    assert all(e.name for e in entries)
+
+    linked = [e for e in entries if isinstance(e.entity, sportindex.Competitor)]
+    countries = [e for e in entries if isinstance(e.entity, sportindex.Country)]
+    assert len(linked) == 20
+    assert len(countries) == 15
+
+    # Entrants without a team resolve to the ISO country of the same name.
+    germany = next(e for e in entries if e.name == "Germany")
+    assert germany.entity.id == "ctr:276"
+    assert germany.points == 23
