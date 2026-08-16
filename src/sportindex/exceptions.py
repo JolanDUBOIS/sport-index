@@ -31,6 +31,15 @@ class FetchError(ProviderError):
     """Raised for general fetch failures (non-404/429 HTTP responses or exhausted retries)."""
 
 
+class ChallengeError(ProviderError):
+    """Raised when the provider issues a bot challenge (HTTP 403, reason "challenge").
+
+    A challenge is a verdict on where the request came from, not a transient failure,
+    so it is raised on the first attempt rather than retried. The error message spells
+    out what usually triggers it and how to clear it.
+    """
+
+
 class DomainError(SportIndexError):
     """Base class for domain/business-logic errors."""
 
@@ -55,6 +64,7 @@ __all__ = [
     "RateLimitError",
     "ProviderNotFoundError",
     "FetchError",
+    "ChallengeError",
     "DomainError",
     "EntityNotFoundError",
     "ConflictError",
