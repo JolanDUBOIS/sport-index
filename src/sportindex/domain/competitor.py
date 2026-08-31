@@ -7,7 +7,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, overload
 
 from nameparser import HumanName
-from pydantic import BaseModel
 
 from sportindex.api_client.models import Amount, _PlayerData, _TeamData
 from sportindex.exceptions import (
@@ -17,7 +16,7 @@ from sportindex.exceptions import (
     ProviderNotFoundError,
 )
 
-from .base import SearchableMixin
+from .base import DomainModel, SearchableMixin
 from .collections import EntityCollection, ScoredEntityCollection
 from .event import EventAwareMixin
 
@@ -539,7 +538,7 @@ class _PlayerAthlete(Athlete, _PlayerCompetitor):
         return AthleteInfo._from_parsed_player(self._data)
 
 
-class AthleteInfo(BaseModel):
+class AthleteInfo(DomainModel):
     """Physical, career and contractual details for an `Athlete`.
 
     Every field is optional and most are sport-specific: a footballer carries a preferred

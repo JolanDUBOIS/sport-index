@@ -4,8 +4,6 @@ import logging
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel
-
 from sportindex.api_client.models import _RefereeData
 from sportindex.exceptions import (
     DomainError,
@@ -14,7 +12,7 @@ from sportindex.exceptions import (
     ProviderNotFoundError,
 )
 
-from .base import SearchableMixin
+from .base import DomainModel, SearchableMixin
 from .event import EventAwareMixin
 
 if TYPE_CHECKING:
@@ -27,7 +25,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class Cards(BaseModel):
+class Cards(DomainModel):
     """Career card totals for a `Referee`.
 
     Attributes:

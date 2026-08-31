@@ -4,8 +4,6 @@ import logging
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel
-
 from sportindex.api_client.models import (
     Promotion,
     _RacingStandingsData,
@@ -17,7 +15,7 @@ from sportindex.api_client.models import (
 )
 from sportindex.exceptions import EntityNotFoundError
 
-from .base import BaseEntity
+from .base import BaseEntity, DomainModel
 from .competition import Competition
 from .competitor import Competitor
 from .core import Country
@@ -116,7 +114,7 @@ class Standings(BaseEntity):
         return result
 
 
-class StandingsEntry(BaseModel):
+class StandingsEntry(DomainModel):
     """One row of a `Standings` table.
 
     Only `competitor` and `position` are always present. The rest divide by table kind:
@@ -318,7 +316,7 @@ class Rankings(BaseEntity):
             return None
 
 
-class RankingsEntry(BaseModel):
+class RankingsEntry(DomainModel):
     """One row of a `Rankings` table.
 
     Attributes:

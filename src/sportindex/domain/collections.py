@@ -15,6 +15,9 @@ if TYPE_CHECKING:
     from .event import Event, MatchEvent, StageEvent
 
 
+#: How many entities a collection's repr previews before summarising the rest as a count.
+_REPR_PREVIEW = 3
+
 EntityT = TypeVar("EntityT", bound="IdentifiableEntity", default="IdentifiableEntity")
 OtherEntityT = TypeVar("OtherEntityT", bound="IdentifiableEntity", default="IdentifiableEntity")
 
@@ -60,6 +63,26 @@ class EntityCollection(UserList[EntityT]):
             super().__init__(dict.fromkeys(items))
         else:
             super().__init__()
+
+    def __repr__(self) -> str:
+        """A summary, not a dump.
+
+        A collection routinely holds hundreds of entities, each of which would otherwise
+        expand in full. Showing a count and the first few keeps the output readable in a
+        REPL, where printing a collection is the most common way to look at one.
+        """
+        if not self.data:
+            return f"<{type(self).__name__} empty>"
+
+        preview = ", ".join(self._repr_item(item) for item in self.data[:_REPR_PREVIEW])
+        remainder = len(self.data) - _REPR_PREVIEW
+        if remainder > 0:
+            preview += f", +{remainder} more"
+        return f"<{type(self).__name__} {len(self.data)} items: {preview}>"
+
+    def _repr_item(self, item: EntityT) -> str:
+        """One entity, as it appears in the collection's preview."""
+        return item._repr_token()
 
     def _validate_item(self, item: Any) -> None:
         if not isinstance(item, IdentifiableEntity):
@@ -235,6 +258,10 @@ class ScoredEntityCollection(EntityCollection[EntityT]):
             super().__init__(unique_entities.values())
         else:
             super().__init__()
+
+    def _repr_item(self, item: EntityT) -> str:
+        """One entity and the score it carries, which is the point of this collection."""
+        return f"{item._repr_token()} ({self._scores[item.id]:.2f})"
 
     def get_score(self, entity_id: str) -> float:
         """Retrieve the score for a specific entity ID in the collection."""

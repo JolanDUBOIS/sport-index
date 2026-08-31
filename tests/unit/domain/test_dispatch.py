@@ -70,10 +70,11 @@ class TestVariantsStayHidden:
             assert hidden not in domain.__all__
             assert hidden not in sportindex.__all__
 
-    def test_a_variant_reports_its_public_class_in_str(self, offline):
-        # __str__ hides the private class name; __repr__ keeps it for debugging.
+    def test_a_variant_names_no_class_in_str(self, offline):
+        # __str__ is the display name alone, so no class name reaches it at all; __repr__
+        # keeps the concrete class, which is the one worth seeing while debugging dispatch.
         competitor = Competitor(team(44, "PSG"), offline)
-        assert str(competitor).startswith("<Competitor ")
+        assert str(competitor) == "PSG"
         assert repr(competitor).startswith("<_TeamCompetitor ")
 
     def test_isinstance_against_the_public_class_holds(self, offline):

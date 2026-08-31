@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from typing import Final, NamedTuple
 
+from sportindex._repr import render_repr
+
 from .enums import Gender
 
 
@@ -20,6 +22,14 @@ class SportEntry(NamedTuple):
     id: int
     slug: str
     name: str
+
+    # A NamedTuple cannot take a mixin, so rendering is delegated to the shared helper
+    # rather than inherited, to keep the output identical to everything else.
+    def __repr__(self) -> str:
+        return render_repr(self, type(self).__name__, ("id", "slug", "name"))
+
+    def __str__(self) -> str:
+        return self.name
 
 SPORTS_REGISTRY: Final[tuple[SportEntry, ...]] = (
     SportEntry(1, "football", "Football"),
