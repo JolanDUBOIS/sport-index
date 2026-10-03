@@ -22,10 +22,15 @@ logger = logging.getLogger(__name__)
 # conspicuous as the real browser moves on.
 _IMPERSONATE = "chrome"
 
+# The handshake is impersonated, the headers are not. A request carrying Chrome's headers
+# is challenged even from a residential connection, page-load and API-call headers alike,
+# while the same request without them is answered.
+_BROWSER_HEADERS = False
+
 _CHALLENGE_HELP = (
     "This is usually caused by a VPN or proxy: the provider challenges traffic from "
-    "VPN and datacenter IP ranges, but not from ordinary residential connections. "
-    "Disable the VPN and retry."
+    "VPN and datacenter IP ranges far more readily than traffic from residential "
+    "connections. Disable the VPN and retry."
 )
 
 #: How each retryable status is described in the retry log line.
@@ -59,7 +64,7 @@ class Fetcher:
         """
         session = getattr(self._sessions, "session", None)
         if session is None:
-            session = curl_requests.Session(impersonate=_IMPERSONATE)
+            session = curl_requests.Session(impersonate=_IMPERSONATE, default_headers=_BROWSER_HEADERS)
             self._sessions.session = session
         return session
 
