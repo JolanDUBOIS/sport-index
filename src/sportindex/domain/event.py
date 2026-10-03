@@ -6,7 +6,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Generic, overload
 
 import pycountry
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 from typing_extensions import TypeVar
 
 from sportindex.api_client.models import StageTier, _EventData, _StageData
@@ -17,7 +17,7 @@ from sportindex.exceptions import (
     ProviderNotFoundError,
 )
 
-from .base import IdentifiableEntity
+from .base import DomainModel, IdentifiableEntity
 from .collections import EntityCollection, EventCollection
 
 if TYPE_CHECKING:
@@ -604,7 +604,7 @@ class StageEvent(Event):
 
 # ===== Components =====
 
-class MatchCompetitors(BaseModel):
+class MatchCompetitors(DomainModel):
     """The two sides of a `MatchEvent`.
 
     Attributes:
@@ -615,7 +615,7 @@ class MatchCompetitors(BaseModel):
     away: Competitor
 
 
-class MatchLineups(BaseModel):
+class MatchLineups(DomainModel):
     """The lineups of both sides of a `MatchEvent`.
 
     Attributes:
