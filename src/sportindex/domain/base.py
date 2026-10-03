@@ -248,8 +248,8 @@ class IdentifiableEntity(BaseEntity):
 class SearchableMixin(IdentifiableEntity):
     """Mixin for entities that can be looked up by free-text query.
 
-    Mixed into `Competition`, `Competitor` (and `Team` / `Athlete`), `Manager`, `Referee`
-    and `Venue`.
+    Mixed into `Competition`, `Competitor` (and `Team` / `Athlete`), `Event` (and
+    `MatchEvent` / `StageEvent`), `Manager`, `Referee` and `Venue`.
 
     Methods:
         search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Self]:

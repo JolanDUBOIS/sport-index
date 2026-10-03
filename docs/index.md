@@ -62,12 +62,15 @@ If you don't want to drill down from the top-level sport, `SportClient.search` w
 every searchable entity type:
 
 ```python
-from sportindex import Competitor, Manager, Referee, Venue
+from sportindex import Competitor, Manager, Referee, StageEvent, Venue
 
 # Find a team directly
 competitors = client.search(Competitor, "Paris Saint-Germain")
 team = competitors[0].resolve()          # Competitor -> Team
 print(team.name, len(team.get_results()), team.manager)
+
+# Find a race: each edition of the Tour de France is a StageEvent
+races = client.search(StageEvent, "Tour de France")
 
 # Search for staff or venues
 managers = client.search(Manager, "Luis Enrique")

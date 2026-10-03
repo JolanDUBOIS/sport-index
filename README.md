@@ -100,7 +100,7 @@ All network-backed fields are **lazy-loaded**: data is fetched when accessed.
 ## Search Examples
 
 ```python
-from sportindex import Competitor, Manager, Referee, Venue
+from sportindex import Competitor, Manager, Referee, StageEvent, Venue
 
 # Search competitors
 competitors = client.search(Competitor, "Paris Saint-Germain")
@@ -108,11 +108,17 @@ if competitors:
     team = competitors[0]
     print(team.name, len(team.get_results()), len(team.get_fixtures()))
 
+# Search races: Grands Prix and cycling races, one StageEvent per edition
+for race in client.search(StageEvent, "Tour de France")[:5]:
+    print(race.id, race.name, race.start)
+
 # Search managers, referees, venues
 print(client.search(Manager, "Luis Enrique")[:3])
 print(client.search(Referee, "Turpin")[:3])
 print(client.search(Venue, "Parc des Princes")[:3])
 ```
+
+A cycling race such as the Tour de France is an event, not a competition: its competition is the discipline (`Cycling Men`), each edition is an event of that competition's season, and the race's daily stages are its `substages`. Searching `Event` returns matches and stages together; `MatchEvent` and `StageEvent` narrow it to one kind.
 
 ## Domain Model Overview
 
