@@ -654,12 +654,12 @@ class EventAwareMixin(ABC, Generic[E]):
     ten — so a very long history comes back truncated rather than complete.
 
     Methods:
-        get_fixtures(silent: bool = False) -> EventCollection[E]: The entity's upcoming events.
+        get_fixtures(silent: bool = False) -> EventCollection[Event]: The entity's upcoming events.
             Abstract; each entity implements it. Logs a warning when it cannot be supported,
             unless `silent` is True.
-        get_results(silent: bool = False) -> EventCollection[E]: The entity's past events.
+        get_results(silent: bool = False) -> EventCollection[Event]: The entity's past events.
             Abstract; each entity implements it. Same warning behaviour.
-        get_events() -> EventCollection[E]: Fixtures and results in one collection, sorted by
+        get_events() -> EventCollection[Event]: Fixtures and results in one collection, sorted by
             start time, oldest first, with undated events last. Suppresses the
             unsupported-endpoint warnings.
     """

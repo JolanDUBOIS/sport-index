@@ -53,14 +53,14 @@ class SportClient:
     Caches entities in memory to minimize redundant API calls and improve performance. Cache can be cleared manually if needed.
 
     Methods:
-        get(entity_id: str, entity_cls: type[E] | None = None, strict: bool = False) -> E | IdentifiableEntity | None:
+        get(entity_id: str, entity_cls: type[IdentifiableEntity] | None = None, strict: bool = False) -> IdentifiableEntity | None:
             The entity with this SDK ID. `entity_cls` is optional — when omitted, the class is
             resolved from the ID's own prefix. Returns None if the entity does not exist,
             unless `strict` is True.
-        search(entity_cls: type[S], query: str, max_results: int = 20) -> EntityCollection[S]:
+        search(entity_cls: type[SearchableMixin], query: str, max_results: int = 20) -> EntityCollection[SearchableMixin]:
             The entities of `entity_cls` matching `query`, capped at `max_results`. Relevance
             scores are discarded; call `entity_cls.search()` directly to keep them.
-        list(entity_cls: type[E], **kwargs) -> EntityCollection[E]: Every entity of a class,
+        list(entity_cls: type[IdentifiableEntity], **kwargs) -> EntityCollection[IdentifiableEntity]: Every entity of a class,
             narrowed by the filters that class supports — `Category` by `sport_id`,
             `Competition` by `category_id`, `Season` by `competition_id`, `Event` by
             `season_id`. `Sport` and `Country` take none.
