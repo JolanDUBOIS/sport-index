@@ -216,6 +216,15 @@ def test_each_thread_gets_its_own_session(tmp_path):
     assert fetcher._scraper is fetcher._scraper  # stable within a thread
 
 
+def test_session_impersonates_the_handshake_but_not_the_headers(tmp_path):
+    """Chrome's headers draw a bot challenge even from a residential connection."""
+    session = RecordingFetcher(mode="auto", cache_dir=str(tmp_path))._scraper
+
+    assert session.impersonate == "chrome"
+    assert session.default_headers is False
+    assert dict(session.headers) == {}
+
+
 def test_transient_error_then_success_records_the_success(make_fetcher, tmp_path):
     fetcher = make_fetcher("record", _response(500), _response(200, '{"ok": true}'))
 
