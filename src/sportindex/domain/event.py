@@ -32,6 +32,7 @@ if TYPE_CHECKING:
         PeriodStats,
         Round,
         Score,
+        TennisSet,
         _EventsResponse,
         _LineupsResponse,
     )
@@ -233,6 +234,12 @@ class MatchEvent(Event):
         momentum_graph (list[MomentumPoint]): Minute-by-minute pressure values, positive
             towards the home side. Empty when unavailable. Reflects the live state on each
             access rather than being cached.
+        point_by_point (list[TennisSet]): Every point of a tennis match, set by set and game
+            by game, in playing order — tennis's counterpart of `momentum_graph`. Each point
+            records the game score once it is played; the point that wins a game is not
+            listed, and the game's score says who won it and who served. Empty when the
+            provider publishes none for this match. Reflects the live state on each access
+            rather than being cached.
         h2h (EventCollection[MatchEvent]): Previous meetings between these two competitors.
             Empty when the provider has no head-to-head record.
         id (str): Globally unique SDK ID, of the form "mch:<id>". (inherited from Event)
@@ -401,6 +408,23 @@ class MatchEvent(Event):
         except ProviderNotFoundError:
             logger.debug(f"Momentum graph not found for event {self.id}.")
             return []
+
+    @property
+    def point_by_point(self) -> list[TennisSet]:
+        """
+        The point-by-point record of this tennis match, in playing order, if available.
+        Not cached because it updates with every point during the match.
+        """
+        try:
+            sets = self._provider.get_event_point_by_point(self._data.id).point_by_point
+        except ProviderNotFoundError:
+            logger.debug(f"Point-by-point not found for event {self.id}.")
+            return []
+        # The provider lists sets and games newest first.
+        return [
+            tennis_set.model_copy(update={"games": sorted(tennis_set.games, key=lambda game: game.number)})
+            for tennis_set in sorted(sets, key=lambda tennis_set: tennis_set.number)
+        ]
 
     @cached_property
     def h2h(self) -> EventCollection[MatchEvent]:

@@ -24,6 +24,10 @@ from .api_client import (
     Round,
     Score,
     StageTier,
+    TennisGame,
+    TennisGameScore,
+    TennisPoint,
+    TennisSet,
 )
 from .client import SportClient
 
@@ -142,6 +146,10 @@ __all__ = [
     "Round",
     "Score",
     "StageTier",
+    "TennisGame",
+    "TennisGameScore",
+    "TennisPoint",
+    "TennisSet",
 
     # Exceptions / submodules
     "exceptions",

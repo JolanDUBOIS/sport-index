@@ -30,6 +30,7 @@ from .models import (
     _ManagerData,
     _MomentumGraphResponse,
     _PlayerData,
+    _PointByPointResponse,
     _RacingStandingsData,
     _RankingsResponse,
     _RefereeData,
@@ -340,6 +341,11 @@ class SofascoreProvider:
         """Fetch momentum graph for an event."""
         url = self._format("event-graph", event_id=event_id)
         return _MomentumGraphResponse.model_validate(self._fetch(url))
+
+    def get_event_point_by_point(self, event_id: int) -> _PointByPointResponse:
+        """Fetch the point-by-point record of a tennis event."""
+        url = self._format("event-point-by-point", event_id=event_id)
+        return _PointByPointResponse.model_validate(self._fetch(url))
 
     def get_event_channels(self, event_id: int) -> _CountryChannelsResponse:
         """Fetch country → channel mappings for an event."""

@@ -44,6 +44,7 @@ from .responses import (
     _EventStatisticsResponse,
     _LineupsResponse,
     _MomentumGraphResponse,
+    _PointByPointResponse,
     _RankingsResponse,
     _SeasonRoundsResponse,
     _TeamResponse,
@@ -57,7 +58,16 @@ from .stage import (
     _StageParentData,
     _UniqueStageData,
 )
-from .stats_event import MomentumPoint, PeriodStats, StatEntry, StatGroup
+from .stats_event import (
+    MomentumPoint,
+    PeriodStats,
+    StatEntry,
+    StatGroup,
+    TennisGame,
+    TennisGameScore,
+    TennisPoint,
+    TennisSet,
+)
 from .stats_player import PlayerSeasonStats, PlayerSeasonStatsItem
 from .stats_racing import (
     DriverCareerHistory,
@@ -128,6 +138,8 @@ PlayerSeasonStats.model_rebuild(_types_namespace=_shared_namespace)
 ManagerTenure.model_rebuild(_types_namespace=_shared_namespace)
 MomentumPoint.model_rebuild(_types_namespace=_shared_namespace)
 _MomentumGraphResponse.model_rebuild(_types_namespace=_shared_namespace)
+TennisSet.model_rebuild(_types_namespace=_shared_namespace)
+_PointByPointResponse.model_rebuild(_types_namespace=_shared_namespace)
 
 # Incidents
 GoalIncident.model_rebuild(_types_namespace=_shared_namespace)
@@ -200,6 +212,7 @@ __all__ = [
     "_LineupsResponse",
     "_EventStatisticsResponse",
     "_MomentumGraphResponse",
+    "_PointByPointResponse",
     "_SearchResultData",
     "StageTier",
     "_StageInfoData",
@@ -210,6 +223,10 @@ __all__ = [
     "StatGroup",
     "PeriodStats",
     "MomentumPoint",
+    "TennisPoint",
+    "TennisGameScore",
+    "TennisGame",
+    "TennisSet",
     "PlayerSeasonStatsItem",
     "PlayerSeasonStats",
     "RaceResults",
