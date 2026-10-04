@@ -48,12 +48,22 @@ class Fetcher:
     Impersonates a browser TLS fingerprint, and handles rate limits, server errors,
     and transient network issues. All methods are for internal use; not part of the
     public API.
+
+    With `cache_ttl` set, successful responses are kept in memory and served again for that
+    many seconds without a request. Only 200 responses are kept: any other status is asked
+    again every time. The cache is off by default.
     """
 
-    def __init__(self):
+    def __init__(self, cache_ttl: float | None = None):
+        if cache_ttl is not None and cache_ttl < 0:
+            raise ValueError(f"cache_ttl must be a number of seconds >= 0, got {cache_ttl}.")
+
         self._sessions = threading.local()
         self._lock = threading.Lock()
         self._last_request_time = 0.0
+        self._cache_ttl = cache_ttl
+        self._cache: dict[tuple, tuple[float, curl_requests.Response]] = {}
+        self._cache_lock = threading.Lock()
 
     @property
     def _scraper(self) -> curl_requests.Session:
@@ -74,6 +84,11 @@ class Fetcher:
         retry_delay: int = 5, initial_delay: float = 5.0
     ) -> curl_requests.Response:
         """ Fetch a URL with retries, backoff, and bot-mitigation. """
+        cache_key = self._cache_key(url, params)
+        if (cached := self._cached_response(cache_key)) is not None:
+            logger.debug(f"Serving {url} from the response cache.")
+            return cached
+
         self._throttle(initial_delay)
 
         last_status = None
@@ -93,6 +108,7 @@ class Fetcher:
                 last_body = response.text[:200]
 
                 if last_status == 200:
+                    self._cache_response(cache_key, response)
                     return response
 
                 if not self._is_retryable(response):
@@ -140,6 +156,35 @@ class Fetcher:
                 time.sleep(target_delay - elapsed)
 
             self._last_request_time = time.time()
+
+    def clear_cache(self) -> None:
+        """Forget every kept response, so the next request for any URL goes to the provider."""
+        with self._cache_lock:
+            self._cache.clear()
+
+    @staticmethod
+    def _cache_key(url: str, params: dict | None) -> tuple:
+        return (url, tuple(sorted((params or {}).items())))
+
+    def _cached_response(self, key: tuple) -> curl_requests.Response | None:
+        """The response kept for this request, if the cache is on and it has not expired."""
+        if not self._cache_ttl:
+            return None
+        with self._cache_lock:
+            entry = self._cache.get(key)
+        if entry is None or entry[0] <= time.monotonic():
+            return None
+        return entry[1]
+
+    def _cache_response(self, key: tuple, response: curl_requests.Response) -> None:
+        if not self._cache_ttl:
+            return
+        now = time.monotonic()
+        with self._cache_lock:
+            # Expired entries are dropped on every insert, so memory never holds more than one
+            # lifetime's worth of responses.
+            self._cache = {k: entry for k, entry in self._cache.items() if entry[0] > now}
+            self._cache[key] = (now + self._cache_ttl, response)
 
     def _record_response(self, url: str, params: dict | None, response: curl_requests.Response) -> None:
         """Hook for subclasses that persist responses. The live fetcher keeps nothing."""

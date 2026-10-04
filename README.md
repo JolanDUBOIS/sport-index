@@ -161,6 +161,22 @@ client.clear_cache("event")    # clear a single namespace
 Valid namespaces are singular: `sport`, `country`, `category`, `competition`, `season`,
 `event`, `competitor`, `manager`, `referee`, `venue`. An unknown namespace raises `KeyError`.
 
+### Response cache
+
+Off by default. Set **`SPORTINDEX_CACHE_TTL`** to a number of seconds to keep every successful
+provider response in memory for that long: a request for the same URL within that time is
+answered from memory, without a request and without the delay between requests. Responses with
+any other status are never kept.
+
+```bash
+SPORTINDEX_CACHE_TTL=900 python build.py   # reuse responses for 15 minutes
+```
+
+The cache lives in the process and disappears with it; nothing is written to disk.
+`client.clear_cache()` with no namespace empties it too; clearing a single namespace does not.
+Data that changes quickly, such as live scores, can be up to `SPORTINDEX_CACHE_TTL` seconds old
+while the cache is on.
+
 ## Offline Testing & Mocking
 
 `sport-index` ships with a built-in "Record and Replay" (VCR) fetcher. This is strictly a **testing utility** that allows you to write tests for your own applications using deterministic local data, avoiding rate limits and network latency during test execution.

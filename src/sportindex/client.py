@@ -36,11 +36,23 @@ def _get_default_provider() -> SofascoreProvider:
             logger.info(f"Initialized SportClient in testing mode: '{record_mode}' (Dir: {fixtures_dir})")
             fetcher = RecordingFetcher(mode=record_mode, cache_dir=fixtures_dir)
         else:
-            logger.info("Initialized SportClient in standard LIVE mode.")
-            fetcher = Fetcher()
+            cache_ttl = _cache_ttl_from_env()
+            logger.info(f"Initialized SportClient in standard LIVE mode (response cache: {f'{cache_ttl:g}s' if cache_ttl else 'off'}).")
+            fetcher = Fetcher(cache_ttl=cache_ttl)
 
         _default_provider = SofascoreProvider(fetcher=fetcher)
     return _default_provider
+
+
+def _cache_ttl_from_env() -> float | None:
+    """The response cache lifetime set by SPORTINDEX_CACHE_TTL, in seconds; None when unset."""
+    value = os.getenv("SPORTINDEX_CACHE_TTL")
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError as e:
+        raise ValueError(f"SPORTINDEX_CACHE_TTL must be a number of seconds, got {value!r}.") from e
 
 
 S = TypeVar("S", bound="SearchableMixin")
@@ -65,7 +77,7 @@ class SportClient:
             `Competition` by `category_id`, `Season` by `competition_id`, `Event` by
             `season_id`. `Sport` and `Country` take none.
         clear_cache(namespace: str | None = None) -> None: Empty one cache namespace, or all
-            of them when `namespace` is omitted.
+            of them and the response cache when `namespace` is omitted.
 
     Usage:
         >>> client = SportClient()
@@ -164,7 +176,9 @@ class SportClient:
             namespace (Optional[str]): The namespace to clear — one of `CACHE_NAMESPACES`:
                 'sport', 'country', 'category', 'competition', 'season', 'event',
                 'competitor', 'channel', 'manager', 'referee', 'venue'. Clearing a namespace
-                that holds nothing yet is a no-op. If None, clears every namespace.
+                that holds nothing yet is a no-op. If None, clears every namespace and the
+                response cache (`SPORTINDEX_CACHE_TTL`), which is shared by every client in
+                the process. A single namespace leaves the response cache untouched.
 
         Raises:
             KeyError: If `namespace` is not a recognised namespace.
@@ -172,6 +186,7 @@ class SportClient:
         ns = namespace.lower() if namespace else None
         if ns is None:
             self._cache.clear()
+            self._provider.fetcher.clear_cache()
             return
         if ns not in self.CACHE_NAMESPACES:
             raise KeyError(f"Unknown cache namespace: {ns}")
