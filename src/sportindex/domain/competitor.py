@@ -389,8 +389,10 @@ class Athlete(Competitor):
             Athletes matching `query`, each with its relevance score, capped at `max_results`.
             (classmethod)
         get_fixtures(silent: bool = False) -> EventCollection: The athlete's upcoming events.
-            Always empty for a player-shaped athlete — the provider has no fixtures endpoint
-            for players in team sports. (inherited from Competitor)
+            For a team-shaped athlete the provider's fixtures list is typically empty, and
+            this falls back to the single next scheduled event. Always empty for a
+            player-shaped athlete — the provider has no fixtures endpoint for players in
+            team sports. (inherited from Competitor)
         get_results(silent: bool = False) -> EventCollection: The athlete's past events.
             (inherited from Competitor)
         get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
@@ -468,6 +470,28 @@ class _TeamAthlete(Athlete, _TeamCompetitor):
         super().__init__(data, provider, **kwargs)
         if not _is_individual(data):
             raise ValueError(f"Team data for '{data.name}' describes a team, not an athlete")
+
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
+        """Fetch all fixtures for this athlete.
+
+        The provider's fixtures list stays empty for individual-sport athletes even when a
+        match is scheduled, so an empty list falls back to the athlete's next event.
+        """
+        fixtures = super().get_fixtures(silent)
+        return fixtures if fixtures else self._fetch_next_event()
+
+    def _fetch_next_event(self) -> EventCollection:
+        """The athlete's next event, as a collection of at most one."""
+        from .event import Event, EventCollection
+        try:
+            next_event = self._provider.get_team_near_events(self._data.id).next_event
+        except ProviderNotFoundError:
+            logger.debug(f"No near events found for athlete with id {self._data.id}")
+            return EventCollection()
+        except FetchError as e:
+            logger.warning(f"Network error while fetching near events for athlete with id {self._data.id}: {e}")
+            return EventCollection()
+        return EventCollection([Event(next_event, self._provider)] if next_event else [])
 
     @property
     def first_name(self) -> str:

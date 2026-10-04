@@ -51,6 +51,7 @@ ENDPOINTS: dict[str, str | Endpoint] = {
     "team": f"{BASE_API_URL}/team/{{team_id}}",
     "team-fixtures": f"{BASE_API_URL}/team/{{team_id}}/events/next/{{page}}",
     "team-results": f"{BASE_API_URL}/team/{{team_id}}/events/last/{{page}}",
+    "team-near-events": f"{BASE_API_URL}/team/{{team_id}}/near-events",
     "team-players": f"{BASE_API_URL}/team/{{team_id}}/players",
     "team-seasons": f"{BASE_API_URL}/team/{{team_id}}/team-statistics/seasons",
     "team-year-statistics": f"{BASE_API_URL}/team/{{team_id}}/year-statistics/{{year}}",

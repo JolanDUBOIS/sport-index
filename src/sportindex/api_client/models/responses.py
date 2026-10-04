@@ -50,6 +50,11 @@ class _EventsResponse(BaseSchema):
     events: list[_EventData] = Field(default_factory=list)
 
 
+class _NearEventsResponse(BaseSchema):
+    previous_event: _EventData | None = None
+    next_event: _EventData | None = None
+
+
 # =====================================================================
 # Leaderboard
 # =====================================================================
