@@ -85,9 +85,9 @@ class Event(SearchableMixin):
             this event in `country`, given as a name, alpha-2 or alpha-3 code. Empty when the
             event is not broadcast there or no broadcast data exists.
         search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Event]:
-            Matches and stages matching `query` — fixtures, Grands Prix, cycling races — each
-            with its relevance score, capped at `max_results`. Called on `MatchEvent` or
-            `StageEvent`, only that kind is returned. (classmethod)
+            Matches and stages matching `query`, each with its relevance score, capped at
+            `max_results`. Called on `MatchEvent` or `StageEvent`, only that kind is
+            returned. (classmethod)
         from_id(entity_id: str, provider: SofascoreProvider) -> Event: The event with this SDK
             ID; the prefix decides whether a `MatchEvent` or `StageEvent` is built.
             (classmethod, inherited from IdentifiableEntity)
@@ -484,8 +484,8 @@ class StageEvent(Event):
             this stage in `country`. (inherited from Event)
         search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[StageEvent]:
             Stages matching `query`, each with its relevance score. The provider's search
-            returns event-level stages — a Grand Prix, a cycling race such as the Tour de
-            France — one per edition. (classmethod, inherited from Event)
+            returns event-level stages, such as a Grand Prix or a race, one per edition.
+            (classmethod, inherited from Event)
         from_id(entity_id: str, provider: SofascoreProvider) -> StageEvent: The stage with this
             SDK ID. (classmethod, inherited from IdentifiableEntity)
 
