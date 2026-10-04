@@ -15,10 +15,6 @@ class ProviderError(SportIndexError):
     """Base for errors coming from provider integration and network fetches."""
 
 
-class NetworkError(ProviderError):
-    """Network-level errors (connection, DNS, timeouts)."""
-
-
 class RateLimitError(ProviderError):
     """Raised when an upstream service rate-limits requests (e.g. HTTP 429)."""
 
@@ -29,6 +25,10 @@ class ProviderNotFoundError(ProviderError):
 
 class FetchError(ProviderError):
     """Raised for general fetch failures (non-404/429 HTTP responses or exhausted retries)."""
+
+
+class NetworkError(FetchError):
+    """Raised when the provider could not be reached on any attempt (connection, DNS, timeouts)."""
 
 
 class ChallengeError(ProviderError):
