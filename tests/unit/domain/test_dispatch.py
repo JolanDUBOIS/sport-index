@@ -32,9 +32,20 @@ from factories import (
 
 
 class TestVariantSelection:
-    def test_competitor_dispatches_on_payload_shape(self, offline):
-        assert type(Competitor(team(1), offline)).__name__ == "_TeamCompetitor"
-        assert type(Competitor(player(1), offline)).__name__ == "_PlayerCompetitor"
+    def test_competitor_is_built_as_a_team_or_an_athlete(self, offline):
+        assert type(Competitor(team(1, type=0), offline)) is Team
+        assert type(Competitor(team(1, type=1), offline)).__name__ == "_TeamAthlete"
+        assert type(Competitor(team(1, type=2), offline)) is Team  # a doubles pair
+        assert type(Competitor(player(1), offline)).__name__ == "_PlayerAthlete"
+
+    def test_type_wins_over_athlete_details(self, offline):
+        # Tyrrell, an F1 team, carries a playerTeamInfo block.
+        tyrrell = team(513376, "Tyrrell", type=0, player_team_info={"id": 1})
+        assert type(Competitor(tyrrell, offline)) is Team
+
+    def test_without_type_athlete_details_decide(self, offline):
+        assert type(Competitor(team(1), offline)) is Team
+        assert type(Competitor(team(1, player_team_info={"id": 1}), offline)).__name__ == "_TeamAthlete"
 
     def test_event_dispatches_to_its_two_public_kinds(self, offline):
         assert isinstance(Event(match(1), offline), MatchEvent)
@@ -73,27 +84,14 @@ class TestVariantsStayHidden:
     def test_a_variant_names_no_class_in_str(self, offline):
         # __str__ is the display name alone, so no class name reaches it at all; __repr__
         # keeps the concrete class, which is the one worth seeing while debugging dispatch.
-        competitor = Competitor(team(44, "PSG"), offline)
-        assert str(competitor) == "PSG"
-        assert repr(competitor).startswith("<_TeamCompetitor ")
+        athlete = Competitor(team(44, "Aryna Sabalenka", type=1), offline)
+        assert str(athlete) == "Aryna Sabalenka"
+        assert repr(athlete).startswith("<_TeamAthlete ")
 
     def test_isinstance_against_the_public_class_holds(self, offline):
         assert isinstance(Competitor(team(1), offline), Competitor)
         assert isinstance(Competition(tournament(), offline), Competition)
         assert isinstance(Venue(venue(1), offline), Venue)
-
-
-class TestResolve:
-    def test_a_team_payload_without_player_info_is_not_an_athlete(self, offline):
-        assert isinstance(Team(team(1), offline).resolve(), Team)
-
-    def test_a_player_competitor_resolves_to_an_athlete(self, offline):
-        resolved = Competitor(player(1), offline).resolve()
-        assert isinstance(resolved, Athlete)
-
-    def test_resolve_is_idempotent(self, offline):
-        competitor = Competitor(player(1), offline)
-        assert competitor.resolve() is competitor.resolve()
 
 
 class TestRejectedPayloads:

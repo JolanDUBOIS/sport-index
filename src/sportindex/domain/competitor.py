@@ -33,18 +33,42 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+#: The provider's `type` for a team-shaped record that describes one person — a tennis player,
+#: a driver, a rider, a fighter. Clubs and national teams are 0, doubles pairs 2. Inferred from
+#: recorded payloads; the provider does not document it.
+_INDIVIDUAL = 1
+
+
+def _is_individual(data: _TeamData) -> bool:
+    """Whether a team-shaped record describes one person rather than a team.
+
+    The provider's `type` decides. A record without one (the clubs embedded in player
+    search results) is an athlete only if it carries athlete details.
+    """
+    if data.type is not None:
+        return data.type == _INDIVIDUAL
+    return data.player_team_info is not None
+
+
+def _competitor_class(data: _TeamData | _PlayerData) -> type[Team | Athlete]:
+    """The concrete class a competitor payload is built as."""
+    if isinstance(data, _PlayerData):
+        return _PlayerAthlete
+    if isinstance(data, _TeamData):
+        return _TeamAthlete if _is_individual(data) else Team
+    raise TypeError(f"Competitor data must be either _TeamData or _PlayerData, got {type(data)}")
+
+
 class Competitor(SearchableMixin, EventAwareMixin):
     """Whoever takes one side of an event — a club, a national team, a driver, a tennis player.
 
-    `Competitor` is the side-of-an-event view: what you get from a match's competitors, a
-    standings row, or a search. Instantiating it returns one of two private variants
-    depending on the payload — a team-shaped competitor or a player-shaped one — and they
-    differ where noted below. Call `resolve()` to trade that view for the richer `Team` or
-    `Athlete` entity.
+    `Competitor` is never instantiated as such: constructing one returns a `Team` or an
+    `Athlete`, decided from the payload alone, without a request. The same entity therefore
+    has the same class and ID however it is reached — as a side of a match, a standings row,
+    a search result, or by ID. The members below are common to both.
 
     Attributes:
-        id (str): Globally unique SDK ID — "t-cpt:<id>" for team-shaped competitors,
-            "p-cpt:<id>" for player-shaped ones.
+        id (str): Globally unique SDK ID, that of the `Team` or `Athlete` it is.
         name (str): Display name, e.g. "Paris Saint-Germain", "Carlos Alcaraz".
         slug (str): URL-friendly identifier, e.g. "paris-saint-germain".
         short_name (str): Abbreviated name, e.g. "PSG", "C. Alcaraz". Falls back to `name`
@@ -60,11 +84,9 @@ class Competitor(SearchableMixin, EventAwareMixin):
             (inherited from BaseEntity)
 
     Methods:
-        resolve() -> Team | Athlete: The full entity behind this competitor — a `Team`, or an
-            `Athlete` for individual competitors.
         get_fixtures(silent: bool = False) -> EventCollection: The competitor's upcoming events.
-            Always empty for a player-shaped competitor: the provider has no fixtures endpoint
-            for players in team sports. Logs a warning in that case unless `silent` is True.
+            Always empty for a player in a team sport: the provider has no fixtures endpoint
+            for them. Logs a warning in that case unless `silent` is True.
         get_results(silent: bool = False) -> EventCollection: The competitor's past events.
         get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
             (inherited from EventAwareMixin)
@@ -84,23 +106,15 @@ class Competitor(SearchableMixin, EventAwareMixin):
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name")
 
     @overload
-    def __new__(cls, data: _TeamData, provider: SofascoreProvider, **kwargs) -> _TeamCompetitor: ...
+    def __new__(cls, data: _TeamData, provider: SofascoreProvider, **kwargs) -> Team | Athlete: ...
 
     @overload
-    def __new__(cls, data: _PlayerData, provider: SofascoreProvider, **kwargs) -> _PlayerCompetitor: ...
+    def __new__(cls, data: _PlayerData, provider: SofascoreProvider, **kwargs) -> Athlete: ...
 
     def __new__(cls, data: _TeamData | _PlayerData, provider: SofascoreProvider, **kwargs):
         if cls is Competitor:
-            if isinstance(data, _TeamData):
-                return super().__new__(_TeamCompetitor)
-            if isinstance(data, _PlayerData):
-                return super().__new__(_PlayerCompetitor)
-            raise TypeError(f"Competitor data must be either _TeamData or _PlayerData, got {type(data)}")
+            cls = _competitor_class(data)
         return super().__new__(cls)
-
-    def __init__(self, data: _TeamData | _PlayerData, provider: SofascoreProvider, **kwargs) -> None:
-        super().__init__(data, provider, **kwargs)
-        self._resolved_instance: Team | Athlete | None = None
 
     @property
     def id(self) -> str:
@@ -146,11 +160,6 @@ class Competitor(SearchableMixin, EventAwareMixin):
         from .core import Country
         return Country(self._data.country, self._provider) if self._data.country else None
 
-    @abstractmethod
-    def resolve(self) -> Team | Athlete:
-        """Resolve this competitor to its specific type (Team or Athlete)."""
-        raise NotImplementedError("Subclasses must implement resolve method")
-
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Competitor]:
         """Search for competitors matching the given query, returning up to max_results results."""
@@ -162,9 +171,9 @@ class Competitor(SearchableMixin, EventAwareMixin):
 
 
 class _TeamCompetitor(Competitor):
-    """Private `Competitor` variant backed by team-shaped payloads; see `Competitor`."""
+    """Private base for competitors backed by team-shaped payloads: `Team` and team-shaped
+    athletes. Never instantiated as such."""
     _data: _TeamData
-    _PREFIX: str = "t-cpt"
 
     def __init__(self, data: _TeamData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -181,18 +190,6 @@ class _TeamCompetitor(Competitor):
         """The sport of the team."""
         from .core import Sport
         return Sport(self._data.sport, self._provider)
-
-    def resolve(self) -> Team | Athlete:
-        """Resolve this competitor to its specific type (Team or Athlete)."""
-        if self._resolved_instance is not None:
-            return self._resolved_instance
-
-        self._full_load()
-        if self._data.player_team_info is not None:
-            self._resolved_instance = Athlete(self._data, self._provider)
-        else:
-            self._resolved_instance = Team(self._data, self._provider)
-        return self._resolved_instance
 
     def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this team competitor."""
@@ -215,9 +212,9 @@ class _TeamCompetitor(Competitor):
 
 
 class _PlayerCompetitor(Competitor):
-    """Private `Competitor` variant backed by player-shaped payloads; see `Competitor`."""
+    """Private base for athletes backed by player-shaped payloads. Never instantiated as
+    such."""
     _data: _PlayerData
-    _PREFIX: str = "p-cpt"
 
     def __init__(self, data: _PlayerData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -234,12 +231,6 @@ class _PlayerCompetitor(Competitor):
     def sport(self) -> Sport | None:
         from .core import Sport
         return Sport(self._data.team.sport, self._provider) if self._data.team else None
-
-    def resolve(self) -> Athlete:
-        """Resolve this competitor to its specific type (Team or Athlete). In this case, it will always be an Athlete."""
-        if self._resolved_instance is None:
-            self._resolved_instance = Athlete(self._data, self._provider)
-        return self._resolved_instance
 
     def get_fixtures(self, silent: bool = False) -> EventCollection:
         """Fetch all fixtures for this player competitor."""
@@ -267,8 +258,9 @@ class _PlayerCompetitor(Competitor):
 class Team(_TeamCompetitor):
     """A club or national team, with its squad, manager and home venue.
 
-    The full entity behind a team-shaped `Competitor`, reached via `resolve()`. Everything
-    `Competitor` offers is available here too; the members below are what `Team` adds.
+    What a competitor is built as whenever its payload describes a team rather than one
+    person — doubles pairs included. Everything `Competitor` offers is available here too;
+    the members below are what `Team` adds.
 
     Attributes:
         name_code (str | None): Three-letter code, e.g. "PSG", "BAR".
@@ -283,7 +275,6 @@ class Team(_TeamCompetitor):
         source (_TeamData): The parsed payload backing this entity. (inherited from BaseEntity)
 
     Methods:
-        resolve() -> Team: Returns self — a `Team` is already fully resolved.
         search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Team]:
             Teams matching `query`, each with its relevance score, capped at `max_results`.
             (classmethod)
@@ -298,13 +289,19 @@ class Team(_TeamCompetitor):
 
     Raises:
         TypeError: If constructed with data that is not `_TeamData`.
-        ValueError: If `search` is given an empty query.
+        ValueError: If `search` is given an empty query, or if constructed from data that
+            describes one person rather than a team.
         EntityNotFoundError: If `from_id` names a team the provider does not have.
         DomainError: If the provider fails with a network or transport error.
     """
     _data: _TeamData
     _PREFIX: str = "team"
     _REPR_FIELDS = ("id", "name", "slug", "short_name", "full_name", "name_code")
+
+    def __init__(self, data: _TeamData, provider: SofascoreProvider, **kwargs) -> None:
+        super().__init__(data, provider, **kwargs)
+        if _is_individual(data):
+            raise ValueError(f"Team data for '{data.name}' describes an athlete, not a team")
 
     @property
     def name_code(self) -> str | None:
@@ -352,10 +349,6 @@ class Team(_TeamCompetitor):
         from .venue import Venue
         return Venue(self._data.venue, self._provider) if self._data.venue else None
 
-    def resolve(self) -> Team:
-        """Resolve this competitor to its specific type (Team or Athlete). In this case, it will always be a Team."""
-        return self
-
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Team]:
         """Search for teams matching the given query, returning up to max_results results."""
@@ -371,7 +364,7 @@ class Team(_TeamCompetitor):
 class Athlete(Competitor):
     """An individual competitor — a footballer, a driver, a tennis player.
 
-    The full entity behind an individual `Competitor`, reached via `resolve()`. Everything
+    What a competitor is built as whenever its payload describes one person. Everything
     `Competitor` offers is available here too; the members below are what `Athlete` adds.
 
     Instantiating `Athlete` returns one of two private variants depending on the payload:
@@ -392,13 +385,14 @@ class Athlete(Competitor):
             (inherited from BaseEntity)
 
     Methods:
-        resolve() -> Athlete: Returns self — an `Athlete` is already fully resolved.
         search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Athlete]:
             Athletes matching `query`, each with its relevance score, capped at `max_results`.
             (classmethod)
         get_fixtures(silent: bool = False) -> EventCollection: The athlete's upcoming events.
-            Always empty for a player-shaped athlete — the provider has no fixtures endpoint
-            for players in team sports. (inherited from Competitor)
+            For a team-shaped athlete the provider's fixtures list is typically empty, and
+            this falls back to the single next scheduled event. Always empty for a
+            player-shaped athlete — the provider has no fixtures endpoint for players in
+            team sports. (inherited from Competitor)
         get_results(silent: bool = False) -> EventCollection: The athlete's past events.
             (inherited from Competitor)
         get_events() -> EventCollection: Fixtures and results combined, sorted by start time.
@@ -409,7 +403,7 @@ class Athlete(Competitor):
     Raises:
         TypeError: If constructed with data that is neither `_PlayerData` nor `_TeamData`.
         ValueError: If `search` is given an empty query, or if constructed from team-shaped
-            data that carries no player info, and so describes a team rather than an individual.
+            data that describes a team rather than one person.
         EntityNotFoundError: If `from_id` names an athlete the provider does not have.
         DomainError: If the provider fails with a network or transport error.
     """
@@ -455,10 +449,6 @@ class Athlete(Competitor):
         """Additional player info, if available."""
         raise NotImplementedError("Subclasses must implement info property")
 
-    def resolve(self) -> Athlete:
-        """Resolve this competitor to its specific type (Team or Athlete). In this case, it will always be an Athlete."""
-        return self
-
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Athlete]:
         """Search for players matching the given query, returning up to max_results results."""
@@ -478,8 +468,30 @@ class _TeamAthlete(Athlete, _TeamCompetitor):
 
     def __init__(self, data: _TeamData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
-        if data.player_team_info is None:
-            raise ValueError("Team data without player_team_info cannot be represented as a TeamAthlete")
+        if not _is_individual(data):
+            raise ValueError(f"Team data for '{data.name}' describes a team, not an athlete")
+
+    def get_fixtures(self, silent: bool = False) -> EventCollection:
+        """Fetch all fixtures for this athlete.
+
+        The provider's fixtures list stays empty for individual-sport athletes even when a
+        match is scheduled, so an empty list falls back to the athlete's next event.
+        """
+        fixtures = super().get_fixtures(silent)
+        return fixtures if fixtures else self._fetch_next_event()
+
+    def _fetch_next_event(self) -> EventCollection:
+        """The athlete's next event, as a collection of at most one."""
+        from .event import Event, EventCollection
+        try:
+            next_event = self._provider.get_team_near_events(self._data.id).next_event
+        except ProviderNotFoundError:
+            logger.debug(f"No near events found for athlete with id {self._data.id}")
+            return EventCollection()
+        except FetchError as e:
+            logger.warning(f"Network error while fetching near events for athlete with id {self._data.id}: {e}")
+            return EventCollection()
+        return EventCollection([Event(next_event, self._provider)] if next_event else [])
 
     @property
     def first_name(self) -> str:
@@ -504,6 +516,8 @@ class _TeamAthlete(Athlete, _TeamCompetitor):
     def info(self) -> AthleteInfo | None:
         """Additional athlete info, if available."""
         self._full_load()
+        if self._data.player_team_info is None:
+            return None
         return AthleteInfo._from_parsed_player_team_info(self._data.player_team_info)
 
 

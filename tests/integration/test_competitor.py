@@ -10,9 +10,7 @@ def test_competitor(provider: SofascoreProvider):
     logger.info("Testing Competitor entity...")
 
     # Team
-    psg = Competitor.from_id("t-cpt:1644", provider)
-    assert isinstance(psg, Competitor)
-    psg = psg.resolve()
+    psg = Competitor.from_id("team:1644", provider)
     assert isinstance(psg, Team)
     assert psg.id == "team:1644"
     assert psg.name == "Paris Saint-Germain"
@@ -29,9 +27,7 @@ def test_competitor(provider: SofascoreProvider):
     assert psg.venue.id == "vnu:843"
 
     # Athlete
-    lewis_hamilton = Competitor.from_id("t-cpt:7135", provider)
-    assert isinstance(lewis_hamilton, Competitor)
-    lewis_hamilton = lewis_hamilton.resolve()
+    lewis_hamilton = Competitor.from_id("t-ath:7135", provider)
     assert isinstance(lewis_hamilton, Athlete)
     assert lewis_hamilton.id == "t-ath:7135"
     assert lewis_hamilton.name == "Lewis Hamilton"

@@ -44,6 +44,7 @@ from .responses import (
     _EventStatisticsResponse,
     _LineupsResponse,
     _MomentumGraphResponse,
+    _NearEventsResponse,
     _PointByPointResponse,
     _RankingsResponse,
     _SeasonRoundsResponse,
@@ -123,6 +124,7 @@ _EventData.model_rebuild(_types_namespace=_shared_namespace)
 _SearchResultData.model_rebuild(_types_namespace=_shared_namespace)
 TeamPlayers.model_rebuild(_types_namespace=_shared_namespace)
 _EventsResponse.model_rebuild(_types_namespace=_shared_namespace)
+_NearEventsResponse.model_rebuild(_types_namespace=_shared_namespace)
 _UniqueTournamentSeasonsResponse.model_rebuild(_types_namespace=_shared_namespace)
 _SeasonRoundsResponse.model_rebuild(_types_namespace=_shared_namespace)
 
@@ -205,6 +207,7 @@ __all__ = [
     "_UniqueTournamentSeasonsResponse",
     "_SeasonRoundsResponse",
     "_EventsResponse",
+    "_NearEventsResponse",
     "_RankingsResponse",
     "_ChannelScheduleResponse",
     "_CountryChannelsResponse",
