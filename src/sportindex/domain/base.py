@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
+from pydantic import BaseModel
 from pydantic_core import core_schema
 
+from sportindex._repr import PydanticReprMixin, ReprMixin
 from sportindex.exceptions import ProviderNotFoundError
 
 from .utils import merge_pydantic_models
@@ -26,18 +28,21 @@ logger = logging.getLogger(__name__)
 
 # ===== Base Entity =====
 
-class BaseEntity(ABC):
+class BaseEntity(ReprMixin, ABC):
     """Base class for every domain entity.
 
     Wraps a parsed provider payload and exposes it through typed properties. Entities
     without their own identity compare and hash by object identity.
+
+    Rendering comes from `ReprMixin`: `repr()` lists `_REPR_FIELDS` under the concrete
+    class name, while `str()` gives the entity's display name alone.
 
     Attributes:
         source (BaseSchema): The parsed payload backing this entity. An escape hatch for
             fields the domain layer does not surface as properties.
     """
     _data: BaseSchema
-    _REPR_FIELDS = ()
+    _REPR_FIELDS: ClassVar[tuple[str, ...]] = ()
 
     def __init__(self, data: BaseSchema, provider: SofascoreProvider, **kwargs) -> None:
         self._data = data
@@ -59,8 +64,9 @@ class BaseEntity(ABC):
     def _public_class(cls) -> type[BaseEntity]:
         """The nearest ancestor users are meant to see.
 
-        Dispatch variants like `_StdVenue` are private, so anything user-facing — reprs,
-        cache namespaces — should name the public parent (`Venue`) instead.
+        Dispatch variants like `_StdVenue` are private, so the cache namespaces that name a
+        class name the public parent (`Venue`) instead. Reprs deliberately do not: see
+        `ReprMixin._repr_class_name`.
         """
         for ancestor in cls.__mro__:
             if not ancestor.__name__.startswith("_"):
@@ -70,14 +76,6 @@ class BaseEntity(ABC):
     @property
     def _public_class_name(self) -> str:
         return self._public_class().__name__
-
-    def __str__(self) -> str:
-        field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')}" for k in self._REPR_FIELDS)
-        return f"<{self._public_class_name} {field_str}>"
-
-    def __repr__(self):
-        field_str = ", ".join(f"{k}={getattr(self, k, '<missing>')!r}" for k in self._REPR_FIELDS)
-        return f"<{self.__class__.__name__} {field_str}>"
 
     def __hash__(self) -> int:
         return id(self)
@@ -94,6 +92,18 @@ class BaseEntity(ABC):
         We simply tell it to enforce an `isinstance` check.
         """
         return core_schema.is_instance_schema(cls)
+
+
+# ===== Domain Model =====
+
+class DomainModel(PydanticReprMixin, BaseModel):
+    """Base for the small pydantic value objects the domain layer hands back.
+
+    Rows, tallies and detail bundles — a standings row, a referee's card totals, an
+    athlete's physical details — that belong to the public surface without being
+    addressable entities. Inheriting here is what keeps them rendering like the rest of the
+    package rather than falling back to pydantic's full field dump.
+    """
 
 
 # ===== Identifiable Entity =====
@@ -238,8 +248,8 @@ class IdentifiableEntity(BaseEntity):
 class SearchableMixin(IdentifiableEntity):
     """Mixin for entities that can be looked up by free-text query.
 
-    Mixed into `Competition`, `Competitor` (and `Team` / `Athlete`), `Manager`, `Referee`
-    and `Venue`.
+    Mixed into `Competition`, `Competitor` (and `Team` / `Athlete`), `Event` (and
+    `MatchEvent` / `StageEvent`), `Manager`, `Referee` and `Venue`.
 
     Methods:
         search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Self]:

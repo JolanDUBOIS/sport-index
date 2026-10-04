@@ -8,7 +8,7 @@ import pytest
 
 from sportindex.domain import Competition, Competitor, Event, IdentifiableEntity, Season, Team
 
-from factories import match, season, stage, team, tournament, unique_stage
+from factories import match, player, season, stage, team, tournament, unique_stage
 
 
 class TestEncodeDecode:
@@ -62,7 +62,9 @@ class TestResolveClass:
 
 class TestIdsOnRealEntities:
     def test_entity_ids_carry_the_expected_prefix(self, offline):
-        assert Competitor(team(44), offline).id == "t-cpt:44"
+        assert Competitor(team(44), offline).id == "team:44"
+        assert Competitor(team(45, type=1), offline).id == "t-ath:45"
+        assert Competitor(player(46), offline).id == "p-ath:46"
         assert Event(match(101), offline).id == "mch:101"
         assert Event(stage(202), offline).id == "stg:202"
         assert Competition(tournament(7), offline).id == "trnc:7"

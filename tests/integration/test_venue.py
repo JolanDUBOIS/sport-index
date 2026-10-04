@@ -18,7 +18,7 @@ def test_venue(provider: SofascoreProvider):
     assert parc_des_princes.capacity >= 47000 and parc_des_princes.capacity <= 49000
     assert parc_des_princes.country.alpha3 == "FRA"
     assert len(parc_des_princes.teams) == 1
-    assert parc_des_princes.teams[0].id == "t-cpt:1644"
+    assert parc_des_princes.teams[0].id == "team:1644"
     assert len(parc_des_princes.get_fixtures()) > 0, "Could be 0 if no upcoming fixtures, if so, please check the provider data"
     assert all(isinstance(event, sportindex.MatchEvent) for event in parc_des_princes.get_fixtures())
     assert len(parc_des_princes.get_results()) > 0, "Could be 0 if no recent results, if so, please check the provider data"

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from .leaderboard import _RankingEntryData, _RankingTypeData
     from .lineup import Lineup
     from .stage import _StageData
-    from .stats_event import MomentumPoint, PeriodStats
+    from .stats_event import MomentumPoint, PeriodStats, TennisSet
     from .team import _TeamData
     from .tournament import _SeasonData, _UniqueTournamentData
 
@@ -48,6 +48,11 @@ class _SeasonRoundsResponse(BaseSchema):
 class _EventsResponse(BaseSchema):
     has_next_page: bool = False
     events: list[_EventData] = Field(default_factory=list)
+
+
+class _NearEventsResponse(BaseSchema):
+    previous_event: _EventData | None = None
+    next_event: _EventData | None = None
 
 
 # =====================================================================
@@ -97,3 +102,7 @@ class _MomentumGraphResponse(BaseSchema):
     period_time: int = 0
     period_count: int = 0
     overtime_length: int = 0
+
+
+class _PointByPointResponse(BaseSchema):
+    point_by_point: list[TennisSet] = Field(default_factory=list)

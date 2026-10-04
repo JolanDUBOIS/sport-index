@@ -15,10 +15,6 @@ class ProviderError(SportIndexError):
     """Base for errors coming from provider integration and network fetches."""
 
 
-class NetworkError(ProviderError):
-    """Network-level errors (connection, DNS, timeouts)."""
-
-
 class RateLimitError(ProviderError):
     """Raised when an upstream service rate-limits requests (e.g. HTTP 429)."""
 
@@ -29,6 +25,19 @@ class ProviderNotFoundError(ProviderError):
 
 class FetchError(ProviderError):
     """Raised for general fetch failures (non-404/429 HTTP responses or exhausted retries)."""
+
+
+class NetworkError(FetchError):
+    """Raised when the provider could not be reached on any attempt (connection, DNS, timeouts)."""
+
+
+class ChallengeError(ProviderError):
+    """Raised when the provider issues a bot challenge (HTTP 403, reason "challenge").
+
+    A challenge is a verdict on where the request came from, not a transient failure,
+    so it is raised on the first attempt rather than retried. The error message spells
+    out what usually triggers it and how to clear it.
+    """
 
 
 class DomainError(SportIndexError):
@@ -55,6 +64,7 @@ __all__ = [
     "RateLimitError",
     "ProviderNotFoundError",
     "FetchError",
+    "ChallengeError",
     "DomainError",
     "EntityNotFoundError",
     "ConflictError",

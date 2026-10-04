@@ -42,13 +42,9 @@ uv run pytest      # offline unit tests
 
 ## Entity IDs
 
-Every entity is addressed by a string **SDK ID**: a short type prefix, then the provider's
-numeric ID — `"spt:1"` (Football), `"trnc:7"` (UEFA Champions League), `"vnu:843"` (Parc des
-Princes). Entities that only exist inside a parent nest their parent's ID, so a season reads
-`"trnc:7:trns:61644"`.
+Every entity is addressed by a string **SDK ID**: a short type prefix, then the provider's numeric ID — `"spt:1"` (Football), `"trnc:7"` (UEFA Champions League), `"vnu:843"` (Parc des Princes). Entities that only exist inside a parent nest their parent's ID, so a season reads `"trnc:7:trns:61644"`.
 
-You rarely write these by hand: you get them from `search()`, `list()`, or by navigating from
-another entity.
+You rarely write these by hand: you get them from `search()`, `list()`, or by navigating from another entity.
 
 ## Quick Start
 
@@ -104,7 +100,7 @@ All network-backed fields are **lazy-loaded**: data is fetched when accessed.
 ## Search Examples
 
 ```python
-from sportindex import Competitor, Manager, Referee, Venue
+from sportindex import Competitor, Event, Manager, Referee, Venue
 
 # Search competitors
 competitors = client.search(Competitor, "Paris Saint-Germain")
@@ -112,11 +108,14 @@ if competitors:
     team = competitors[0]
     print(team.name, len(team.get_results()), len(team.get_fixtures()))
 
-# Search managers, referees, venues
+# Search managers, referees, venues, events
 print(client.search(Manager, "Luis Enrique")[:3])
 print(client.search(Referee, "Turpin")[:3])
 print(client.search(Venue, "Parc des Princes")[:3])
+print(client.search(Event, "Monaco Grand Prix")[:3])
 ```
+
+Searching `Event` returns matches and stages together; `MatchEvent` and `StageEvent` narrow it to one kind.
 
 ## Domain Model Overview
 
@@ -125,17 +124,17 @@ print(client.search(Venue, "Parc des Princes")[:3])
 * `event.competition`, `event.season`, `event.competitors`, `event.lineups`, `event.statistics`, `event.h2h`
 * `competitor.get_results()`, `competitor.get_fixtures()`, `competitor.country`, `competitor.sport`
 
-A `Competitor` is the lightweight "side of an event" view. Call `resolve()` to trade it for
-the richer `Team` or `Athlete`, which is where squad and staff data lives:
+A `Competitor` is always a `Team` or an `Athlete`, decided from the provider's own data the moment it is built, so a side of a match, a standings row and a search result are all the same entity with the same ID:
 
 ```python
-competitor = client.search(Competitor, "Paris Saint-Germain")[0]
-team = competitor.resolve()          # -> Team
+team = client.search(Competitor, "Paris Saint-Germain")[0]          # -> Team
 print(team.players, team.manager, team.venue)
 
-athlete = client.search(Competitor, "Ousmane Dembélé")[0].resolve()   # -> Athlete
+athlete = client.search(Competitor, "Ousmane Dembélé")[0]           # -> Athlete
 print(athlete.first_name, athlete.last_name, athlete.info)
 ```
+
+The classification reads the `type` field the provider sets on each team-shaped record: 0 for a club or national team, 1 for an individual (a tennis player, a driver, a rider, a fighter), 2 for a doubles pair, which is treated as a team. The provider does not document these values; they are inferred from its payloads.
 
 This **graph-like navigation** is the core of `sport-index`.
 
@@ -143,11 +142,8 @@ This **graph-like navigation** is the core of `sport-index`.
 
 `SportClient` provides finder and bootstrap utilities:
 
-* `get(entity_id, entity_cls=None, strict=False)` — `entity_cls` is optional; when omitted the
-  class is resolved from the ID's prefix
-* `list(entity_cls, **kwargs)` — filters depend on the class: `Category` takes `sport_id`,
-  `Competition` takes `category_id`, `Season` takes `competition_id`, `Event` takes `season_id`;
-  `Sport` and `Country` take none
+* `get(entity_id, entity_cls=None, strict=False)` — `entity_cls` is optional; when omitted the class is resolved from the ID's prefix
+* `list(entity_cls, **kwargs)` — filters depend on the class: `Category` takes `sport_id`, `Competition` takes `category_id`, `Season` takes `competition_id`, `Event` takes `season_id`; `Sport` and `Country` take none
 * `search(entity_cls, query, max_results=20)`
 * `clear_cache(namespace=None)`
 
@@ -185,6 +181,12 @@ This is controlled entirely via environment variables during your test runs:
       update your mocks.
 * **`SPORTINDEX_FIXTURES_DIR`**: The path where JSON mock files are stored (defaults to `tests/fixtures`).
 
+### Failures Are Recorded Too
+
+A fixture stores the response **status** alongside the body, so a call that legitimately fails is a recordable outcome like any other. A 404 recorded from the provider replays as `ProviderNotFoundError`, a 429 as `RateLimitError` — without touching the network. This means a code path that is *supposed* to 404 can be covered by an offline test, and that `auto` mode stops re-fetching such a call on every run.
+
+Fixtures recorded before statuses were stored hold a bare response body. They still replay, as a 200; re-record them if you want the status captured.
+
 ### Recommended Testing Workflow
 
 | Environment | Mode | Benefit |
@@ -216,7 +218,7 @@ To force-refresh your test data:
 SPORTINDEX_RECORD_MODE=record pytest
 ```
 
-The SDK will intercept the HTTP requests, generate safe filenames based on the API paths, and save the exact responses to your fixtures directory. By committing these JSON files to your repository, subsequent test executions become fully deterministic, execute without network latency, and remain completely isolated from upstream rate limits or outages.
+The SDK will intercept the HTTP requests, generate safe filenames based on the API paths, and save the exact responses — status included — to your fixtures directory. By committing these JSON files to your repository, subsequent test executions become fully deterministic, execute without network latency, and remain completely isolated from upstream rate limits or outages.
 
 ## Exceptions & Error Handling
 
@@ -224,7 +226,7 @@ All exceptions are in `sportindex.exceptions`:
 
 ```python
 from sportindex.exceptions import (
-    ProviderNotFoundError, RateLimitError, FetchError,
+    ProviderNotFoundError, RateLimitError, FetchError, ChallengeError,
     NetworkError, ParseError, EntityNotFoundError,
     InsufficientDataError, DomainError,
 )
@@ -232,8 +234,10 @@ from sportindex.exceptions import (
 
 ### Semantics
 
-* **Provider-level errors**: `ProviderNotFoundError` (404), `RateLimitError` (429), `FetchError` (network), `NetworkError` (timeouts), `ParseError` (parsing).
+* **Provider-level errors**: `ProviderNotFoundError` (404), `RateLimitError` (429), `FetchError` (any other failed fetch), `NetworkError` (provider unreachable on every attempt: connection, DNS, timeouts; a subclass of `FetchError`), `ChallengeError` (403 bot challenge), `ParseError` (parsing).
 * **Domain-level errors**: `EntityNotFoundError`, `InsufficientDataError`, `DomainError`.
+
+`ChallengeError` is worth catching separately: it means the provider challenged the request rather than refusing it, which in practice means the traffic left from a VPN or datacenter IP range. Retrying will not clear it — the fix is to run from an ordinary connection.
 
 **Best practices:**
 
@@ -282,5 +286,4 @@ Issues and PRs welcome. Include:
 
 MIT — see [LICENSE](LICENSE).
 
-This covers the `sport-index` source code only. It grants no rights over the data
-returned by the providers it queries — see the disclaimer at the top.
+This covers the `sport-index` source code only. It grants no rights over the data returned by the providers it queries — see the disclaimer at the top.

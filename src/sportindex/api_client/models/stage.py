@@ -4,7 +4,7 @@ from datetime import datetime  # noqa: TC003
 from enum import IntEnum
 from typing import TYPE_CHECKING, Annotated, Any
 
-from pydantic import BeforeValidator, Field
+from pydantic import AliasChoices, BeforeValidator, Field
 
 from .base import BaseSchema
 
@@ -32,6 +32,7 @@ class StageTier(IntEnum):
     SPRINT_RACE = 10
     # TODO - Find 11
     SPRINT_QUALIFYING = 12
+    PRACTICE_PART = 14
 
     @classmethod
     def from_payload(cls, value: Any) -> Any:
@@ -115,7 +116,12 @@ class _StageData(BaseSchema):
     flag: str | None = None
     country: _CountryData | None = None
     info: _StageInfoData | None = None
-    start: datetime | None = Field(default=None, alias="startDateTimestamp")
+    # Search results carry the start as "startTimestamp"; every other stage payload as "startDateTimestamp".
+    start: datetime | None = Field(
+        default=None,
+        alias="startDateTimestamp",
+        validation_alias=AliasChoices("startDateTimestamp", "startTimestamp"),
+    )
     end: datetime | None = Field(default=None, alias="endDateTimestamp")
     parent: _StageParentData | None = Field(default=None, alias="stageParent")
     winner: _TeamData | None = None

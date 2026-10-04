@@ -4,8 +4,6 @@ import logging
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel
-
 from sportindex.api_client.models import (
     Promotion,
     _RacingStandingsData,
@@ -15,10 +13,12 @@ from sportindex.api_client.models import (
     _TeamStandingsData,
     _TeamStandingsEntryData,
 )
+from sportindex.exceptions import EntityNotFoundError
 
-from .base import BaseEntity
+from .base import BaseEntity, DomainModel
 from .competition import Competition
 from .competitor import Competitor
+from .core import Country
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -114,7 +114,7 @@ class Standings(BaseEntity):
         return result
 
 
-class StandingsEntry(BaseModel):
+class StandingsEntry(DomainModel):
     """One row of a `Standings` table.
 
     Only `competitor` and `position` are always present. The rest divide by table kind:
@@ -238,13 +238,13 @@ class Rankings(BaseEntity):
         sport (Sport | None): The sport being ranked, if the provider states it.
         category (Category | None): The category the ranking is scoped to, if any.
         competition (Competition | None): The competition the ranking is scoped to, if any.
-        entries (list[RankingsEntry]): The rows, in the provider's order.
+        entries (list[RankingsEntry]): The rows, in the provider's order. Every published
+            row is returned, including ones the provider backs with no team or tournament.
         source (_RankingsResponse): The parsed payload backing this entity.
             (inherited from BaseEntity)
 
     Raises:
         TypeError: If constructed with data that is not `_RankingsResponse`.
-        ValueError: If a row names neither a team nor a competition to rank.
     """
     _data: _RankingsResponse
     _REPR_FIELDS = ("id", "name", "slug", "sport", "category", "gender", "updated_at")
@@ -283,7 +283,12 @@ class Rankings(BaseEntity):
 
     @cached_property
     def entries(self) -> list[RankingsEntry]:
-        """The entries in the rankings."""
+        """The entries in the rankings, in the provider's order.
+
+        Every published row is returned, so positions stay contiguous. Rows the provider
+        does not back with a team or tournament still carry their name and points; see
+        `RankingsEntry.entity`.
+        """
         return [RankingsEntry._from_base_schema(e, self._provider) for e in self._data.ranking_rows]
 
     @cached_property
@@ -311,21 +316,26 @@ class Rankings(BaseEntity):
             return None
 
 
-class RankingsEntry(BaseModel):
+class RankingsEntry(DomainModel):
     """One row of a `Rankings` table.
 
     Attributes:
         position (int): Current rank. Starts at 1, except in MMA rankings where the champion
             sits at 0.
-        entity (Competitor | Competition): What is ranked — usually a team or athlete, but a
-            competition in rankings that order tournaments.
+        name (str): The ranked entrant's name as published, e.g. "Germany". Always present,
+            including on rows the provider does not back with an entity.
+        entity (Competitor | Competition | Country | None): What is ranked — usually a team or
+            athlete, a competition in rankings that order tournaments, or a Country for entrants
+            the provider tracks by name alone. None when the name matches no ISO 3166-1 record
+            either, in which case `name` is the only identification available.
         points (float | None): Ranking points held.
         previous_position (int | None): Rank at the previous publication.
         previous_points (float | None): Points at the previous publication.
         best_position (int | None): Best rank ever reached.
     """
     position: int
-    entity: Competitor | Competition
+    name: str
+    entity: Competitor | Competition | Country | None = None
     points: float | None = None
 
     previous_position: int | None = None
@@ -336,18 +346,34 @@ class RankingsEntry(BaseModel):
     def _from_base_schema(cls, raw: _RankingEntryData, provider: Any) -> RankingsEntry:
         """Alternative constructor to build a domain RankingsEntry from raw provider data."""
 
-        if raw.unique_tournament:
-            entity = Competition(raw.unique_tournament, provider)
-        elif raw.team:
-            entity = Competitor(raw.team, provider)
-        else:
-            raise ValueError("Ranking entry must have either a team or a unique tournament associated")
-
         return cls(
             position=raw.position,
-            entity=entity,
+            name=raw.name,
+            entity=cls._resolve_entity(raw, provider),
             points=raw.points,
             previous_position=raw.previous_position,
             previous_points=raw.previous_points,
             best_position=raw.best_position
         )
+
+    @staticmethod
+    def _resolve_entity(
+        raw: _RankingEntryData, provider: Any
+    ) -> Competitor | Competition | Country | None:
+        """Resolve what a ranking row refers to, or None when nothing identifies it.
+
+        Some rankings list entrants the provider has no team page for — the lower half of the
+        rugby league table, for instance — carrying only a name. Those resolve to a Country
+        when the name is an ISO 3166-1 record. Names that are not countries in their own right
+        (England, Scotland, Wales) resolve to None rather than failing the whole ranking.
+        """
+        if raw.unique_tournament:
+            return Competition(raw.unique_tournament, provider)
+        if raw.team:
+            return Competitor(raw.team, provider)
+
+        try:
+            return Country.from_name(raw.name, provider)
+        except EntityNotFoundError:
+            logger.debug(f"Ranking entry '{raw.name}' has no team, tournament, or ISO country match.")
+            return None
