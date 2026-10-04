@@ -90,8 +90,6 @@ def test_client_get(client: SportClient):
     psg = client.get("team:1644", sportindex.Competitor)
     assert psg.id == "team:1644"
     assert psg.name == "Paris Saint-Germain"
-    assert isinstance(psg, sportindex.Competitor)
-    psg = psg.resolve()
     assert isinstance(psg, sportindex.Team)
 
     psg = client.get("team:1644", sportindex.Team)
@@ -102,8 +100,6 @@ def test_client_get(client: SportClient):
     lewis_hamilton = client.get("t-ath:7135", sportindex.Competitor)
     assert lewis_hamilton.id == "t-ath:7135"
     assert lewis_hamilton.name == "Lewis Hamilton"
-    assert isinstance(lewis_hamilton, sportindex.Competitor)
-    lewis_hamilton = lewis_hamilton.resolve()
     assert isinstance(lewis_hamilton, sportindex.Athlete)
 
     lewis_hamilton = client.get("t-ath:7135", sportindex.Athlete)
@@ -114,8 +110,6 @@ def test_client_get(client: SportClient):
     ousman_dembele = client.get("p-ath:818244", sportindex.Competitor)
     assert ousman_dembele.id == "p-ath:818244"
     assert ousman_dembele.name == "Ousmane Dembélé"
-    assert isinstance(ousman_dembele, sportindex.Competitor)
-    ousman_dembele = ousman_dembele.resolve()
     assert isinstance(ousman_dembele, sportindex.Athlete)
 
     ousman_dembele = client.get("p-ath:818244", sportindex.Athlete)

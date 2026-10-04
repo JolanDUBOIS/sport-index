@@ -4,7 +4,7 @@ import logging
 from abc import abstractmethod
 from datetime import date  # noqa: TC003
 from functools import cached_property
-from typing import TYPE_CHECKING, Self, overload
+from typing import TYPE_CHECKING, overload
 
 from nameparser import HumanName
 
@@ -84,8 +84,6 @@ class Competitor(SearchableMixin, EventAwareMixin):
             (inherited from BaseEntity)
 
     Methods:
-        resolve() -> Team | Athlete: Returns self. Kept for compatibility: a competitor is
-            already a `Team` or an `Athlete`.
         get_fixtures(silent: bool = False) -> EventCollection: The competitor's upcoming events.
             Always empty for a player in a team sport: the provider has no fixtures endpoint
             for them. Logs a warning in that case unless `silent` is True.
@@ -161,10 +159,6 @@ class Competitor(SearchableMixin, EventAwareMixin):
         """The country this competitor belongs to, if available."""
         from .core import Country
         return Country(self._data.country, self._provider) if self._data.country else None
-
-    def resolve(self) -> Self:
-        """Return this competitor, which is already a `Team` or an `Athlete`."""
-        return self
 
     @classmethod
     def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Competitor]:
@@ -281,7 +275,6 @@ class Team(_TeamCompetitor):
         source (_TeamData): The parsed payload backing this entity. (inherited from BaseEntity)
 
     Methods:
-        resolve() -> Team: Returns self. (inherited from Competitor)
         search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Team]:
             Teams matching `query`, each with its relevance score, capped at `max_results`.
             (classmethod)
@@ -392,7 +385,6 @@ class Athlete(Competitor):
             (inherited from BaseEntity)
 
     Methods:
-        resolve() -> Athlete: Returns self. (inherited from Competitor)
         search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Athlete]:
             Athletes matching `query`, each with its relevance score, capped at `max_results`.
             (classmethod)

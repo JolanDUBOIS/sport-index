@@ -94,19 +94,6 @@ class TestVariantsStayHidden:
         assert isinstance(Venue(venue(1), offline), Venue)
 
 
-class TestResolve:
-    def test_a_team_payload_without_player_info_is_not_an_athlete(self, offline):
-        assert isinstance(Team(team(1), offline).resolve(), Team)
-
-    def test_a_player_competitor_resolves_to_an_athlete(self, offline):
-        resolved = Competitor(player(1), offline).resolve()
-        assert isinstance(resolved, Athlete)
-
-    def test_resolve_is_idempotent(self, offline):
-        competitor = Competitor(player(1), offline)
-        assert competitor.resolve() is competitor.resolve()
-
-
 class TestRejectedPayloads:
     @pytest.mark.parametrize("cls,bad", [
         (Competitor, "nonsense"),

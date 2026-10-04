@@ -42,11 +42,6 @@ def test_the_same_team_is_equal_however_it_is_reached(offline):
     assert Competitor(team(1644, "PSG", type=0), offline) == Team(team(1644, "PSG", type=0), offline)
 
 
-def test_resolve_returns_the_competitor_itself(offline):
-    competitor = Competitor(sabalenka(), offline)
-    assert competitor.resolve() is competitor
-
-
 def test_a_team_refuses_a_person(offline):
     with pytest.raises(ValueError, match="describes an athlete"):
         Team(sabalenka(), offline)
