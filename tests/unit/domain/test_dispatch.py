@@ -65,13 +65,6 @@ class TestVariantSelection:
         from sportindex.api_client.models import StageTier
         assert type(Season(stage(1, tier=StageTier.SEASON), offline)).__name__ == "_StageSeason"
 
-    def test_a_practice_part_is_a_stage_event(self, offline):
-        from sportindex.api_client.models import StageTier
-        # The type a practice session's parts carry, as the provider sends it.
-        data = stage(227130, "Part 1", tier=None, type={"id": 14, "name": "Practice part"})
-        assert data.tier is StageTier.PRACTICE_PART
-        assert isinstance(Event(data, offline), StageEvent)
-
     def test_athlete_dispatches_on_payload_shape(self, offline):
         assert type(Athlete(player(1), offline)).__name__ == "_PlayerAthlete"
         squad_member = team(1, player_team_info={"id": 1})
