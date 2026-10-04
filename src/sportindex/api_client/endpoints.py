@@ -87,6 +87,7 @@ ENDPOINTS: dict[str, str | Endpoint] = {
     "event-incidents": f"{BASE_API_URL}/event/{{event_id}}/incidents",
     "event-statistics": f"{BASE_API_URL}/event/{{event_id}}/statistics",
     "event-graph": f"{BASE_API_URL}/event/{{event_id}}/graph",
+    "event-point-by-point": f"{BASE_API_URL}/event/{{event_id}}/point-by-point",
     "event-channels": f"{BASE_API_URL}/tv/event/{{event_id}}/country-channels",
     "event-h2h-history": f"{BASE_API_URL}/event/{{event_custom_id}}/h2h/events",
     "scheduled-events": f"{BASE_API_URL}/sport/{{sport}}/scheduled-events/{{date}}",

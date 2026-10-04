@@ -18,6 +18,10 @@ from .models import (
     Round,
     Score,
     StageTier,
+    TennisGame,
+    TennisGameScore,
+    TennisPoint,
+    TennisSet,
 )
 from .provider import SofascoreProvider
 
@@ -29,6 +33,10 @@ __all__ = [
     "MatchPeriod",
     "PeriodStats",
     "MomentumPoint",
+    "TennisPoint",
+    "TennisGameScore",
+    "TennisGame",
+    "TennisSet",
     "Promotion",
     "StageTier",
     "EventStatus",
