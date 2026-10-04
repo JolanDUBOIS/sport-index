@@ -9,6 +9,7 @@ from curl_cffi.requests.exceptions import RequestException
 from sportindex.exceptions import (
     ChallengeError,
     FetchError,
+    NetworkError,
     ProviderError,
     ProviderNotFoundError,
     RateLimitError,
@@ -77,6 +78,8 @@ class Fetcher:
 
         last_status = None
         last_body = ""
+        last_network_error = None
+        any_response = False
         logger.info(f"Fetching URL: {url}")
 
         for retry in range(max_retries):
@@ -84,6 +87,7 @@ class Fetcher:
 
             try:
                 response = self._scraper.get(url, params=params)
+                any_response = True
                 self._record_response(url, params, response)
                 last_status = response.status_code
                 last_body = response.text[:200]
@@ -104,12 +108,18 @@ class Fetcher:
             except RequestException as e:
                 logger.warning(f"Network error: {e}. Retrying in {next_delay:.1f}s...")
                 last_status = None
+                last_network_error = e
 
             # Once the last attempt is spent there is nothing left to back off for.
             if retry < max_retries - 1:
                 time.sleep(next_delay)
 
         logger.error(f"Failed to fetch URL: {url} after {max_retries} attempts (last status: {last_status}).")
+        if not any_response:
+            raise NetworkError(
+                f"Could not reach the provider for URL: {url} after {max_retries} attempts. "
+                f"Last error: {last_network_error}"
+            )
         if last_status == 429:
             raise RateLimitError(f"Rate limited (429) after {max_retries} attempts for URL: {url}.")
         raise FetchError(

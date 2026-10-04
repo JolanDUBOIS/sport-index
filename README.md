@@ -234,7 +234,7 @@ from sportindex.exceptions import (
 
 ### Semantics
 
-* **Provider-level errors**: `ProviderNotFoundError` (404), `RateLimitError` (429), `FetchError` (network), `ChallengeError` (403 bot challenge), `NetworkError` (timeouts), `ParseError` (parsing).
+* **Provider-level errors**: `ProviderNotFoundError` (404), `RateLimitError` (429), `FetchError` (any other failed fetch), `NetworkError` (provider unreachable on every attempt: connection, DNS, timeouts; a subclass of `FetchError`), `ChallengeError` (403 bot challenge), `ParseError` (parsing).
 * **Domain-level errors**: `EntityNotFoundError`, `InsufficientDataError`, `DomainError`.
 
 `ChallengeError` is worth catching separately: it means the provider challenged the request rather than refusing it, which in practice means the traffic left from a VPN or datacenter IP range. Retrying will not clear it — the fix is to run from an ordinary connection.
