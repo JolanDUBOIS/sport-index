@@ -19,7 +19,7 @@ from sportindex.exceptions import (
     ProviderNotFoundError,
     RateLimitError,
 )
-from sportindex.fetcher import RecordingFetcher
+from sportindex.fetcher import Fetcher, RecordingFetcher
 
 URL = "https://api.example.test/api/v1/team/44"
 
@@ -194,6 +194,45 @@ def test_retries_stop_backing_off_after_the_final_attempt(make_fetcher):
         fetcher.fetch_url(URL, max_retries=1, retry_delay=30, initial_delay=0)
 
     assert time.monotonic() - started < 1
+
+
+# ===== Response cache =====
+
+@pytest.fixture
+def clock(monkeypatch):
+    """A monotonic clock the test moves by hand, so expiry needs no real waiting."""
+    now = [1000.0]
+    monkeypatch.setattr("sportindex.fetcher.main.time.monotonic", lambda: now[0])
+    return now
+
+
+def caching_fetcher(ttl: float, *responses: Response) -> Fetcher:
+    fetcher = Fetcher(cache_ttl=ttl)
+    fetcher._sessions.session = _FakeSession(*responses)
+    return fetcher
+
+
+def test_cached_response_is_served_until_it_expires(clock):
+    fetcher = caching_fetcher(900, _response(200, '{"n": 1}'), _response(200, '{"n": 2}'))
+
+    assert fetcher.fetch_url(URL, initial_delay=0).json() == {"n": 1}
+    clock[0] += 899
+    assert fetcher.fetch_url(URL, initial_delay=0).json() == {"n": 1}
+    assert fetcher._sessions.session.calls == 1
+
+    clock[0] += 1
+    assert fetcher.fetch_url(URL, initial_delay=0).json() == {"n": 2}
+    assert fetcher._sessions.session.calls == 2
+
+
+def test_only_successful_responses_are_cached(clock):
+    fetcher = caching_fetcher(900, _response(404))
+
+    for _ in range(2):
+        with pytest.raises(ProviderNotFoundError):
+            fetcher.fetch_url(URL, initial_delay=0)
+
+    assert fetcher._sessions.session.calls == 2
 
 
 # ===== Sessions =====
