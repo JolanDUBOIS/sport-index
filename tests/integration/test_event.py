@@ -30,7 +30,7 @@ def test_event(provider: SofascoreProvider):
     assert event.season.id == "trnc:7:trns:76953"
     assert event.venue.id == "vnu:843"
     assert event.score.home == 5 and event.score.away == 2
-    assert event.winner.id == "t-cpt:1644"
+    assert event.winner.id == "team:1644"
     assert len(event.periods) == 2
     assert all(isinstance(period, sportindex.MatchPeriod) for period in event.periods)
     assert isinstance(event.lineups, sportindex.MatchLineups) or event.lineups is None
@@ -41,7 +41,7 @@ def test_event(provider: SofascoreProvider):
     assert all(isinstance(point, sportindex.MomentumPoint) for point in event.momentum_graph)
     assert len(event.h2h) > 0
     assert isinstance(event.h2h, sportindex.EventCollection)
-    assert all(h2h_event.competitors.home.id == "t-cpt:1644" or h2h_event.competitors.away.id == "t-cpt:1644" for h2h_event in event.h2h)
+    assert all(h2h_event.competitors.home.id == "team:1644" or h2h_event.competitors.away.id == "team:1644" for h2h_event in event.h2h)
     assert all(isinstance(channel, sportindex.Channel) for channel in event.get_channels("FR"))
 
     # Stage Event

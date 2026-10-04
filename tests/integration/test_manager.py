@@ -17,7 +17,7 @@ def test_manager(provider: SofascoreProvider):
     assert manager.short_name == "L. Enrique"
     assert manager.sport.id == "spt:1"
     assert manager.country.alpha3 == "ESP"
-    assert manager.team.id == "t-cpt:1644"
+    assert manager.team.id == "team:1644"
     assert len(manager.performances) > 0
     assert all(isinstance(perf, sportindex.ManagerTenure) for perf in manager.performances)
     assert len(manager.get_fixtures()) == 0

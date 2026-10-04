@@ -47,7 +47,7 @@ class TestNamespaceResolution:
     @pytest.mark.parametrize("entity_id,expected", [
         ("vnu:1", "venue"), ("stgv:1", "venue"),
         ("trnc:1", "competition"), ("stgc:1", "competition"),
-        ("t-cpt:1", "competitor"), ("p-cpt:1", "competitor"),
+        ("team:1", "competitor"), ("t-ath:1", "competitor"), ("p-ath:1", "competitor"),
         ("mch:1", "event"), ("stg:1", "event"),
     ])
     def test_a_class_inferred_from_an_id_lands_in_the_public_namespace(self, cache_client, entity_id, expected):
@@ -56,7 +56,7 @@ class TestNamespaceResolution:
         assert cache_client._resolve_ns(inferred) == expected
 
     def test_no_namespace_is_ever_a_private_class_name(self, cache_client):
-        for entity_id in ("vnu:1", "stgv:1", "trnc:1", "stgc:1", "t-cpt:1", "p-cpt:1"):
+        for entity_id in ("vnu:1", "stgv:1", "trnc:1", "stgc:1", "team:1", "t-ath:1", "p-ath:1"):
             ns = cache_client._resolve_ns(IdentifiableEntity.resolve_class(entity_id))
             assert not ns.startswith("_")
             assert ns in SportClient.CACHE_NAMESPACES
