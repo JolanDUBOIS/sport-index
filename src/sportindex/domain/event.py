@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Generic, overload
+from typing import TYPE_CHECKING, Generic, Self, overload
 
 import pycountry
 from pydantic import ValidationError
@@ -17,7 +17,7 @@ from sportindex.exceptions import (
     ProviderNotFoundError,
 )
 
-from .base import DomainModel, IdentifiableEntity
+from .base import DomainModel, SearchableMixin
 from .collections import EntityCollection, EventCollection
 
 if TYPE_CHECKING:
@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     )
 
     from .channel import Channel
+    from .collections import ScoredEntityCollection
     from .competition import Competition
     from .competitor import Athlete, Competitor
     from .core import Sport
@@ -51,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 # ===== Event entity =====
 
-class Event(IdentifiableEntity):
+class Event(SearchableMixin):
     """Something that happens at a point in time — a football match, a tennis match, a race.
 
     The common base of the two event kinds. Instantiating `Event` returns whichever the
@@ -83,18 +84,24 @@ class Event(IdentifiableEntity):
         get_channels(country: str) -> EntityCollection[Channel]: The TV channels broadcasting
             this event in `country`, given as a name, alpha-2 or alpha-3 code. Empty when the
             event is not broadcast there or no broadcast data exists.
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Event]:
+            Matches and stages matching `query`, each with its relevance score, capped at
+            `max_results`. Called on `MatchEvent` or `StageEvent`, only that kind is
+            returned. (classmethod)
         from_id(entity_id: str, provider: SofascoreProvider) -> Event: The event with this SDK
             ID; the prefix decides whether a `MatchEvent` or `StageEvent` is built.
             (classmethod, inherited from IdentifiableEntity)
 
     Raises:
         TypeError: If constructed with data that is neither `_EventData` nor `_StageData`.
-        ValueError: If `get_channels` is given a country string that matches no ISO 3166-1 record.
+        ValueError: If `get_channels` is given a country string that matches no ISO 3166-1 record,
+            or if `search` is given an empty query.
         EntityNotFoundError: If `from_id` names an event the provider does not have.
         DomainError: If the provider fails with a network or transport error.
     """
     _data: _EventData | _StageData
     _REPR_FIELDS = ("id", "name", "slug", "start")
+    _SEARCH_PAYLOADS: tuple[type, ...] = (_EventData, _StageData)
 
     @overload
     def __new__(cls, data: _EventData, provider: SofascoreProvider, **kwargs) -> MatchEvent: ...
@@ -204,6 +211,18 @@ class Event(IdentifiableEntity):
         """Fetch all channels broadcasting this event, organized by country."""
         raise NotImplementedError("Method _get_all_channels must be implemented in subclasses")
 
+    @classmethod
+    def search(cls, query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[Self]:
+        """Search for events matching the given query, returning up to max_results results."""
+        cls._validate_query(query)
+        return cls._paginate_search(
+            query=query,
+            provider=provider,
+            search_func=provider.search_all,
+            valid_types=cls._SEARCH_PAYLOADS,
+            max_results=max_results
+        )
+
 
 class MatchEvent(Event):
     """A match between two competitors — a football fixture, a tennis match, an MMA bout.
@@ -243,6 +262,9 @@ class MatchEvent(Event):
     Methods:
         get_channels(country: str) -> EntityCollection[Channel]: The TV channels broadcasting
             this match in `country`. (inherited from Event)
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[MatchEvent]:
+            Matches matching `query`, each with its relevance score. (classmethod, inherited
+            from Event)
         from_id(entity_id: str, provider: SofascoreProvider) -> MatchEvent: The match with this
             SDK ID. (classmethod, inherited from IdentifiableEntity)
 
@@ -254,6 +276,7 @@ class MatchEvent(Event):
     _data: _EventData
     _PREFIX: str = "mch"
     _REPR_FIELDS = ("id", "name", "slug", "round", "start")
+    _SEARCH_PAYLOADS: tuple[type, ...] = (_EventData,)
 
     def __init__(self, data: _EventData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
@@ -459,6 +482,10 @@ class StageEvent(Event):
     Methods:
         get_channels(country: str) -> EntityCollection[Channel]: The TV channels broadcasting
             this stage in `country`. (inherited from Event)
+        search(query: str, provider: SofascoreProvider, max_results: int = 20) -> ScoredEntityCollection[StageEvent]:
+            Stages matching `query`, each with its relevance score. The provider's search
+            returns event-level stages, such as a Grand Prix or a race, one per edition.
+            (classmethod, inherited from Event)
         from_id(entity_id: str, provider: SofascoreProvider) -> StageEvent: The stage with this
             SDK ID. (classmethod, inherited from IdentifiableEntity)
 
@@ -472,6 +499,7 @@ class StageEvent(Event):
     _data: _StageData
     _PREFIX: str = "stg"
     _REPR_FIELDS = ("id", "name", "slug", "tier", "start", "end")
+    _SEARCH_PAYLOADS: tuple[type, ...] = (_StageData,)
 
     def __init__(self, data: _StageData, provider: SofascoreProvider, **kwargs) -> None:
         super().__init__(data, provider, **kwargs)
