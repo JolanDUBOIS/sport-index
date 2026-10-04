@@ -311,14 +311,18 @@ class MatchEvent(Event):
     @cached_property
     def competition(self) -> Competition | None:
         """The competition this event belongs to, if available."""
-        self._full_load()
+        # Event lists already carry the tournament, so the full event is fetched only when
+        # the payload this event was built from lacks it.
+        if not self._has_unique_tournament():
+            self._full_load()
         from .competition import Competition
-        return Competition(self._data.tournament.unique_tournament, self._provider) if self._data.tournament and self._data.tournament.unique_tournament else None
+        return Competition(self._data.tournament.unique_tournament, self._provider) if self._has_unique_tournament() else None
 
     @cached_property
     def season(self) -> Season | None:
         """The season this event belongs to."""
-        self._full_load()
+        if not (self._data.season and self._has_unique_tournament()):
+            self._full_load()
         from .season import Season
         return Season(
             self._data.season,
@@ -345,7 +349,10 @@ class MatchEvent(Event):
     @cached_property
     def venue(self) -> Venue | None:
         """The venue where this event takes place, if available."""
-        self._full_load()
+        # A competition's event list carries the venue, a team's does not. After a full load
+        # a missing venue means the event has none, and _full_load does not fetch twice.
+        if self._data.venue is None:
+            self._full_load()
         if self._data.venue is None:
             return None
         from .venue import Venue
@@ -458,6 +465,10 @@ class MatchEvent(Event):
             logger.debug(f"H2H history not found for event {self.id}.")
             return EventCollection()
 
+    def _has_unique_tournament(self) -> bool:
+        """Whether the payload held so far names the competition this event belongs to."""
+        return bool(self._data.tournament and self._data.tournament.unique_tournament)
+
     def _get_all_channels(self) -> dict[str, list[int]]:
         """Fetch all channels broadcasting this event, organized by country."""
         return self._provider.get_event_channels(self._data.id).channels
@@ -543,7 +554,8 @@ class StageEvent(Event):
     @cached_property
     def tier(self) -> StageTier | None:
         """The category of the stage event, if the provider states it."""
-        self._full_load()
+        if self._data.tier is None:
+            self._full_load()
         return self._data.tier
 
     @property
@@ -554,14 +566,16 @@ class StageEvent(Event):
     @cached_property
     def competition(self) -> Competition | None:
         """The competition this event belongs to, if available."""
-        self._full_load()
+        if self._data.unique_stage is None:
+            self._full_load()
         from .competition import Competition
         return Competition(self._data.unique_stage, self._provider) if self._data.unique_stage else None
 
     @cached_property
     def _parent(self) -> StageEvent | Season | None:
         """The parent stage or season of this stage, if available."""
-        self._full_load()
+        if self._data.parent is None:
+            self._full_load()
         if not self._data.parent:
             return None
 
