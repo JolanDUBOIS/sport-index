@@ -34,12 +34,12 @@ class EntityCollection(UserList[EntityT]):
     uniqueness; the set operators build new collections rather than mutating.
 
     Methods:
-        add(item: EntityT) -> None: Append `item` unless an equal entity is already present.
-        update(other: Iterable[EntityT]) -> None: Merge `other` in, keeping first occurrences.
-        get(*, strict: bool = False, **kwargs) -> EntityT | None: The first entity whose
+        add(item: IdentifiableEntity) -> None: Append `item` unless an equal entity is already present.
+        update(other: Iterable[IdentifiableEntity]) -> None: Merge `other` in, keeping first occurrences.
+        get(*, strict: bool = False, **kwargs) -> IdentifiableEntity | None: The first entity whose
             attributes all match the given keyword filters, e.g. `get(name="Ligue 1")`. None
             when nothing matches, unless `strict` is True.
-        search(query: str, *, by: str = "name") -> EntityCollection[EntityT]: A new collection
+        search(query: str, *, by: str = "name") -> EntityCollection[IdentifiableEntity]: A new collection
             of the entities whose `by` attribute contains `query`, case-insensitively.
         __add__(other) / __or__(other) -> EntityCollection: A new collection holding this one's
             entities followed by `other`'s, duplicates dropped.
@@ -165,7 +165,7 @@ class EntityCollection(UserList[EntityT]):
             **kwargs: Attribute filters to match against the entities in the collection.
 
         Returns:
-            I | None: The matching entity if found, otherwise None (if strict is False).
+            IdentifiableEntity | None: The matching entity if found, otherwise None (if strict is False).
 
         Raises:
             EntityNotFoundError: If strict is True and no matching entity is found.
@@ -192,7 +192,7 @@ class EntityCollection(UserList[EntityT]):
             by (str): The attribute name to search by (default is "name").
 
         Returns:
-            EntityCollection[I]: A new collection containing entities that match the search query.
+            EntityCollection[IdentifiableEntity]: A new collection containing entities that match the search query.
 
         Example:
             results = managers.search("zidane")  # Searches by name by default
@@ -218,12 +218,12 @@ class ScoredEntityCollection(EntityCollection[EntityT]):
 
     Methods:
         get_score(entity_id: str) -> float: The score recorded for that entity's SDK ID.
-        sort_by_score(descending: bool = True) -> ScoredEntityCollection[EntityT]: A new
+        sort_by_score(descending: bool = True) -> ScoredEntityCollection[IdentifiableEntity]: A new
             collection ordered by score, best first by default.
-        filter_by_score(min_score: float | None = None, max_score: float | None = None) -> ScoredEntityCollection[EntityT]:
+        filter_by_score(min_score: float | None = None, max_score: float | None = None) -> ScoredEntityCollection[IdentifiableEntity]:
             A new collection holding only the entities whose score falls within the bounds
             given; an omitted bound is unbounded.
-        to_collection() -> EntityCollection[EntityT]: The same entities in the same order as a
+        to_collection() -> EntityCollection[IdentifiableEntity]: The same entities in the same order as a
             plain, mutable `EntityCollection`, scores discarded.
         merge(*collections: ScoredEntityCollection[IdentifiableEntity]) -> ScoredEntityCollection[IdentifiableEntity]:
             One collection holding every entity across the inputs, each keeping its highest
@@ -360,11 +360,11 @@ class EventCollection(EntityCollection[E]):
     date filter drops undated events, and a date sort puts them last.
 
     Methods:
-        filter_by_date(*, before: date | datetime | None = None, after: date | datetime | None = None) -> EventCollection[E]:
+        filter_by_date(*, before: date | datetime | None = None, after: date | datetime | None = None) -> EventCollection[Event]:
             Only the events starting strictly before `before` and strictly after `after`. A
             bare date counts as midnight at its start. An omitted bound is unbounded. Undated
             events satisfy no bound and are dropped whenever one is given.
-        sort_by_date(ascending: bool = True) -> EventCollection[E]: The same events ordered by
+        sort_by_date(ascending: bool = True) -> EventCollection[Event]: The same events ordered by
             start time, oldest first by default, with undated events last in either direction.
         filter_by_competitors(competitor_ids: list[str]) -> EventCollection[MatchEvent]: Only
             the match events with one of the given competitor SDK IDs on either side. Stage
