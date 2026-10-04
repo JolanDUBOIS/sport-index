@@ -32,6 +32,7 @@ class StageTier(IntEnum):
     SPRINT_RACE = 10
     # TODO - Find 11
     SPRINT_QUALIFYING = 12
+    PRACTICE_PART = 14
 
     @classmethod
     def from_payload(cls, value: Any) -> Any:
