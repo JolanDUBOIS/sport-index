@@ -66,7 +66,7 @@ from sportindex import Competitor, Manager, Referee, Venue
 
 # Find a team directly
 competitors = client.search(Competitor, "Paris Saint-Germain")
-team = competitors[0]                    # a Competitor is already a Team or an Athlete
+team = competitors[0]
 print(team.name, len(team.get_results()), team.manager)
 
 # Search for staff or venues
