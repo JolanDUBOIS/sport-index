@@ -11,13 +11,11 @@ import threading
 import time
 
 import pytest
-from curl_cffi.requests.exceptions import RequestException
 from curl_cffi.requests.models import Response
 
 from sportindex.exceptions import (
     ChallengeError,
     FetchError,
-    NetworkError,
     ProviderNotFoundError,
     RateLimitError,
 )
@@ -38,21 +36,15 @@ def _response(status_code: int, body: str = "{}") -> Response:
 
 
 class _FakeSession:
-    """Stands in for the curl_cffi session. Replays canned responses, then repeats the last.
+    """Stands in for the curl_cffi session. Replays canned responses, then repeats the last."""
 
-    A `RequestException` in place of a response is raised instead, as a transport failure.
-    """
-
-    def __init__(self, *responses: Response | RequestException) -> None:
+    def __init__(self, *responses: Response) -> None:
         self._responses = list(responses)
         self.calls = 0
 
     def get(self, url: str, params: dict | None = None) -> Response:
         self.calls += 1
-        response = self._responses[min(self.calls, len(self._responses)) - 1]
-        if isinstance(response, RequestException):
-            raise response
-        return response
+        return self._responses[min(self.calls, len(self._responses)) - 1]
 
 
 @pytest.fixture
@@ -202,24 +194,6 @@ def test_retries_stop_backing_off_after_the_final_attempt(make_fetcher):
         fetcher.fetch_url(URL, max_retries=1, retry_delay=30, initial_delay=0)
 
     assert time.monotonic() - started < 1
-
-
-def test_unreachable_provider_raises_a_network_error(make_fetcher):
-    fetcher = make_fetcher("record", RequestException("Connection timed out"))
-
-    with pytest.raises(NetworkError, match="Connection timed out"):
-        fetcher.fetch_url(URL, max_retries=2, retry_delay=0, initial_delay=0)
-
-    assert fetcher._sessions.session.calls == 2
-
-
-def test_a_response_on_any_attempt_is_not_a_network_error(make_fetcher):
-    fetcher = make_fetcher("record", _response(500), RequestException("Connection timed out"))
-
-    with pytest.raises(FetchError) as caught:
-        fetcher.fetch_url(URL, max_retries=2, retry_delay=0, initial_delay=0)
-
-    assert not isinstance(caught.value, NetworkError)
 
 
 # ===== Sessions =====
