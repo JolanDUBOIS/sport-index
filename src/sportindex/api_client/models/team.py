@@ -51,6 +51,7 @@ class _TeamData(BaseSchema):
     category: _CategoryData | None = None
     country: _CountryData | None = None
     national: bool | None = None
+    type: int | None = None             # 0 team, 1 individual athlete, 2 doubles pair
     disabled: bool | None = None
     ranking: int | None = None
     tournament: _TournamentData | None = None

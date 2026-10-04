@@ -29,6 +29,7 @@ from .models import (
     _LineupsResponse,
     _ManagerData,
     _MomentumGraphResponse,
+    _NearEventsResponse,
     _PlayerData,
     _RacingStandingsData,
     _RankingsResponse,
@@ -189,6 +190,11 @@ class SofascoreProvider:
         """Fetch recent results for a team."""
         url = self._format("team-results", team_id=team_id, page=page)
         return _EventsResponse.model_validate(self._fetch(url))
+
+    def get_team_near_events(self, team_id: int) -> _NearEventsResponse:
+        """Fetch a team's previous and next event."""
+        url = self._format("team-near-events", team_id=team_id)
+        return _NearEventsResponse.model_validate(self._fetch(url))
 
     def get_team_players(self, team_id: int) -> TeamPlayers:
         """Fetch players for a team."""

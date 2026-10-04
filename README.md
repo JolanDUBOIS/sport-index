@@ -127,16 +127,17 @@ A cycling race such as the Tour de France is an event, not a competition: its co
 * `event.competition`, `event.season`, `event.competitors`, `event.lineups`, `event.statistics`, `event.h2h`
 * `competitor.get_results()`, `competitor.get_fixtures()`, `competitor.country`, `competitor.sport`
 
-A `Competitor` is the lightweight "side of an event" view. Call `resolve()` to trade it for the richer `Team` or `Athlete`, which is where squad and staff data lives:
+A `Competitor` is always a `Team` or an `Athlete`, decided from the provider's own data the moment it is built, so a side of a match, a standings row and a search result are all the same entity with the same ID:
 
 ```python
-competitor = client.search(Competitor, "Paris Saint-Germain")[0]
-team = competitor.resolve()          # -> Team
+team = client.search(Competitor, "Paris Saint-Germain")[0]          # -> Team
 print(team.players, team.manager, team.venue)
 
-athlete = client.search(Competitor, "Ousmane Dembélé")[0].resolve()   # -> Athlete
+athlete = client.search(Competitor, "Ousmane Dembélé")[0]           # -> Athlete
 print(athlete.first_name, athlete.last_name, athlete.info)
 ```
+
+The classification reads the `type` field the provider sets on each team-shaped record: 0 for a club or national team, 1 for an individual (a tennis player, a driver, a rider, a fighter), 2 for a doubles pair, which is treated as a team. The provider does not document these values; they are inferred from its payloads.
 
 This **graph-like navigation** is the core of `sport-index`.
 

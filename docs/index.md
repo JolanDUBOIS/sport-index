@@ -66,7 +66,7 @@ from sportindex import Competitor, Manager, Referee, StageEvent, Venue
 
 # Find a team directly
 competitors = client.search(Competitor, "Paris Saint-Germain")
-team = competitors[0].resolve()          # Competitor -> Team
+team = competitors[0]
 print(team.name, len(team.get_results()), team.manager)
 
 # Find a race: each edition of the Tour de France is a StageEvent
