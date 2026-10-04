@@ -1281,7 +1281,7 @@ wheels = [
 
 [[package]]
 name = "sport-index"
-version = "1.0.0"
+version = "2.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },

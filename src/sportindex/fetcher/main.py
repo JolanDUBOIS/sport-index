@@ -93,7 +93,9 @@ class Fetcher:
 
                 if not self._is_retryable(response):
                     error = self._error_for_status(url, response)
-                    logger.error(f"Not retrying {url}: {error}")
+                    # A 404 is an ordinary answer ("no such data"), which callers handle.
+                    level = logging.DEBUG if last_status == 404 else logging.ERROR
+                    logger.log(level, f"Not retrying {url}: {error}")
                     raise error
 
                 reason = _RETRY_REASONS.get(last_status, f"Server error (HTTP {last_status})")
