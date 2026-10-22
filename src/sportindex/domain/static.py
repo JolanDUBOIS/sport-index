@@ -56,12 +56,19 @@ SPORTS_REGISTRY: Final[tuple[SportEntry, ...]] = (
     SportEntry(109, "minifootball", "Minifootball"),
 )
 
-# Words marking a stage as a women's event in its text — the provider gives stages no gender.
-# Each is matched at the start of a word, so "women" also covers "Women's" and "womens".
-WOMEN_STAGE_MARKERS: Final[tuple[str, ...]] = (
-    "femmes",       # Tour de France Femmes
-    "women",        # Cycling Women
-)
+# Mapping: gender → words marking a stage as that gender's event in its text, since the
+# provider gives stages no gender. Each is matched as a whole word, optionally followed by
+# "s" or "'s", so "men" covers "Men's" but not "Menton", and "women" covers "womens".
+STAGE_GENDER_MARKERS: Final[dict[Gender, tuple[str, ...]]] = {
+    Gender.MALE: (
+        "men",          # Cycling Men
+        "hommes",       # French counterpart of "femmes"
+    ),
+    Gender.FEMALE: (
+        "women",        # Cycling Women
+        "femmes",       # Tour de France Femmes
+    ),
+}
 
 # Mapping: sport slug → list of (ranking_id, gender | None)
 SPORT_RANKINGS: dict[str, list[tuple[int, Gender]]] = {
