@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from .collections import ScoredEntityCollection
     from .competition import Competition
     from .competitor import Athlete, Competitor
-    from .core import Sport
+    from .core import Category, Sport
     from .incident import Incident
     from .leaderboard import Standings
     from .referee import Referee
@@ -508,10 +508,15 @@ class StageEvent(Event):
             and teams — each empty if the provider publishes nothing for it.
         venue (Venue): The circuit or course, derived from the stage itself rather than
             looked up separately. Never None, though its fields may be empty.
+        category (Category | None): The category the stage sits under, e.g. "Formula 1" or
+            "Formula 2", which tells apart same-named stages of different series. A stage found
+            by search knows it without a request; otherwise it comes from the competition.
+        sport (Sport | None): The sport this stage belongs to, read through `category`, or
+            through the season when the category is unknown.
         id (str): Globally unique SDK ID, of the form "stg:<id>". (inherited from Event)
         start (datetime | None): When the stage begins. None for a stage the provider has not
             yet dated — a common case for future rounds. (inherited from Event)
-        name, slug, status, sport, competition, season, winner: See `Event`.
+        name, slug, status, competition, season, winner: See `Event`.
         source (_StageData): The parsed payload backing this entity. (inherited from BaseEntity)
 
     Methods:
@@ -570,6 +575,21 @@ class StageEvent(Event):
             self._full_load()
         from .competition import Competition
         return Competition(self._data.unique_stage, self._provider) if self._data.unique_stage else None
+
+    @cached_property
+    def category(self) -> Category | None:
+        """The category this stage sits under, e.g. 'Formula 1', if available."""
+        # Search results carry the category on the stage itself, so the competition is loaded
+        # only when the payload this stage was built from lacks it.
+        if self._data.category is None:
+            return self.competition.category if self.competition else None
+        from .core import Category
+        return Category(self._data.category, self._provider)
+
+    @property
+    def sport(self) -> Sport | None:
+        """The sport this stage belongs to, read through its category."""
+        return self.category.sport if self.category else super().sport
 
     @cached_property
     def _parent(self) -> StageEvent | Season | None:

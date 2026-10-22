@@ -111,6 +111,8 @@ class _StageData(BaseSchema):
     year: str | None = None
     season_stage_name: str | None = None
     unique_stage: _UniqueStageData | None = None
+    # Only search results carry the category on the stage itself; other payloads hold it under unique_stage.
+    category: _CategoryData | None = None
     tier: StageTierField | None = Field(default=None, alias="type")
     status: EventStatus | None = None
     flag: str | None = None
