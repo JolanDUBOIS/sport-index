@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING, Generic, Self, overload
@@ -19,6 +20,7 @@ from sportindex.exceptions import (
 
 from .base import DomainModel, SearchableMixin
 from .collections import EntityCollection, EventCollection
+from .static import STAGE_GENDER_MARKERS
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -41,7 +43,8 @@ if TYPE_CHECKING:
     from .collections import ScoredEntityCollection
     from .competition import Competition
     from .competitor import Athlete, Competitor
-    from .core import Sport
+    from .core import Category, Sport
+    from .enums import Gender
     from .incident import Incident
     from .leaderboard import Standings
     from .referee import Referee
@@ -49,6 +52,11 @@ if TYPE_CHECKING:
     from .venue import Venue
 
 logger = logging.getLogger(__name__)
+
+_GENDER_MARKERS = {
+    gender: re.compile(r"\b(?:" + "|".join(map(re.escape, markers)) + r")(?:'?s)?\b", re.IGNORECASE)
+    for gender, markers in STAGE_GENDER_MARKERS.items()
+}
 
 
 # ===== Event entity =====
@@ -508,10 +516,21 @@ class StageEvent(Event):
             and teams — each empty if the provider publishes nothing for it.
         venue (Venue): The circuit or course, derived from the stage itself rather than
             looked up separately. Never None, though its fields may be empty.
+        category (Category | None): The category the stage sits under, e.g. "Formula 1" or
+            "Formula 2", which tells apart same-named stages of different series. A stage found
+            by search knows it without a request; otherwise it comes from the competition.
+        sport (Sport | None): The sport this stage belongs to, read through `category`, or
+            through the season when the category is unknown.
+        gender (Gender | None): Gender.MALE or Gender.FEMALE when the stage's name or slug,
+            or the name of its competition when the payload carries it, holds a marker of
+            that gender only — "Men", "Hommes", "Women", "Femmes"; None when it holds neither or both.
+            A heuristic on the text, read without a request: the provider gives stages no
+            gender. None means "the text does not say", never a default to either gender —
+            many races of both are named without a marker ("Tour de France").
         id (str): Globally unique SDK ID, of the form "stg:<id>". (inherited from Event)
         start (datetime | None): When the stage begins. None for a stage the provider has not
             yet dated — a common case for future rounds. (inherited from Event)
-        name, slug, status, sport, competition, season, winner: See `Event`.
+        name, slug, status, competition, season, winner: See `Event`.
         source (_StageData): The parsed payload backing this entity. (inherited from BaseEntity)
 
     Methods:
@@ -551,6 +570,16 @@ class StageEvent(Event):
         """The name of the stage event."""
         return self._data.name or self._data.slug.replace("-", " ").title()
 
+    @property
+    def gender(self) -> Gender | None:
+        """The gender the stage's text marks it as, or None when it does not say."""
+        texts = [self._data.name, self._data.slug]
+        # The competition ("Cycling Men", "Cycling Women") is read only when the payload already carries it.
+        if self._data.unique_stage:
+            texts.append(self._data.unique_stage.name)
+        marked = [g for g, pattern in _GENDER_MARKERS.items() if any(pattern.search(t) for t in texts if t)]
+        return marked[0] if len(marked) == 1 else None
+
     @cached_property
     def tier(self) -> StageTier | None:
         """The category of the stage event, if the provider states it."""
@@ -570,6 +599,21 @@ class StageEvent(Event):
             self._full_load()
         from .competition import Competition
         return Competition(self._data.unique_stage, self._provider) if self._data.unique_stage else None
+
+    @cached_property
+    def category(self) -> Category | None:
+        """The category this stage sits under, e.g. 'Formula 1', if available."""
+        # Search results carry the category on the stage itself, so the competition is loaded
+        # only when the payload this stage was built from lacks it.
+        if self._data.category is None:
+            return self.competition.category if self.competition else None
+        from .core import Category
+        return Category(self._data.category, self._provider)
+
+    @property
+    def sport(self) -> Sport | None:
+        """The sport this stage belongs to, read through its category."""
+        return self.category.sport if self.category else super().sport
 
     @cached_property
     def _parent(self) -> StageEvent | Season | None:
