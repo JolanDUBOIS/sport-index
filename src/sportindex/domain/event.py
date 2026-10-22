@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING, Generic, Self, overload
@@ -19,6 +20,7 @@ from sportindex.exceptions import (
 
 from .base import DomainModel, SearchableMixin
 from .collections import EntityCollection, EventCollection
+from .static import STAGE_GENDER_MARKERS
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -42,6 +44,7 @@ if TYPE_CHECKING:
     from .competition import Competition
     from .competitor import Athlete, Competitor
     from .core import Category, Sport
+    from .enums import Gender
     from .incident import Incident
     from .leaderboard import Standings
     from .referee import Referee
@@ -49,6 +52,11 @@ if TYPE_CHECKING:
     from .venue import Venue
 
 logger = logging.getLogger(__name__)
+
+_GENDER_MARKERS = {
+    gender: re.compile(r"\b(?:" + "|".join(map(re.escape, markers)) + r")(?:'?s)?\b", re.IGNORECASE)
+    for gender, markers in STAGE_GENDER_MARKERS.items()
+}
 
 
 # ===== Event entity =====
@@ -513,6 +521,12 @@ class StageEvent(Event):
             by search knows it without a request; otherwise it comes from the competition.
         sport (Sport | None): The sport this stage belongs to, read through `category`, or
             through the season when the category is unknown.
+        gender (Gender | None): Gender.MALE or Gender.FEMALE when the stage's name or slug,
+            or the name of its competition when the payload carries it, holds a marker of
+            that gender only — "Men", "Hommes", "Women", "Femmes"; None when it holds neither or both.
+            A heuristic on the text, read without a request: the provider gives stages no
+            gender. None means "the text does not say", never a default to either gender —
+            many races of both are named without a marker ("Tour de France").
         id (str): Globally unique SDK ID, of the form "stg:<id>". (inherited from Event)
         start (datetime | None): When the stage begins. None for a stage the provider has not
             yet dated — a common case for future rounds. (inherited from Event)
@@ -555,6 +569,16 @@ class StageEvent(Event):
     def name(self) -> str:
         """The name of the stage event."""
         return self._data.name or self._data.slug.replace("-", " ").title()
+
+    @property
+    def gender(self) -> Gender | None:
+        """The gender the stage's text marks it as, or None when it does not say."""
+        texts = [self._data.name, self._data.slug]
+        # The competition ("Cycling Men", "Cycling Women") is read only when the payload already carries it.
+        if self._data.unique_stage:
+            texts.append(self._data.unique_stage.name)
+        marked = [g for g, pattern in _GENDER_MARKERS.items() if any(pattern.search(t) for t in texts if t)]
+        return marked[0] if len(marked) == 1 else None
 
     @cached_property
     def tier(self) -> StageTier | None:
