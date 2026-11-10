@@ -60,5 +60,6 @@ class _TournamentData(BaseSchema):
     id: int
     slug: str
     name: str
+    round_prefix: str | None = None        # e.g. "Qualification": prefix of the rounds played in this tournament
     category: _CategoryData | None = None
     unique_tournament: _UniqueTournamentData | None = None
