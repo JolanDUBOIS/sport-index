@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime  # noqa: TC003
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import Field, ValidationInfo, model_validator
 
@@ -20,10 +20,12 @@ if TYPE_CHECKING:
 # =====================================================================
 
 class Round(BaseSchema):
-    name: str | None = None
-    slug: str | None = None
-    prefix: str | None = None
-    value: int | None = Field(default=None, alias="round")
+    _REPR_FIELDS: ClassVar[tuple[str, ...]] = ("value", "name", "slug", "prefix")
+
+    name: str | None = None                                 # e.g. "Quarterfinals"; None for a matchday
+    slug: str | None = None                                 # e.g. "quarterfinals"; None for a matchday
+    prefix: str | None = None                               # e.g. "Qualification"; tells apart rounds sharing a value and slug
+    value: int | None = Field(default=None, alias="round")  # Matchday number, or the provider's number for a named round
 
 
 class MatchPeriod(BaseSchema):

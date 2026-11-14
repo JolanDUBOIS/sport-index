@@ -244,7 +244,8 @@ class MatchEvent(Event):
 
     Attributes:
         round (Round | None): Which round of the competition this match belongs to, if the
-            provider states it.
+            provider states it. Equal to the matching entry of its season's `rounds`, prefix
+            included.
         referee (Referee | None): The official in charge, if the provider names one.
         competitors (MatchCompetitors): The home and away sides.
         score (Score | None): Home and away scores. None before the match produces one, and
@@ -313,8 +314,15 @@ class MatchEvent(Event):
 
     @property
     def round(self) -> Round | None:
-        """The round of the match event, if available."""
-        return self._data.round
+        """The round of the match event, if available, prefix included."""
+        # The provider states a round's prefix on the match's tournament, not in its round
+        # info. Without it, a qualifying play-off and a knockout play-off share a value and
+        # a slug, and cannot be told apart.
+        round_info = self._data.round
+        prefix = self._data.tournament.round_prefix if self._data.tournament else None
+        if round_info is None or prefix is None or round_info.prefix is not None:
+            return round_info
+        return round_info.model_copy(update={"prefix": prefix})
 
     @cached_property
     def competition(self) -> Competition | None:
